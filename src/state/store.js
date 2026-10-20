@@ -6,9 +6,10 @@ import { generateWorldDatabase, generatePlayer } from '../engine/database.js';
 import { generateLeagueSchedule, computeLeagueTable, generateFinalFourBracket } from '../engine/schedule.js';
 import { calculateSquadChemistry } from '../engine/ratings.js';
 import { calculateMatchdayFinances } from '../engine/economy.js';
-import { saveGameState, loadGameState, clearGameState } from './storage.js';
+import { saveGameState, loadGameState, clearGameState, loadSlot, saveSlot, deleteSlot, getActiveSlotId, setActiveSlotId } from './storage.js';
 import { TACTIC_CARDS } from '../engine/duel.js';
 import { CONSUMABLE_CARDS } from '../engine/packs.js';
+import { setSoundEnabled } from '../engine/audio.js';
 
 class GameStore {
   constructor() {
@@ -34,18 +35,45 @@ class GameStore {
 
   async init() {
     const saved = await loadGameState();
-    if (saved && saved.club) {
+    if (saved && saved.playerClubId) {
       this.state = saved;
+      if (this.state.settings?.soundEnabled !== undefined) {
+        setSoundEnabled(this.state.settings.soundEnabled);
+      }
       this.notify();
       return true;
     }
     return false;
   }
 
+  async loadGameSlot(slotId) {
+    setActiveSlotId(slotId);
+    const data = await loadSlot(slotId);
+    if (data && data.playerClubId) {
+      this.state = data;
+      if (this.state.settings?.soundEnabled !== undefined) {
+        setSoundEnabled(this.state.settings.soundEnabled);
+      }
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  async deleteGameSlot(slotId) {
+    await deleteSlot(slotId);
+    const activeSlot = getActiveSlotId();
+    if (activeSlot === slotId) {
+      this.state = null;
+    }
+    this.notify();
+  }
+
   /**
    * Startet ein neues Spiel (Road to Glory in Liga 6)
    */
-  startNewGame({ clubName, primaryColor, secondaryColor, captainRole = 'ST' }) {
+  startNewGame({ clubName, primaryColor, secondaryColor, crestForm = 'shield', captainRole = 'ST', targetSlot = 'slot_1' }) {
+    setActiveSlotId(targetSlot);
     const { leagues, allClubs } = generateWorldDatabase();
     const liga6 = leagues.find(l => l.tier === 6);
     const schedule = generateLeagueSchedule(liga6.clubs);
@@ -55,6 +83,7 @@ class GameStore {
     playerClub.name = clubName || 'FC Apex Nova';
     playerClub.primaryColor = primaryColor || '#00f59b';
     playerClub.secondaryColor = secondaryColor || '#ffd15c';
+    playerClub.crestForm = crestForm || 'shield';
     playerClub.coins = 3450;
 
     // Erzeuge 1 Gold-Star-Kapitän
@@ -106,6 +135,7 @@ class GameStore {
     ];
 
     this.state = {
+      slotId: targetSlot,
       activeTab: 'home',
       activeModal: null, // 'postfach' | 'consumables' | 'match_arena' | 'pack_walkout' | 'settings' | 'onboarding'
       currentMatchday: 1,
@@ -119,10 +149,15 @@ class GameStore {
       tacticDeck,
       equippedTactics,
       inbox,
+      settings: {
+        soundEnabled: true,
+        simSpeed: 'blitz'
+      },
       finalFour: null, // Wird nach Spieltag 18 befüllt
       activePackResult: null
     };
 
+    saveSlot(targetSlot, this.state);
     this.notify();
   }
 
@@ -275,6 +310,21 @@ class GameStore {
     });
 
     this.state.currentMatchday++;
+    this.notify();
+  }
+
+  markMessageRead(messageId) {
+    if (!this.state?.inbox) return;
+    const msg = this.state.inbox.find(m => m.id === messageId);
+    if (msg) {
+      msg.unread = false;
+      this.notify();
+    }
+  }
+
+  dismissMessage(messageId) {
+    if (!this.state?.inbox) return;
+    this.state.inbox = this.state.inbox.filter(m => m.id !== messageId);
     this.notify();
   }
 
