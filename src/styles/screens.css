@@ -675,3 +675,38 @@ button.item-card { cursor: pointer; }
   border-radius: var(--r-md);
 }
 .auto-toggle__text { flex: 1; display: grid; gap: 2px; }
+
+/* Entwicklungsbericht */
+.devreport { display: grid; gap: var(--s-2); align-content: start; }
+.devreport__cards { display: flex; justify-content: center; gap: var(--s-2); }
+.devreport__cards .card--sm { --w: min(104px, 28vw); }
+.devcard { position: relative; animation: dealIn 0.45s both; }
+.devcard:nth-child(2) { animation-delay: 0.12s; }
+.devcard:nth-child(3) { animation-delay: 0.24s; }
+.devcard__delta {
+  position: absolute; top: -10px; right: -8px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--pitch); color: #fff;
+  font-family: var(--font-display); font-weight: 900; font-size: var(--t-lg);
+  box-shadow: 0 0 0 2px var(--chalk);
+}
+.devrow__from { color: var(--ink-3); }
+.devrow__arrow { width: 14px; height: 14px; color: var(--ink-3); }
+.devrow__delta { min-width: 34px; text-align: right; font-weight: 800; }
+.hist { margin: var(--s-2) 0 0; padding: var(--s-2); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); }
+.hist svg { width: 100%; height: auto; }
+
+/* Transfermarkt */
+.mfilter { display: grid; gap: var(--s-2); margin-bottom: var(--s-3); }
+.chips-scroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips-scroll .chip, .mfilter__row .chip { cursor: pointer; padding: 6px 10px; font-size: var(--t-sm); }
+.mfilter__row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mrow__sub { display: flex !important; align-items: center; gap: 4px; flex-wrap: wrap; }
+.mrow__sub .crest { display: inline-block; }
+.mrow__price { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-size: var(--t-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mrow__price svg { width: 14px; height: 14px; }
+.mrow__price.is-blocked { opacity: 0.45; text-decoration: line-through; }
+.pager { display: flex; justify-content: space-between; align-items: center; margin-top: var(--s-3); }
+.buybox { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-4); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.buybox__row { display: flex; justify-content: space-between; align-items: baseline; }
+.buybox__row b.display { font-size: var(--t-2xl); }

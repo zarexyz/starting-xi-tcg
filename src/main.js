@@ -6,7 +6,7 @@ import { store, subscribe, notify, act, setUi, setView, toast, startGame, resume
 import { deleteGame } from './state/storage.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
+  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -23,7 +23,8 @@ import { packFlow } from './ui/flows/pack.js';
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
 import { resultFlow, seasonFlow } from './ui/flows/result.js';
-import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers } from './ui/screens/transfers.js';
+import { devFlow } from './ui/flows/develop.js';
+import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers, offersSheetBody } from './ui/screens/transfers.js';
 import { setTransferRenderers } from './ui/screens/squad.js';
 import { playSound } from './ui/sound.js';
 import { icon } from './ui/icons.js';
@@ -63,6 +64,7 @@ function sheetHtml(game, ui) {
   if (s.type === 'inbox') return inboxSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
+  if (s.type === 'offers') return sheet('Angebote', offersSheetBody(game, s.id));
   return '';
 }
 
@@ -73,6 +75,7 @@ function flowHtml(game, ui) {
   if (f?.type === 'result') return resultFlow(game, f);
   if (f?.type === 'pack' && game.pending) return packFlow(game, ui);
   if (!f && game.seasonSummary) return seasonFlow(game);
+  if (!f && game.devReport) return devFlow(game);
   return '';
 }
 
@@ -108,7 +111,7 @@ function render() {
   html += sheetHtml(game, ui);
   html += ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '';
   app.innerHTML = html;
-  document.body.classList.toggle('has-overlay', !!(ui.sheet || ui.flow || game?.seasonSummary));
+  document.body.classList.toggle('has-overlay', !!(ui.sheet || ui.flow || game?.seasonSummary || game?.devReport));
 
   if (focusKey) {
     const el = app.querySelector(`[data-input="${focusKey}"]`);
@@ -120,7 +123,7 @@ function render() {
   const sh = document.querySelector('.sheet');
   if (sh && sheetScroll) sh.scrollTop = sheetScroll;
   const fl = document.querySelector('.fullscreen > .screen');
-  const flowKey = ui.flow ? ui.flow.type : game?.seasonSummary ? 'season' : null;
+  const flowKey = ui.flow ? ui.flow.type : game?.seasonSummary ? 'season' : game?.devReport ? 'dev' : null;
   if (fl && flowScroll && flowKey && flowKey === lastFlowKey) fl.scrollTop = flowScroll;
   lastFlowKey = flowKey;
 }
@@ -367,6 +370,7 @@ const handlers = {
   'match-skip': () => matchControl('skip'),
   'scene-continue': () => matchControl('continue'),
   'match-report': () => { stopMatch(); const data = store.ui.flow.data; setUi({ flow: { type: 'result', data } }); },
+  'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
   'season-continue': () => { act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
 
   ...transferHandlers({ act, setUi, toast, askConfirm, store })
@@ -434,6 +438,7 @@ document.addEventListener('input', ev => {
 document.addEventListener('change', ev => {
   const el = ev.target;
   if (el.dataset?.input === 'formation') act(setUserSetup, { formation: el.value });
+  if (el.dataset?.input === 'mkt-sort') setUi({ market: { ...(store.ui.market || {}), sort: el.value, page: 0 } });
 });
 
 // Wischen zum Aufreißen
@@ -460,5 +465,8 @@ document.addEventListener('keydown', ev => {
 
 store.ui.screen = 'title';
 render();
+
+// Nur für lokale Tests: Zugriff auf den Store aus der Browser-Konsole
+if (location.hostname === 'localhost') window.__sxi = { store, setUi, act };
 
 export { icon };

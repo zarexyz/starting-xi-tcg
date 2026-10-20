@@ -15,6 +15,7 @@ import { developPlayer, shortName, displayName, salaryFor, createPlayer } from '
 import { generateStarterSquad, generateStarDraft, generateDraft, generateItems, PACKS, CONSUMABLES } from './packs.js';
 import { matchIncome, seasonPrize, CUP_PRIZES, FINAL_FOUR_PRIZES, weeklyWages, wageCap } from './economy.js';
 import { trainPlayer } from './player.js';
+import { aiTransferWindow } from './market.js';
 
 export const SAVE_VERSION = 1;
 
@@ -168,6 +169,7 @@ export function openStarterPack(state) {
     const squad = generateStarterSquad(rng, state);
     for (const p of squad) {
       p.clubId = 'user';
+    p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
       state.players[p.id] = p;
       state.clubs.user.playerIds.push(p.id);
     }
@@ -206,6 +208,7 @@ export function pickDraft(state, index) {
   if (!p) return null;
   delete p.isNew;
   p.clubId = 'user';
+    p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
   state.players[p.id] = p;
   state.clubs.user.playerIds.push(p.id);
   const wasStar = state.pending.source === 'star';
@@ -593,7 +596,9 @@ function handleWages(state) {
 
 function afterDay(rng, state, day) {
   if (day.type === 'league' && day.md === 9) {
-    developAll(rng, state, 9, false);
+    const changes = developAll(rng, state, 9, false);
+    recordHistory(state);
+    state.devReport = { title: `Halbserie, Saison ${state.season}`, changes };
     addNews(state, 'development', 'Halbzeit der Saison', 'Die Spieler haben sich weiterentwickelt. Junge Talente legen zu, ältere Spieler bauen teils ab. Schau in deinen Kader!');
   }
   if (day.type === 'cup') {
@@ -647,14 +652,31 @@ function afterDay(rng, state, day) {
 }
 
 function developAll(rng, state, games, aging) {
+  const changes = [];
   for (const p of Object.values(state.players)) {
     const share = Math.min(1, p.stats.apps / Math.max(1, games));
+    const before = p.ovr;
     const delta = developPlayer(rng, p, share);
-    if (p.clubId === 'user' && Math.abs(delta) >= 2) {
-      p.lastDelta = delta;
-    }
     if (aging) p.age++;
+    if (p.clubId === 'user') {
+      p.lastDelta = delta;
+      changes.push({ id: p.id, before, after: p.ovr, delta, apps: p.stats.apps });
+    }
   }
+  changes.sort((a, b) => b.delta - a.delta);
+  return changes;
+}
+
+/** Stärkeverlauf für die Karrierekurve */
+function recordHistory(state) {
+  for (const p of Object.values(state.players)) {
+    if (p.clubId !== 'user') continue;
+    p.ovrHistory = [...(p.ovrHistory || []), { s: state.season, h: state.dayIndex < 12 ? 1 : 2, ovr: p.ovr }].slice(-16);
+  }
+}
+
+export function acknowledgeDevReport(state) {
+  state.devReport = null;
 }
 
 // -----------------------------------------------------------------------------
@@ -712,7 +734,7 @@ function endSeason(rng, state) {
   }
 
   // Entwicklung zweite Saisonhälfte, Alterung, Karriereende
-  developAll(rng, state, MATCHDAYS, true);
+  const devChanges = developAll(rng, state, MATCHDAYS, true);
   for (const p of Object.values(state.players)) {
     if (p.age >= 33) {
       const prob = p.age >= 38 ? 1 : 0.12 + (p.age - 33) * 0.2;
@@ -728,6 +750,9 @@ function endSeason(rng, state) {
       }
     }
   }
+
+  // Transferfenster der KI-Vereine
+  summary.aiMoves = aiTransferWindow(rng, state).length;
 
   // Eigene Jugendakademie: zwei Talente pro Saison, Kader nie unter 16
   const youth = [];
@@ -745,6 +770,7 @@ function endSeason(rng, state) {
     const ovr = Math.max(38, potential - rng.int(15, 21));
     const p = createPlayer(rng, { id: `p${(++state.nextId).toString(36)}`, position: pos, age, ovr, potential, tier: tierRoll });
     p.clubId = 'user';
+    p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
     state.players[p.id] = p;
     userClub.playerIds.push(p.id);
     youth.push(p);
@@ -785,6 +811,11 @@ function endSeason(rng, state) {
   state.season++;
   startSeason(rng, state, byes.filter(id => state.clubs[id].tier === 1).length === 4 ? byes : null);
   state.user.setup = state.user.setup ? repairLineup(state, 'user', state.user.setup) : null;
+  recordHistory(state);
+  state.devReport = {
+    title: `Sommerpause vor Saison ${state.season}`,
+    changes: devChanges.filter(c => state.players[c.id])
+  };
   addNews(state, 'season', `Saison ${state.season} beginnt`,
     `Neue Saison in der ${LEAGUE_INFO[state.clubs.user.tier].name}. Alle Spieler sind ein Jahr älter – prüfe Kader und Aufstellung.`);
 }

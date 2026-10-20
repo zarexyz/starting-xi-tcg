@@ -14,6 +14,7 @@ import { ensureUserSetup } from '../../engine/game.js';
 import { buildTeam } from '../../engine/match.js';
 import { familiarity, salaryFor, marketValue } from '../../engine/player.js';
 import { NATIONS } from '../../engine/names.js';
+import { historyChart } from '../flows/develop.js';
 
 const GROUP_ORDER = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
 const GROUP_NAMES = { GK: 'Tor', DEF: 'Abwehr', MID: 'Mittelfeld', ATT: 'Angriff' };
@@ -177,6 +178,7 @@ export function playerSheet(game, id) {
         </ul>
         <p class="small muted">${POSITION_NAMES[p.position]}${p.secondary.length ? `. Kann auch ${p.secondary.map(s => POSITION_NAMES[s]).join(' und ')}.` : '.'}</p>
       </section>
+      ${own && (p.ovrHistory || []).length >= 2 ? `<section class="section section--tight"><h3 class="h3">Stärkeverlauf</h3>${historyChart(p)}</section>` : ''}
 
       <section class="section section--tight">
         <h3 class="h3">Saison ${game.season}</h3>

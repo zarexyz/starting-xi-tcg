@@ -271,3 +271,38 @@ test('Match: Verletzte tauchen nach ihrer Auswechslung nicht mehr auf', () => {
   }
   assert.ok(checked > 10, `genug Verletzungen geprüft (${checked})`);
 });
+
+import { searchMarket, buyPlayer, getOffers, acceptOffer, willingness, askingPrice } from '../src/engine/market.js';
+
+test('Transfermarkt: kaufen, verkaufen, Einmaligkeit bleibt erhalten', () => {
+  const s = newStartedGame(55);
+  s.clubs.user.coins = 200000;
+  const list = searchMarket(s, { onlyWilling: true, sort: 'ovr' });
+  assert.ok(list.length > 50);
+  // Spieler aus Liga 1 wollen nicht nach Liga 6
+  const l1 = s.players[s.clubs[s.leagues[1].clubIds[0]].playerIds[0]];
+  assert.equal(willingness(s, l1).ok, false);
+  const target = s.players[list[0].id];
+  const seller = target.clubId;
+  const price = askingPrice(s, target);
+  const res = buyPlayer(s, target.id);
+  assert.ok(res.ok, res.error);
+  assert.equal(target.clubId, 'user');
+  assert.equal(s.clubs.user.coins, 200000 - price);
+  assert.equal(s.clubs[seller].playerIds.length, 21, 'Verkäufer füllt auf');
+  // Verkaufen
+  const mine = s.clubs.user.playerIds[0];
+  const offers = getOffers(s, mine);
+  assert.ok(offers.length >= 1);
+  assert.deepEqual(getOffers(s, mine), offers, 'Angebote sind am selben Tag stabil');
+  const r2 = acceptOffer(s, mine, offers[0].clubId);
+  assert.ok(r2.ok, r2.error);
+  assert.equal(s.players[mine].clubId, offers[0].clubId);
+  assert.equal(s.clubs[offers[0].clubId].playerIds.length, 21);
+  // Jeder Spieler genau einmal
+  const seen = new Set();
+  for (const c of Object.values(s.clubs)) for (const id of c.playerIds) { assert.ok(!seen.has(id)); seen.add(id); assert.equal(s.players[id].clubId, c.id); }
+  // Saison nach Transfers läuft weiter
+  playSeason(s);
+  for (const c of Object.values(s.clubs)) if (!c.isUser) assert.equal(c.playerIds.length, 21);
+});
