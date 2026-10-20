@@ -710,3 +710,7 @@ button.item-card { cursor: pointer; }
 .buybox { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-4); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .buybox__row { display: flex; justify-content: space-between; align-items: baseline; }
 .buybox__row b.display { font-size: var(--t-2xl); }
+
+.tips__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.tips__list li { display: flex; gap: var(--s-3); align-items: flex-start; }
+.tips__list p { margin: 2px 0 0; }

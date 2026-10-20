@@ -1,0 +1,8 @@
+{
+  "appId": "com.startingxi.tcg",
+  "appName": "Starting XI",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#eef1f4"
+  }
+}

@@ -1,16 +1,25 @@
 {
   "name": "starting-xi-tcg",
   "private": true,
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
-    "sim": "node scripts/season_sim.mjs"
+    "sim": "node scripts/season_sim.mjs",
+    "android": "vite build && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@fontsource/big-shoulders-display": "^5.0.0",
+    "@fontsource/figtree": "^5.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
     "vite": "^6.1.0"
   }
 }

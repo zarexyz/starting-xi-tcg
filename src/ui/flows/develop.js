@@ -17,7 +17,7 @@ export function devFlow(game) {
   return `<div class="fullscreen"><main class="screen devreport">
     <p class="small muted">${esc(r.title)}</p>
     <h1 class="h1">Entwicklung</h1>
-    <p>${sum > 0 ? `Dein Kader hat insgesamt ${sum} Stärkepunkte zugelegt.` : sum < 0 ? `Dein Kader hat insgesamt ${-sum} Stärkepunkte verloren. Zeit für frisches Blut?` : 'Dein Kader ist insgesamt gleich stark geblieben.'} Spielzeit hilft jungen Spielern beim Wachsen.</p>
+    <p>${sum > 0 ? `Dein Kader hat insgesamt ${sum} ${sum === 1 ? 'Stärkepunkt' : 'Stärkepunkte'} zugelegt.` : sum < 0 ? `Dein Kader hat insgesamt ${-sum} ${sum === -1 ? 'Stärkepunkt' : 'Stärkepunkte'} verloren. Zeit für frisches Blut?` : 'Dein Kader ist insgesamt gleich stark geblieben.'} Spielzeit hilft jungen Spielern beim Wachsen.</p>
     ${risers.length ? `<section class="section">
       <div class="section__head"><h2 class="section__title">Aufsteiger</h2></div>
       <div class="devreport__cards">${risers.map(c => `<div class="devcard">

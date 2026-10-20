@@ -6,7 +6,7 @@ import { store, subscribe, notify, act, setUi, setView, toast, startGame, resume
 import { deleteGame } from './state/storage.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
+  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -29,6 +29,9 @@ import { setTransferRenderers } from './ui/screens/squad.js';
 import { playSound } from './ui/sound.js';
 import { icon } from './ui/icons.js';
 import { esc } from './ui/html.js';
+import { loadLocalFonts } from './fonts.js';
+
+loadLocalFonts();
 
 setTransferRenderers(transferSheetButtons, foreignPlayerActions);
 
@@ -370,6 +373,7 @@ const handlers = {
   'match-skip': () => matchControl('skip'),
   'scene-continue': () => matchControl('continue'),
   'match-report': () => { stopMatch(); const data = store.ui.flow.data; setUi({ flow: { type: 'result', data } }); },
+  'dismiss-tips': () => act(dismissTips),
   'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
   'season-continue': () => { act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
 
@@ -452,6 +456,22 @@ document.addEventListener('pointerup', ev => {
   swipe = null;
 });
 
+// Android-Zurück-Taste (nur in der App über Capacitor verfügbar)
+function handleBack() {
+  const ui = store.ui;
+  if (ui.sheet) { setUi({ sheet: null }); return true; }
+  if (ui.flow?.type === 'match') { matchControl('skip'); return true; }
+  if (ui.flow && ui.flow.type !== 'pack') { stopMatch(); setUi({ flow: null }); return true; }
+  if (ui.selected) { setUi({ selected: null }); return true; }
+  if (ui.screen === 'app' && ui.tab !== 'home') { setUi({ tab: 'home' }); return true; }
+  if (ui.screen === 'found') { setUi({ screen: 'title' }); return true; }
+  return false;
+}
+const capApp = window.Capacitor?.Plugins?.App;
+if (capApp) {
+  capApp.addListener('backButton', () => { if (!handleBack()) capApp.exitApp(); });
+}
+
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') {
     if (store.ui.sheet) setUi({ sheet: null });
@@ -467,6 +487,6 @@ store.ui.screen = 'title';
 render();
 
 // Nur für lokale Tests: Zugriff auf den Store aus der Browser-Konsole
-if (location.hostname === 'localhost') window.__sxi = { store, setUi, act };
+if (location.hostname === 'localhost' && location.port) window.__sxi = { store, setUi, act };
 
 export { icon };

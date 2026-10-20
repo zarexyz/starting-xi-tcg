@@ -1,21 +1,44 @@
-# Starting XI TCG ⚽🃏
+# Starting XI TCG
 
-**Starting XI TCG** ist ein rundenbasierter, taktischer Football-Manager für mobile Endgeräte (Portrait-Modus, Einhand-Bedienung), der klassisches Fußballmanagement mit einem reinen Sammelkarten-System (TCG, FUT-inspiriert) verbindet.
+Ein Fußballmanager fürs Handy, der drei Vorbilder verbindet: die Tiefe von Football Manager, das Sammeln von Ultimate Team und das Kartengefühl von Pokémon TCG Pocket.
 
-## 🌟 Features
-- **1 Land, 6 Ligen:** 60 Clubs mit exakt ~1.150 Unikat-Spielern (keine Duplikate).
-- **Final Four Aufstieg:** Plätze 1–4 spielen in allen Ligen ein Single-Elimination Final Four. Beide Halbfinalsieger steigen direkt auf.
-- **Hybride Duell-Engine:** 3–5 animierte Schlüssel-Duelle pro Spieltag mit In-Game Taktikkarten oder `[⚡ Blitz-Ergebnis]`.
-- **Booster-Drafts:** Rookie-Drafts (Pick 1 of 3 junge Talente), Veteranen-Packs und Gold-Walkouts.
-- **Vollständig Client-seitig:** Vite + Tailwind CSS + IndexedDB Auto-Save, PWA-ready, gehostet auf Vercel.
+Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wählst deinen Starspieler und führst den Verein über Final Fours und Pokal bis an die Spitze.
 
-## 🚀 Lokale Entwicklung
+## Was drin ist
+
+- **Welt:** 60 fiktive Vereine in 6 Ligen, jeder Spieler existiert genau einmal
+- **Spieltag:** Vorbereitung mit Gegneranalyse, Spielstil (Konter-Kreislauf) und Formation, Siegprognose
+- **Live-Spiel:** Ticker mit Karten-Einblendungen bei Schlüsselszenen, Spielbericht mit Erklärung
+- **Kader:** Müdigkeit, Verletzungen, Rotation, Co-Trainer-Aufstellung, Moral, Gehälter mit Soft-Cap
+- **Karten:** illustrierte Porträts, Talentklassen Bronze, Silber, Gold und Ikone, Potenzial als Scout-Schätzung
+- **Packs:** Starter-Pack, Draft-Packs (1 aus 3), Ausrüstungs-Packs mit Fitness, Training und Taktik
+- **Entwicklung:** zweimal pro Saison, Karriereende, Jugendakademie
+- **Transfermarkt:** Kaufen mit Wechselwilligkeit, Verkaufen über Angebote, KI-Transferfenster
+- **Wettbewerbe:** Liga, Pokal mit allen 60 Vereinen, Final Four mit Auf- und Abstieg
+
+## Entwicklung
+
 ```bash
 npm install
-npm run dev
+npm run dev      # Spiel im Browser
+npm test         # Tests der Spiellogik
+npm run sim      # zehn Saisons simulieren (Balancing-Check)
+npm run build    # Produktionsbuild in dist/
 ```
 
-## 🏗️ Production Build
-```bash
-npm run build
+Android-App und Play Store: siehe [docs/ANDROID.md](docs/ANDROID.md).
+
+## Aufbau
+
 ```
+src/engine/   Spiellogik ohne Oberfläche (testbar, später auch auf einem Server lauffähig)
+src/state/    Spielstand, Speichern in drei Slots
+src/ui/       Screens, Abläufe, Karten, Porträts, Wappen, Icons
+src/styles/   Designsystem
+tests/        Tests mit dem Node-Testrunner
+scripts/      Kalibrierung und Saison-Simulation
+```
+
+Grundregel: `src/engine` kennt keine Oberfläche. Jede Aktion verändert den Spielstand über eine Funktion in `game.js` oder `market.js`. Der Store führt sie auf einer Kopie aus. Das ist die Grundlage für einen späteren Mehrspieler-Modus.
+
+Alle Vereine und Spieler sind frei erfunden.

@@ -824,6 +824,10 @@ export function acknowledgeSeasonSummary(state) {
   state.seasonSummary = null;
 }
 
+export function dismissTips(state) {
+  state.user.tipsDismissed = true;
+}
+
 export function markRead(state, id) {
   const n = state.inbox.find(x => x.id === id);
   if (n) n.read = true;

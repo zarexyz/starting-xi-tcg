@@ -99,6 +99,20 @@ function newsList(game) {
   </section>`;
 }
 
+function firstSteps(game) {
+  if (game.user.tipsDismissed || game.season > 1 || game.matchLog.length > 3 || game.pending) return '';
+  const steps = [
+    ['strategy', 'Gegner lesen', 'In der Spielvorbereitung siehst du, wie der Gegner meistens spielt. Wähle einen Stil, der ihn kontert.'],
+    ['battery', 'Rotieren', 'Müde Spieler bringen weniger. Der Co-Trainer stellt auf Wunsch die fitteste Elf auf.'],
+    ['trophy', 'Final Four', 'Platz 1 bis 4 spielt um den Aufstieg. Die beiden Halbfinalsieger steigen auf.'],
+    ['store', 'Verstärken', 'Mit Münzen kaufst du Packs mit neuen Talenten oder Spieler auf dem Transfermarkt.']
+  ];
+  return `<section class="section tips">
+    <div class="section__head"><h2 class="section__title">So geht's</h2><button class="link" data-action="dismiss-tips">Ausblenden</button></div>
+    <ol class="tips__list">${steps.map(([ic, t, d]) => `<li><span class="alert-dot">${icon(ic)}</span><div><b>${t}</b><p class="small muted">${d}</p></div></li>`).join('')}</ol>
+  </section>`;
+}
+
 export function homeScreen(game) {
   const pendingBanner = game.pending ? `<section class="pending-pack">
       <div class="pending-pack__art">${packArt(game.pending.type === 'starter' ? 'starter' : game.pending.source, 'sm')}</div>
@@ -115,6 +129,7 @@ export function homeScreen(game) {
   return `<main class="screen">
     ${topbar(game)}
     ${pendingBanner || matchTicket(game)}
+    ${firstSteps(game)}
 
     <section class="section">
       <div class="section__head">
