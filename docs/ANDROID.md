@@ -24,6 +24,8 @@ npm run dev       # Spiel im Browser unter http://localhost:3000
 Vorher in `capacitor.config.json` die **App-ID** festlegen. Sie ist für immer mit der App im Play Store verbunden und kann später nicht geändert werden. Üblich ist eine umgedrehte Domain, zum Beispiel `de.deinname.startingxi`.
 
 ```bash
+npm install @capacitor/core @capacitor/android @capacitor/app
+npm install -D @capacitor/cli
 npm run build
 npx cap add android
 npx @capacitor/assets generate --android   # Icon und Splash aus dem Ordner resources/
