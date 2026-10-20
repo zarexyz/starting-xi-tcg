@@ -11,14 +11,14 @@ import { renderWettbewerbScreen } from './screens/wettbewerb.js';
 import { renderMarktScreen } from './screens/markt.js';
 import { renderVereinScreen } from './screens/verein.js';
 import { renderMatchArenaModal } from './modals/match_arena.js';
-import { renderPackWalkoutModal } from './modals/pack_walkout.js';
+import { renderPackWalkoutModal, renderPackConfirmModal } from './modals/pack_walkout.js';
 import { renderPostfachModal } from './modals/postfach.js';
 import { renderConsumablesModal } from './modals/consumables.js';
 import { renderSettingsModal } from './modals/settings.js';
 import { renderOnboardingModal } from './modals/onboarding.js';
 import { renderPlayerInspectModal } from './modals/player_inspect.js';
-import { openPack } from './engine/packs.js';
-import { setupMatchSimulation, resolveDuelClash, simulateInstantMatch } from './engine/duel.js';
+import { PACK_TIERS, openPack } from './engine/packs.js';
+import { setupMatchSimulation, resolveDuelClash, simulateInstantMatch, TACTIC_CARDS } from './engine/duel.js';
 
 let activeMatchState = null;
 let draggedPlayerId = null;
@@ -153,8 +153,12 @@ function renderModals(state, modalRoot) {
 
   switch (state.activeModal) {
     case 'match_arena':
-      modalRoot.innerHTML = renderMatchArenaModal(activeMatchState, state.equippedTactics);
+      modalRoot.innerHTML = renderMatchArenaModal(activeMatchState, state.equippedTactics || ['t_second_wind', 't_park_bus', 't_counter_frenzy']);
       setupMatchArenaEvents();
+      break;
+    case 'pack_confirm':
+      modalRoot.innerHTML = renderPackConfirmModal(state.pendingPack, club.coins);
+      setupPackConfirmEvents();
       break;
     case 'pack_walkout':
       modalRoot.innerHTML = renderPackWalkoutModal(state.activePackResult);
@@ -216,10 +220,6 @@ function setupGlobalEvents(state) {
     });
   });
 
-  document.getElementById('btn-header-settings')?.addEventListener('click', () => {
-    store.openModal('settings');
-  });
-
   // Quick Links auf Home
   document.getElementById('btn-quick-kader')?.addEventListener('click', () => {
     store.setActiveTab('kader');
@@ -260,12 +260,23 @@ function setupGlobalEvents(state) {
     });
   }
 
-  // Wettbewerb 4 Sub-Tabs
-  document.querySelectorAll('[data-wettbewerb-tab]').forEach(btn => {
+  // Wettbewerb 2-Ebenen Navigation
+  document.querySelectorAll('[data-comp-switch]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      store.getState().wettbewerbTab = e.currentTarget.dataset.wettbewerbTab;
+      store.getState().wettbewerbCompetition = e.currentTarget.dataset.compSwitch;
       store.notify();
     });
+  });
+
+  document.querySelectorAll('[data-wettbewerb-subtab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      store.getState().wettbewerbTab = e.currentTarget.dataset.wettbewerbSubtab;
+      store.notify();
+    });
+  });
+
+  document.getElementById('btn-quick-start-from-stats')?.addEventListener('click', () => {
+    document.getElementById('btn-start-match')?.click();
   });
 
   // Spielplan Matchday Slider
@@ -285,17 +296,14 @@ function setupGlobalEvents(state) {
     }
   });
 
-  // Pack Buttons auf Markt
-  document.querySelectorAll('[data-open-pack]').forEach(btn => {
+  // Pack Buttons auf Markt (Öffnet erst Kaufen? Bestätigung)
+  document.querySelectorAll('[data-prompt-pack]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const packId = btn.dataset.openPack;
-      const club = store.getPlayerClub();
-      const packResult = openPack(packId);
-
-      if (club.coins >= packResult.pack.price) {
-        club.coins -= packResult.pack.price;
-        store.getState().activePackResult = packResult;
-        store.openModal('pack_walkout');
+      const packId = btn.dataset.promptPack;
+      const pack = PACK_TIERS.find(p => p.id === packId);
+      if (pack) {
+        state.pendingPack = pack;
+        store.openModal('pack_confirm');
       }
     });
   });
@@ -321,22 +329,75 @@ function setupGlobalEvents(state) {
   });
 }
 
+function setupPackConfirmEvents() {
+  const state = store.getState();
+  const club = store.getPlayerClub();
+
+  document.getElementById('btn-cancel-buy-pack')?.addEventListener('click', () => {
+    state.pendingPack = null;
+    store.closeModal();
+  });
+
+  document.getElementById('btn-confirm-buy-pack')?.addEventListener('click', () => {
+    const pack = state.pendingPack;
+    if (pack && club.coins >= pack.price) {
+      club.coins -= pack.price;
+      const packResult = openPack(pack.id);
+      packResult.isTorn = false;
+      state.activePackResult = packResult;
+      state.pendingPack = null;
+      store.openModal('pack_walkout');
+    }
+  });
+}
+
 function setupMatchArenaEvents() {
+  if (!activeMatchState) return;
+
+  if (!activeMatchState.usedTactics) activeMatchState.usedTactics = [];
+  if (activeMatchState.activeTacticId === undefined) activeMatchState.activeTacticId = null;
+
+  // In-Game Taktik-Hand: Zünden & Einsetzen von Taktikkarten
+  document.querySelectorAll('[data-activate-tactic]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tacticId = btn.dataset.activateTactic;
+      if (activeMatchState.usedTactics.includes(tacticId)) return;
+
+      if (activeMatchState.activeTacticId === tacticId) {
+        activeMatchState.activeTacticId = null; // Toggle aus
+      } else {
+        activeMatchState.activeTacticId = tacticId; // Scharf schalten
+      }
+      store.notify();
+    });
+  });
+
   document.getElementById('btn-resolve-next-duel')?.addEventListener('click', () => {
     if (activeMatchState && !activeMatchState.completed) {
       const duel = activeMatchState.duels[activeMatchState.currentDuelIndex];
-      resolveDuelClash(duel);
+      const activeTactic = TACTIC_CARDS.find(t => t.id === activeMatchState.activeTacticId);
+
+      resolveDuelClash(duel, activeTactic);
+
+      if (activeTactic) {
+        activeMatchState.usedTactics.push(activeTactic.id);
+        activeMatchState.activeTacticId = null;
+      }
+
+      const tacticNote = activeTactic ? ` [🎴 ${activeTactic.name} aktiv!]` : '';
 
       if (duel.outcome === 'GOAL') {
         if (duel.isHomeAttacking) {
           activeMatchState.homeScore++;
-          activeMatchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${activeMatchState.homeClub.name}! ${duel.attacker.name} trifft!` });
+          activeMatchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${activeMatchState.homeClub.name}! ${duel.attacker.name} überwindet die Abwehr und netzt ein!${tacticNote}` });
         } else {
           activeMatchState.awayScore++;
-          activeMatchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${activeMatchState.awayClub.name}! ${duel.attacker.name} trifft!` });
+          activeMatchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${activeMatchState.awayClub.name}! ${duel.attacker.name} trifft eiskalt!${tacticNote}` });
         }
+      } else if (duel.outcome === 'TACKLED') {
+        activeMatchState.events.push({ minute: duel.minute, text: `🛑 Starker Zweikampf! ${duel.defender.name} stoppt den Vorstoß von ${duel.attacker.name} (${duel.minute}').${tacticNote}` });
       } else {
-        activeMatchState.events.push({ minute: duel.minute, text: `🧤 Glanzparade von ${duel.goalkeeper?.shortName || 'TW'} (${duel.minute}').` });
+        activeMatchState.events.push({ minute: duel.minute, text: `🧤 Glanzparade von ${duel.goalkeeper?.shortName || 'TW'} (${duel.minute}'). Glänzend pariert!${tacticNote}` });
       }
 
       activeMatchState.currentDuelIndex++;
@@ -384,6 +445,72 @@ function setupPackWalkoutEvents() {
   const packResult = store.getState().activePackResult;
   if (!packResult) return;
 
+  // Swipe / Tear gesture handling on #foil-tear-strip (Pokémon TCG Pocket Style)
+  const tearStrip = document.getElementById('foil-tear-strip');
+  let startX = 0;
+  let isDragging = false;
+
+  const triggerTear = () => {
+    if (packResult.isTorn) return;
+    if (tearStrip) {
+      tearStrip.classList.add('foil-tear-active');
+    }
+    setTimeout(() => {
+      packResult.isTorn = true;
+      store.notify();
+    }, 450);
+  };
+
+  if (tearStrip) {
+    // Touch Gestures
+    tearStrip.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      isDragging = true;
+    }, { passive: true });
+
+    tearStrip.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const currentX = e.touches[0].clientX;
+      if (currentX - startX > 35) {
+        isDragging = false;
+        triggerTear();
+      }
+    }, { passive: true });
+
+    tearStrip.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Mouse Drag Gestures
+    tearStrip.addEventListener('mousedown', (e) => {
+      startX = e.clientX;
+      isDragging = true;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      if (e.clientX - startX > 35) {
+        isDragging = false;
+        triggerTear();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Fallback: Click directly on tear strip
+    tearStrip.addEventListener('click', () => {
+      triggerTear();
+    });
+  }
+
+  // Fallback Button
+  document.getElementById('btn-trigger-pack-tear')?.addEventListener('click', () => {
+    triggerTear();
+  });
+
+  // Candidate selection in Draft
   document.querySelectorAll('[data-pick-candidate]').forEach(el => {
     el.addEventListener('click', () => {
       const candidateId = el.dataset.pickCandidate;
@@ -392,6 +519,7 @@ function setupPackWalkoutEvents() {
     });
   });
 
+  // Final confirmation to take cards into squad/inventory
   document.getElementById('btn-confirm-pack-rewards')?.addEventListener('click', () => {
     if (packResult.isDraft && packResult.selectedCandidate) {
       store.addDraftedPlayer(packResult.selectedCandidate);

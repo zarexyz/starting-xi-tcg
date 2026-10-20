@@ -1,12 +1,14 @@
 // =============================================================================
-// Starting XI TCG — Screen 3: Wettbewerbe (Liga, Apex Cup, Spielplan, Statistiken)
+// Starting XI TCG — Screen 3: Wettbewerbe (Zweistufige Navigation & echte Daten)
 // =============================================================================
 
 import { renderClubCrest } from '../components/crest.js';
 import { computeLeagueTable } from '../engine/schedule.js';
 
 export function renderWettbewerbScreen(state) {
-  const activeSubTab = state.wettbewerbTab || 'liga';
+  const activeCompetition = state.wettbewerbCompetition || 'liga'; // 'liga' | 'pokal'
+  const activeSubTab = state.wettbewerbTab || 'overview'; // 'overview' | 'spielplan' | 'stats'
+
   const selectedTier = state.selectedLeagueTier || 6;
   const league = state.leagues.find(l => l.tier === selectedTier) || state.leagues[5];
   const sortedClubs = computeLeagueTable(league.clubs);
@@ -16,71 +18,78 @@ export function renderWettbewerbScreen(state) {
   return `
     <div class="flex-1 flex flex-col p-3 gap-3.5 pb-24 overflow-y-auto no-scrollbar">
       
-      <!-- 4 Top Sub-Tabs Navigation -->
-      <div class="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-slate-900 border border-white/10 shadow-lg">
-        <button data-wettbewerb-tab="liga" class="py-2 rounded-xl font-display font-extrabold text-[11px] uppercase tracking-wider transition-all ${
-          activeSubTab === 'liga'
-            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_12px_#00f59b]'
-            : 'text-slate-400 hover:text-slate-200'
+      <!-- LEVEL 1: TOP COMPETITION SWITCHER (LIGA vs POKAL) -->
+      <div class="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-slate-900 border border-white/10 shadow-xl">
+        <button data-comp-switch="liga" class="py-2.5 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          activeCompetition === 'liga'
+            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_15px_#00f59b]'
+            : 'text-slate-400 hover:text-slate-100'
         }">
-          Liga
+          <span>🏆</span>
+          <span>Liga-Betrieb</span>
         </button>
 
-        <button data-wettbewerb-tab="pokal" class="py-2 rounded-xl font-display font-extrabold text-[11px] uppercase tracking-wider transition-all ${
-          activeSubTab === 'pokal'
-            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_12px_#00f59b]'
-            : 'text-slate-400 hover:text-slate-200'
+        <button data-comp-switch="pokal" class="py-2.5 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          activeCompetition === 'pokal'
+            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_15px_#00f59b]'
+            : 'text-slate-400 hover:text-slate-100'
         }">
-          🥊 Pokal
-        </button>
-
-        <button data-wettbewerb-tab="spielplan" class="py-2 rounded-xl font-display font-extrabold text-[11px] uppercase tracking-wider transition-all ${
-          activeSubTab === 'spielplan'
-            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_12px_#00f59b]'
-            : 'text-slate-400 hover:text-slate-200'
-        }">
-          📅 Plan
-        </button>
-
-        <button data-wettbewerb-tab="stats" class="py-2 rounded-xl font-display font-extrabold text-[11px] uppercase tracking-wider transition-all ${
-          activeSubTab === 'stats'
-            ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_12px_#00f59b]'
-            : 'text-slate-400 hover:text-slate-200'
-        }">
-          📊 Stats
+          <span>🥊</span>
+          <span>Der Apex Cup</span>
         </button>
       </div>
 
-      <!-- SUB-TAB CONTENT -->
-      ${renderSubTabContent({ activeSubTab, league, sortedClubs, playerClub, selectedTier, state, viewMatchday })}
+      <!-- LEVEL 2: SUB-NAVIGATION (ÜBERSICHT | SPIELPLAN | STATS) -->
+      <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-950/80 border border-white/5">
+        <button data-wettbewerb-subtab="overview" class="py-1.5 rounded-lg font-display font-bold text-[11px] uppercase tracking-wider transition-all ${
+          activeSubTab === 'overview'
+            ? 'bg-slate-800 text-pitch-emerald border border-pitch-emerald/40'
+            : 'text-slate-400 hover:text-slate-200'
+        }">
+          Übersicht
+        </button>
+
+        <button data-wettbewerb-subtab="spielplan" class="py-1.5 rounded-lg font-display font-bold text-[11px] uppercase tracking-wider transition-all ${
+          activeSubTab === 'spielplan'
+            ? 'bg-slate-800 text-pitch-emerald border border-pitch-emerald/40'
+            : 'text-slate-400 hover:text-slate-200'
+        }">
+          Spielplan
+        </button>
+
+        <button data-wettbewerb-subtab="stats" class="py-1.5 rounded-lg font-display font-bold text-[11px] uppercase tracking-wider transition-all ${
+          activeSubTab === 'stats'
+            ? 'bg-slate-800 text-pitch-emerald border border-pitch-emerald/40'
+            : 'text-slate-400 hover:text-slate-200'
+        }">
+          Statistiken
+        </button>
+      </div>
+
+      <!-- MAIN CONTENT VIEW -->
+      ${
+        activeCompetition === 'liga'
+          ? renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, selectedTier, state, viewMatchday })
+          : renderPokalContent({ activeSubTab, playerClub, state, viewMatchday })
+      }
 
     </div>
   `;
 }
 
-function renderSubTabContent(props) {
-  const { activeSubTab, league, sortedClubs, playerClub, selectedTier, state, viewMatchday } = props;
-
-  switch (activeSubTab) {
-    case 'pokal':
-      return renderPokalView(playerClub);
-
-    case 'spielplan':
-      return renderSpielplanView(state, viewMatchday, playerClub);
-
-    case 'stats':
-      return renderStatsView(playerClub, league);
-
-    case 'liga':
-    default:
-      return renderLigaTableView(league, sortedClubs, selectedTier, state);
+// =============================================================================
+// LIGA CONTENT (ÜBERSICHT, SPIELPLAN, STATS)
+// =============================================================================
+function renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, selectedTier, state, viewMatchday }) {
+  if (activeSubTab === 'spielplan') {
+    return renderSpielplanSection(state, viewMatchday, playerClub);
   }
-}
 
-// =============================================================================
-// 1. LIGA TABELLE VIEW
-// =============================================================================
-function renderLigaTableView(league, sortedClubs, selectedTier, state) {
+  if (activeSubTab === 'stats') {
+    return renderRealStatsSection(playerClub, league, state);
+  }
+
+  // Default: Overview / Tabelle
   return `
     <div class="flex flex-col gap-3">
       <!-- League Picker Header -->
@@ -101,7 +110,6 @@ function renderLigaTableView(league, sortedClubs, selectedTier, state) {
 
       <!-- League Table Card -->
       <div class="glass-card rounded-2xl p-3 border border-white/10 shadow-2xl flex flex-col gap-1">
-        <!-- Table Column Headers -->
         <div class="grid grid-cols-12 text-[10px] font-mono text-slate-400 pb-2 border-b border-white/10 px-1">
           <span class="col-span-1 text-center">#</span>
           <span class="col-span-6">VEREIN</span>
@@ -110,7 +118,6 @@ function renderLigaTableView(league, sortedClubs, selectedTier, state) {
           <span class="col-span-2 text-right pr-1">PKT</span>
         </div>
 
-        <!-- Table Rows -->
         <div class="flex flex-col gap-1 my-1">
           ${sortedClubs.map((club, idx) => {
             const rank = idx + 1;
@@ -165,21 +172,51 @@ function renderLigaTableView(league, sortedClubs, selectedTier, state) {
 }
 
 // =============================================================================
-// 2. APEX CUP (NATIONALER K.O.-POKAL ÜBER ALLE 6 LIGEN)
+// POKAL CONTENT (APEX CUP: ÜBERSICHT, RUNDEN, PRÄMIEN)
 // =============================================================================
-function renderPokalView(playerClub) {
+function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
   const cupRounds = [
     { name: 'Runde 1', teams: '60 Teams', prize: '500 🪙', status: 'Aktiv' },
-    { name: '1/16-Finale', teams: '32 Teams', prize: '1.000 🪙', status: 'Ausstehend' },
+    { name: 'Sechzehntelfinale', teams: '32 Teams', prize: '1.000 🪙', status: 'Ausstehend' },
     { name: 'Achtelfinale', teams: '16 Teams', prize: '2.000 🪙', status: 'Ausstehend' },
     { name: 'Viertelfinale', teams: '8 Teams', prize: '4.000 🪙', status: 'Ausstehend' },
     { name: 'Halbfinale', teams: '4 Teams', prize: '8.000 🪙', status: 'Ausstehend' },
     { name: 'Großes Finale', teams: '2 Teams', prize: '15.000 🪙 + Pokal', status: 'Ausstehend' }
   ];
 
+  if (activeSubTab === 'spielplan') {
+    return `
+      <div class="glass-card rounded-2xl p-4 border border-pitch-gold/30 flex flex-col gap-3 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h3 class="font-display font-black text-xs uppercase tracking-wider text-slate-100">Pokal-Termine & Auslosung</h3>
+          <span class="font-mono text-[9px] text-pitch-gold font-bold">K.O.-SYSTEM</span>
+        </div>
+        <p class="text-xs font-sans text-slate-300 leading-relaxed">
+          Die Pokalrunden finden alle 3 Spieltage parallel zum Ligabetrieb statt. Nach Matchday 3 startet Runde 1 des Apex Cups!
+        </p>
+        <div class="p-3 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-between">
+          <span class="font-mono text-xs text-slate-300">Nächster Pokal-Termin:</span>
+          <b class="font-display text-xs text-pitch-emerald">Nach Spieltag 3</b>
+        </div>
+      </div>
+    `;
+  }
+
+  if (activeSubTab === 'stats') {
+    return `
+      <div class="glass-card rounded-2xl p-6 border border-white/10 text-center flex flex-col items-center justify-center my-4">
+        <span class="text-4xl mb-2">🏆</span>
+        <h3 class="font-display font-black text-sm text-slate-100 uppercase tracking-tight">Noch keine Pokalspiele</h3>
+        <p class="font-sans text-xs text-slate-400 max-w-xs mt-1">
+          Der Apex Cup startet nach Spieltag 3. Alle Tore und Trophäen-Statistiken werden hier erfasst!
+        </p>
+      </div>
+    `;
+  }
+
+  // Default: Cup Overview
   return `
     <div class="flex flex-col gap-3">
-      
       <!-- Cup Hero Banner -->
       <div class="glass-card rounded-2xl p-4 border border-pitch-gold/40 shadow-2xl relative overflow-hidden">
         <div class="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-pitch-gold/15 blur-2xl pointer-events-none"></div>
@@ -195,7 +232,7 @@ function renderPokalView(playerClub) {
           Der Apex Cup
         </h3>
         <p class="font-sans text-xs text-slate-300 leading-snug mt-0.5">
-          Alle 60 Vereine aus allen 6 Ligen kämpfen im K.o.-Modus um den nationalen Pokal und massive Siegprämien!
+          Alle 60 Vereine aus allen 6 Ligen kämpfen im K.o.-Modus um den Pokalsieg und massive Prämien!
         </p>
 
         <!-- Player Next Cup Fixture -->
@@ -214,7 +251,7 @@ function renderPokalView(playerClub) {
         </div>
       </div>
 
-      <!-- Cup Tournament Ladder / Rounds -->
+      <!-- Cup Tournament Rounds -->
       <div class="glass-panel rounded-2xl p-3 border border-white/10 flex flex-col gap-2 shadow-lg">
         <h4 class="font-display font-black text-xs uppercase tracking-wider text-slate-200 px-1">
           Turnierbaum & Runden
@@ -246,23 +283,21 @@ function renderPokalView(playerClub) {
           `).join('')}
         </div>
       </div>
-
     </div>
   `;
 }
 
 // =============================================================================
-// 3. SPIELPLAN VIEW (INTERAKTIVER SLIDER)
+// SPIELPLAN SECTION (SLIDER [◀ X / 18 ▶])
 // =============================================================================
-function renderSpielplanView(state, viewDay, playerClub) {
+function renderSpielplanSection(state, viewDay, playerClub) {
   const scheduleDay = state.schedule.find(s => s.matchday === viewDay);
   const matches = scheduleDay?.matches || [];
   const maxDay = state.maxMatchdays || 18;
 
   return `
     <div class="flex flex-col gap-3">
-      
-      <!-- Matchday Interactive Navigator -->
+      <!-- Matchday Navigator -->
       <div class="glass-panel rounded-2xl p-3 border border-white/10 flex items-center justify-between shadow-lg">
         <button id="btn-prev-matchday" data-day="${viewDay - 1}" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center active:scale-95 transition-all ${
           viewDay <= 1 ? 'opacity-30 pointer-events-none' : ''
@@ -303,7 +338,6 @@ function renderSpielplanView(state, viewDay, playerClub) {
                 : 'border-white/10'
             } flex items-center justify-between">
               
-              <!-- Home Club -->
               <div class="flex-1 flex items-center gap-2 truncate">
                 ${renderClubCrest(home, 24)}
                 <span class="font-display font-bold text-xs truncate ${home?.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-100'}">
@@ -311,7 +345,6 @@ function renderSpielplanView(state, viewDay, playerClub) {
                 </span>
               </div>
 
-              <!-- Match Score / VS Badge -->
               <div class="px-3 py-1 rounded-xl font-mono font-black text-xs ${
                 isPlayed
                   ? 'bg-slate-900 border border-slate-700 text-slate-100'
@@ -320,7 +353,6 @@ function renderSpielplanView(state, viewDay, playerClub) {
                 ${isPlayed ? `${m.homeScore ?? 1} : ${m.awayScore ?? 0}` : (isCurrent ? 'VS' : '15:30')}
               </div>
 
-              <!-- Away Club -->
               <div class="flex-1 flex items-center justify-end gap-2 truncate">
                 <span class="font-display font-bold text-xs truncate ${away?.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-100'}">
                   ${away?.name || 'Gast'}
@@ -332,72 +364,37 @@ function renderSpielplanView(state, viewDay, playerClub) {
           `;
         }).join('')}
       </div>
-
     </div>
   `;
 }
 
 // =============================================================================
-// 4. STATISTIKEN VIEW (TORJÄGER & CLUB KPIS)
+// ECHTE STATISTIKEN (KEINE FAKE TORE VOR SAISONSTART)
 // =============================================================================
-function renderStatsView(playerClub, league) {
-  // Generate leaderboard from league players
-  const allPlayers = [];
-  league.clubs.forEach(c => {
-    c.squad.forEach(p => {
-      allPlayers.push({ ...p, clubName: c.name, crestClub: c });
-    });
-  });
+function renderRealStatsSection(playerClub, league, state) {
+  const gamesPlayed = playerClub.stats.played || 0;
 
-  // Top scorers (mock realistic ranking sorted by OVR / random variance)
-  const topScorers = allPlayers
-    .filter(p => ['ST', 'LF', 'RF', 'ZOM'].includes(p.position))
-    .sort((a, b) => b.sho - a.sho)
-    .slice(0, 5)
-    .map((p, idx) => ({
-      ...p,
-      goals: Math.max(1, Math.round((p.sho - 50) / 4) + (idx === 0 ? 3 : 0))
-    }));
+  if (gamesPlayed === 0) {
+    return `
+      <div class="glass-card rounded-2xl p-8 border border-white/10 text-center flex flex-col items-center justify-center my-4 shadow-xl">
+        <span class="text-4xl mb-3">📊</span>
+        <h3 class="font-display font-black text-sm text-slate-100 uppercase tracking-tight">
+          Noch keine Saisonspiele absolviert
+        </h3>
+        <p class="font-sans text-xs text-slate-400 max-w-xs mt-1.5 leading-relaxed">
+          Bestreite dein erstes Pflichtspiel am 1. Spieltag gegen den SV Eisenstadt, um Torschützen, Duell-Quoten und Formkurven zu erfassen!
+        </p>
+        <button id="btn-quick-start-from-stats" class="mt-4 px-4 py-2 rounded-xl bg-pitch-emerald text-pitch-dark font-display font-black text-xs uppercase tracking-wider shadow-[0_0_15px_#00f59b] active:scale-95 transition-all">
+          Zum ersten Spieltag ➔
+        </button>
+      </div>
+    `;
+  }
 
+  // Real stats if games were actually played
   return `
     <div class="flex flex-col gap-3">
-      
-      <!-- Top Scorer Leaderboard -->
-      <div class="glass-card rounded-2xl p-3.5 border border-white/10 shadow-xl flex flex-col gap-2">
-        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-          <div class="flex items-center gap-2">
-            <span class="text-base">⚽</span>
-            <h3 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider">
-              Torjäger-Kanone (Liga 6)
-            </h3>
-          </div>
-          <span class="font-mono text-[9px] text-pitch-gold font-bold">TOP KNIPSER</span>
-        </div>
-
-        <div class="flex flex-col gap-1.5 my-1">
-          ${topScorers.map((scorer, idx) => `
-            <div class="flex items-center justify-between p-2 rounded-xl ${
-              idx === 0 ? 'bg-yellow-500/10 border border-pitch-gold/40' : 'bg-slate-900/40'
-            }">
-              <div class="flex items-center gap-2.5">
-                <span class="font-mono font-black text-xs ${idx === 0 ? 'text-pitch-gold' : 'text-slate-400'}">
-                  #${idx + 1}
-                </span>
-                <div>
-                  <b class="font-display text-xs text-slate-100 block leading-tight">${scorer.name}</b>
-                  <span class="font-mono text-[9px] text-slate-400">${scorer.clubName} (${scorer.position}, ${scorer.ovr} OVR)</span>
-                </div>
-              </div>
-              <div class="text-right">
-                <span class="font-display font-black text-sm text-pitch-emerald">${scorer.goals}</span>
-                <span class="font-mono text-[8px] text-slate-400 block uppercase">Tore</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Club Performance KPIs -->
+      <!-- Real Club KPIs -->
       <div class="glass-panel rounded-2xl p-3.5 border border-white/10 flex flex-col gap-2.5 shadow-xl">
         <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider px-1">
           Vereins-Performance (${playerClub.name})
@@ -405,37 +402,32 @@ function renderStatsView(playerClub, league) {
 
         <div class="grid grid-cols-2 gap-2 text-xs font-mono">
           <div class="glass-card rounded-xl p-2.5 border border-white/10">
-            <span class="text-slate-400 text-[10px] block">DUELL-ERFOLGSQUOTE</span>
-            <span class="font-display font-black text-base text-pitch-emerald">64.5%</span>
+            <span class="text-slate-400 text-[10px] block">GESPIELTE SPIELE</span>
+            <span class="font-display font-black text-base text-slate-100">${gamesPlayed}</span>
           </div>
 
           <div class="glass-card rounded-xl p-2.5 border border-white/10">
             <span class="text-slate-400 text-[10px] block">TORE PRO SPIEL</span>
-            <span class="font-display font-black text-base text-slate-100">
-              ${playerClub.stats.played ? (playerClub.stats.gf / playerClub.stats.played).toFixed(1) : '2.1'}
+            <span class="font-display font-black text-base text-pitch-emerald">
+              ${(playerClub.stats.gf / gamesPlayed).toFixed(1)}
             </span>
           </div>
 
           <div class="glass-card rounded-xl p-2.5 border border-white/10">
-            <span class="text-slate-400 text-[10px] block">HEIMBILANZ</span>
+            <span class="text-slate-400 text-[10px] block">GEGENTORE PRO SPIEL</span>
+            <span class="font-display font-black text-base text-slate-300">
+              ${(playerClub.stats.ga / gamesPlayed).toFixed(1)}
+            </span>
+          </div>
+
+          <div class="glass-card rounded-xl p-2.5 border border-white/10">
+            <span class="text-slate-400 text-[10px] block">BILANZ (S-U-N)</span>
             <span class="font-display font-black text-xs text-slate-200">
               ${playerClub.stats.won} S - ${playerClub.stats.drawn} U - ${playerClub.stats.lost} N
             </span>
           </div>
-
-          <div class="glass-card rounded-xl p-2.5 border border-white/10">
-            <span class="text-slate-400 text-[10px] block">FORM (LETZTE 5)</span>
-            <div class="flex gap-1 mt-1 text-[10px] font-black">
-              <span class="px-1 py-0.5 rounded bg-pitch-emerald text-pitch-dark">S</span>
-              <span class="px-1 py-0.5 rounded bg-pitch-emerald text-pitch-dark">S</span>
-              <span class="px-1 py-0.5 rounded bg-amber-400 text-slate-900">U</span>
-              <span class="px-1 py-0.5 rounded bg-rose-500 text-white">N</span>
-              <span class="px-1 py-0.5 rounded bg-pitch-emerald text-pitch-dark">S</span>
-            </div>
-          </div>
         </div>
       </div>
-
     </div>
   `;
 }
