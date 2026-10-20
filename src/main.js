@@ -31,7 +31,10 @@ let draggedPlayerId = null;
 // Application Navigation & Flow State
 let isTitleScreenActive = true;
 let isMainMenuActive = false;
+let isOnboardingActive = false;
 let activeInboxFilter = 'all';
+let activeInspectTab = 'info';
+let activeConsumableFilter = 'all';
 let activeDetailMessage = null;
 let onboardingTargetSlot = 'slot_1';
 
@@ -127,6 +130,16 @@ async function renderApp() {
     return;
   }
 
+  // 1.5 Onboarding (Vereinsgründung bei Spielneustart)
+  if (isOnboardingActive) {
+    const slots = await listAllSlots();
+    const activeSlotId = getActiveSlotId();
+    appEl.innerHTML = renderMainMenuScreen(slots, activeSlotId, false);
+    modalRoot.innerHTML = renderOnboardingModal(onboardingTargetSlot, onboardingFormState);
+    setupOnboardingEvents();
+    return;
+  }
+
   // 2. Hauptmenü (3 Speicherslots)
   if (isMainMenuActive) {
     const slots = await listAllSlots();
@@ -138,7 +151,7 @@ async function renderApp() {
     return;
   }
 
-  // 3. Wenn noch kein Spielstand existiert -> Hauptmenü oder Onboarding
+  // 3. Wenn noch kein Spielstand existiert -> Hauptmenü
   if (!state || !store.getPlayerClub()) {
     isMainMenuActive = true;
     renderApp();
@@ -212,7 +225,7 @@ function renderModals(state, modalRoot) {
       setupPostfachEvents();
       break;
     case 'consumables':
-      modalRoot.innerHTML = renderConsumablesModal(state.inventory, club.squad);
+      modalRoot.innerHTML = renderConsumablesModal(state.inventory, club.squad, activeConsumableFilter);
       setupConsumablesEvents();
       break;
     case 'settings':
@@ -220,7 +233,7 @@ function renderModals(state, modalRoot) {
       setupSettingsEvents();
       break;
     case 'player_inspect':
-      modalRoot.innerHTML = renderPlayerInspectModal(state.inspectedPlayer, club);
+      modalRoot.innerHTML = renderPlayerInspectModal(state.inspectedPlayer, club, activeInspectTab);
       setupPlayerInspectEvents();
       break;
     case 'onboarding':
@@ -286,7 +299,8 @@ function setupMainMenuEvents() {
       };
       playClickSound();
       isMainMenuActive = false;
-      store.openModal('onboarding');
+      isOnboardingActive = true;
+      renderApp();
     });
   });
 
@@ -821,6 +835,14 @@ function setupConsumablesEvents() {
     store.closeModal();
   });
 
+  document.querySelectorAll('[data-filter-consumable]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeConsumableFilter = btn.dataset.filterConsumable;
+      playClickSound();
+      renderApp();
+    });
+  });
+
   document.querySelectorAll('[data-apply-card]').forEach(btn => {
     btn.addEventListener('click', () => {
       const cardInstId = btn.dataset.applyCard;
@@ -841,6 +863,14 @@ function setupPlayerInspectEvents() {
   document.getElementById('btn-close-inspect')?.addEventListener('click', () => {
     playClickSound();
     store.closeModal();
+  });
+
+  document.querySelectorAll('[data-inspect-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeInspectTab = btn.dataset.inspectTab;
+      playClickSound();
+      renderApp();
+    });
   });
 
   document.getElementById('btn-inspect-swap')?.addEventListener('click', () => {
@@ -935,6 +965,7 @@ function setupOnboardingEvents() {
   // Cancel Onboarding
   document.getElementById('btn-cancel-onboarding')?.addEventListener('click', () => {
     playClickSound();
+    isOnboardingActive = false;
     store.closeModal();
     isMainMenuActive = true;
     renderApp();
@@ -1009,6 +1040,8 @@ function setupOnboardingEvents() {
   // Submit Club Creation
   document.getElementById('btn-submit-onboarding')?.addEventListener('click', () => {
     playGoalChime();
+    isOnboardingActive = false;
+    isMainMenuActive = false;
     store.startNewGame({
       clubName: onboardingFormState.clubName || 'FC Apex Nova',
       crestForm: onboardingFormState.crestForm || 'shield',
@@ -1016,7 +1049,6 @@ function setupOnboardingEvents() {
       secondaryColor: onboardingFormState.secondaryColor || '#ffd15c',
       targetSlot: onboardingTargetSlot
     });
-    isMainMenuActive = false;
 
     // Trigger Pack 1 (Starter Foundation 18-Spieler Pack)
     const state = store.getState();

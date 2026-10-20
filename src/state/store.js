@@ -1,20 +1,24 @@
 // =============================================================================
-// Starting XI TCG — Reactive Game State Store
+// Starting XI TCG — Central Game State Store (Reactive State Machine)
 // =============================================================================
 
-import { generateWorldDatabase, generatePlayer } from '../engine/database.js';
-import { generateLeagueSchedule, computeLeagueTable, generateFinalFourBracket } from '../engine/schedule.js';
-import { calculateSquadChemistry } from '../engine/ratings.js';
+import { loadGameState, saveGameState, clearGameState, listAllSlots, getActiveSlotId, setActiveSlotId } from './storage.js';
+import { generateSchedule, generateLeagues, generatePlayer } from '../engine/database.js';
+import { calculateTeamChemistry } from '../engine/chemistry.js';
 import { calculateMatchdayFinances } from '../engine/economy.js';
-import { saveGameState, loadGameState, clearGameState, loadSlot, saveSlot, deleteSlot, getActiveSlotId, setActiveSlotId } from './storage.js';
-import { TACTIC_CARDS } from '../engine/duel.js';
-import { CONSUMABLE_CARDS } from '../engine/packs.js';
-import { setSoundEnabled } from '../engine/audio.js';
 
 class GameStore {
   constructor() {
     this.state = null;
-    this.listeners = new Set();
+    this.listeners = [];
+  }
+
+  async init() {
+    this.state = await loadGameState();
+    // Falls ein Spielstand existiert, Chemie und Ratings sicherheitshalber neu ermitteln
+    if (this.state && this.getPlayerClub()) {
+      this.recalculateClubChemistry();
+    }
   }
 
   getState() {
@@ -22,133 +26,158 @@ class GameStore {
   }
 
   subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
   }
 
   notify() {
     if (this.state) {
       saveGameState(this.state);
     }
-    this.listeners.forEach(fn => fn(this.state));
-  }
-
-  async init() {
-    const saved = await loadGameState();
-    if (saved && saved.playerClubId) {
-      this.state = saved;
-      if (this.state.settings?.soundEnabled !== undefined) {
-        setSoundEnabled(this.state.settings.soundEnabled);
-      }
-      this.notify();
-      return true;
-    }
-    return false;
+    this.listeners.forEach(listener => listener(this.state));
   }
 
   async loadGameSlot(slotId) {
     setActiveSlotId(slotId);
-    const data = await loadSlot(slotId);
-    if (data && data.playerClubId) {
-      this.state = data;
-      if (this.state.settings?.soundEnabled !== undefined) {
-        setSoundEnabled(this.state.settings.soundEnabled);
-      }
-      this.notify();
-      return true;
+    this.state = await loadGameState();
+    if (this.state && this.getPlayerClub()) {
+      this.recalculateClubChemistry();
     }
-    return false;
+    this.notify();
+    return !!this.state;
   }
 
   async deleteGameSlot(slotId) {
-    await deleteSlot(slotId);
     const activeSlot = getActiveSlotId();
     if (activeSlot === slotId) {
+      clearGameState();
       this.state = null;
+    } else {
+      localStorage.removeItem(`starting_xi_tcg_state_${slotId}`);
     }
     this.notify();
   }
 
   /**
-   * Startet ein neues Spiel (Road to Glory in Liga 6)
+   * Startet ein völlig neues Spiel mit Starter-Packs (Foundation + Star Draft)
    */
-  startNewGame({ clubName, primaryColor, secondaryColor, crestForm = 'shield', captainRole = 'ST', targetSlot = 'slot_1' }) {
+  startNewGame({ clubName, crestForm = 'shield', primaryColor = '#00f59b', secondaryColor = '#ffd15c', targetSlot = 'slot_1' }) {
     setActiveSlotId(targetSlot);
-    const { leagues, allClubs } = generateWorldDatabase();
-    const liga6 = leagues.find(l => l.tier === 6);
-    const schedule = generateLeagueSchedule(liga6.clubs);
 
-    // Spielerverein finden und konfigurieren
-    const playerClub = liga6.clubs.find(c => c.isPlayer);
-    playerClub.name = clubName || 'FC Apex Nova';
-    playerClub.primaryColor = primaryColor || '#00f59b';
-    playerClub.secondaryColor = secondaryColor || '#ffd15c';
-    playerClub.crestForm = crestForm || 'shield';
-    playerClub.coins = 1500;
-    playerClub.squad = []; // Wird direkt durch das 18er Starter-Pack befüllt
+    const leagues = generateLeagues();
+    const schedule = generateSchedule();
 
-    // Anfangs-Inventar
-    const inventory = [
-      { ...CONSUMABLE_CARDS[0], instanceId: 'init_1' }, // Gold-Vertrag
-      { ...CONSUMABLE_CARDS[1], instanceId: 'init_2' }, // Fitness-Express
-      { ...CONSUMABLE_CARDS[1], instanceId: 'init_3' }, // Fitness-Express
-      { ...CONSUMABLE_CARDS[2], instanceId: 'init_4' }, // Blitzgenesung
-      { ...CONSUMABLE_CARDS[3], instanceId: 'init_5' }  // Positions-Umschulung
-    ];
-
-    // Taktikdeck-Karten
-    const tacticDeck = [...TACTIC_CARDS];
-    const equippedTactics = ['t_second_wind', 't_park_bus', 't_counter_frenzy'];
-
-    // Postfach Mitteilungen
-    const inbox = [
-      {
-        id: 'msg_1',
-        title: 'Willkommen bei Starting XI TCG!',
-        type: 'INFO',
-        unread: true,
-        date: 'Vor 10 Min.',
-        text: `Herzlich willkommen als Manager von ${playerClub.name}! Dein Sponsoring-Vertrag und dein Starter-Deck stehen bereit. Führe deinen Club aus Liga 6 über das Final Four an die nationale Spitze!`
+    const userClub = {
+      id: 'club_user',
+      name: clubName || 'FC Apex Nova',
+      isUser: true,
+      formation: '4-3-3',
+      crest: {
+        form: crestForm,
+        primaryColor,
+        secondaryColor
       },
-      {
-        id: 'msg_2',
-        title: 'Sponsoren-Auszahlung erhalten',
-        type: 'SPONSOR',
-        unread: true,
-        date: 'Vor 5 Min.',
-        text: 'Antrittsprämie von Hauptsponsor Nova Energy (+500🪙) gutgeschrieben.'
-      }
-    ];
-
-    this.state = {
-      slotId: targetSlot,
-      activeTab: 'home',
-      activeModal: null, // 'postfach' | 'consumables' | 'match_arena' | 'pack_walkout' | 'settings' | 'onboarding'
-      currentMatchday: 1,
-      maxMatchdays: 18,
-      selectedLeagueTier: 6,
-      leagues,
-      allClubs,
-      playerClubId: playerClub.id,
-      schedule,
-      inventory,
-      tacticDeck,
-      equippedTactics,
-      inbox,
-      settings: {
-        soundEnabled: true,
-        simSpeed: 'blitz'
-      },
-      finalFour: null, // Wird nach Spieltag 18 befüllt
-      activePackResult: null,
-      starterPacksPending: ['pack_starter_foundation', 'pack_starter_star']
+      coins: 1000,
+      fanBase: 1250,
+      season: 1,
+      stats: { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
+      squad: [] // Wird gleich über das Starter-Pack befüllt!
     };
 
-    saveSlot(targetSlot, this.state);
+    // Ersetze Platzhalter in Liga 6
+    const liga6 = leagues.find(l => l.tier === 6);
+    if (liga6 && liga6.clubs.length > 0) {
+      liga6.clubs[0] = userClub;
+    }
+
+    this.state = {
+      userClubId: 'club_user',
+      currentMatchday: 1,
+      selectedLeagueTier: 6,
+      wettbewerbCompetition: 'liga',
+      wettbewerbTab: 'overview',
+      viewMatchday: 1,
+      maxMatchdays: 18,
+      leagues,
+      schedule,
+      inventory: [
+        {
+          id: 'c_train_tempo',
+          instanceId: `item_starter_train_${Date.now()}`,
+          type: 'TRAINING',
+          name: 'Sprint-Drill',
+          rarity: 'silver',
+          icon: '👟',
+          title: '+2 Tempo permanent',
+          description: 'Erhöht das Tempo & den Antritt (PAC) eines Spielers dauerhaft um +2 Punkte.',
+          trainAttr: 'pac',
+          trainVal: 2
+        },
+        {
+          id: 'c_gold_contract',
+          instanceId: `item_starter_contract_${Date.now()}`,
+          type: 'CONTRACT',
+          name: 'Gold-Vertrag',
+          rarity: 'gold',
+          icon: '📜',
+          title: '50% Gehalts-Rabatt',
+          description: 'Senkt das Gehalt eines ausgewählten Spielers um 50% für die nächsten 10 Pflichtspiele.',
+          duration: 10,
+          discountRate: 0.50
+        },
+        {
+          id: 'c_fitness_express',
+          instanceId: `item_starter_fitness_${Date.now()}`,
+          type: 'FITNESS',
+          name: 'Fitness-Express',
+          rarity: 'silver',
+          icon: '⚡',
+          title: '100% Sofort-Kondition',
+          description: 'Stellt Ausdauer und Frische eines Spielers sofort auf das Maximum von 100% wieder her.',
+          healsFatigue: true
+        }
+      ],
+      inbox: [
+        {
+          id: 'msg_welcome',
+          title: 'Willkommen bei Starting XI TCG!',
+          type: 'SYSTEM',
+          unread: true,
+          date: 'Gerade eben',
+          text: `Herzlich willkommen als Manager von ${userClub.name}! Wir haben dir zum Start zwei Gratis-Booster bereitgestellt: Dein 18-Mann-Basisteam sowie einen Starspieler-Draft. Öffne jetzt die Packs und führe deinen Verein in die Königsklasse!`
+        }
+      ],
+      equippedTactics: ['t_second_wind', 't_park_bus', 't_counter_frenzy'],
+      activeTab: 'home',
+      activeModal: null,
+      pendingPack: null,
+      activePackResult: null,
+      starterPacksPending: ['pack_starter_star'], // Pack 2 folgt nach Foundation
+      settings: {
+        soundEnabled: true,
+        simSpeed: 'normal'
+      }
+    };
+
     this.notify();
   }
 
-  // --- Actions ---
+  getPlayerClub() {
+    if (!this.state?.leagues) return null;
+    const liga = this.state.leagues.find(l => l.tier === 6);
+    return liga?.clubs.find(c => c.id === this.state.userClubId) || null;
+  }
+
+  recalculateClubChemistry() {
+    const club = this.getPlayerClub();
+    if (!club || !club.squad) return;
+    const starters = club.squad.filter(p => p.isStarter);
+    starters.forEach(player => {
+      player.chemistry = calculateTeamChemistry(player, starters, club.formation || '4-3-3');
+    });
+  }
 
   setActiveTab(tabName) {
     if (this.state) {
@@ -157,10 +186,9 @@ class GameStore {
     }
   }
 
-  openModal(modalName, payload = null) {
+  openModal(modalName) {
     if (this.state) {
       this.state.activeModal = modalName;
-      this.state.modalPayload = payload;
       this.notify();
     }
   }
@@ -168,36 +196,48 @@ class GameStore {
   closeModal() {
     if (this.state) {
       this.state.activeModal = null;
-      this.state.modalPayload = null;
       this.notify();
     }
   }
 
-  getPlayerClub() {
-    if (!this.state) return null;
-    const liga = this.state.leagues.find(l => l.tier === 6);
-    return liga.clubs.find(c => c.id === this.state.playerClubId);
-  }
-
   /**
-   * Wendet eine Verbrauchskarte auf einen Spieler an
+   * Wendet eine Verbrauchs-/Itemkarte auf einen Zielspieler an
    */
-  applyConsumable(instanceId, targetPlayerId) {
+  applyConsumable(cardInstanceId, targetPlayerId) {
     const club = this.getPlayerClub();
-    const cardIdx = this.state.inventory.findIndex(c => c.instanceId === instanceId);
-    if (cardIdx === -1) return false;
+    const player = club.squad.find(p => p.id === targetPlayerId);
+    const cardIdx = this.state.inventory.findIndex(c => (c.instanceId || c.id) === cardInstanceId);
+
+    if (!player || cardIdx === -1) return false;
 
     const card = this.state.inventory[cardIdx];
-    const player = club.squad.find(p => p.id === targetPlayerId);
-    if (!player) return false;
 
-    if (card.type === 'FITNESS') {
+    if (card.type === 'CONTRACT') {
+      player.contractDiscount = card.discountRate || 0.50;
+      player.discountMatches = card.duration || 10;
+    } else if (card.type === 'FITNESS') {
       player.condition = 100;
-    } else if (card.type === 'CONTRACT') {
-      player.contractMatches += 10;
-      player.contractDiscountUntilMatch = this.state.currentMatchday + 10;
     } else if (card.type === 'MEDICAL') {
+      player.injured = false;
       player.injury = null;
+    } else if (card.type === 'TRAINING') {
+      if ((player.trainingCount || 0) >= 3) {
+        alert('Dieser Spieler hat bereits das Maximum von 3 Trainings-Boosts absolviert!');
+        return false;
+      }
+      player.trainingCount = (player.trainingCount || 0) + 1;
+      if (card.trainMaster) {
+        player.pac = Math.min(99, (player.pac || 60) + 1);
+        player.sho = Math.min(99, (player.sho || 60) + 1);
+        player.pas = Math.min(99, (player.pas || 60) + 1);
+        player.dri = Math.min(99, (player.dri || 60) + 1);
+        player.def = Math.min(99, (player.def || 60) + 1);
+        player.phy = Math.min(99, (player.phy || 60) + 1);
+      } else if (card.trainAttr && card.trainVal) {
+        player[card.trainAttr] = Math.min(99, (player[card.trainAttr] || 60) + card.trainVal);
+      }
+      // OVR neu berechnen
+      player.ovr = Math.round((player.pac + player.sho + player.pas + player.dri + player.def + player.phy) / 6);
     } else if (card.type === 'TACTIC' && card.retrains) {
       // Passt Primärposition an aktuellen Slot an
       player.position = player.currentSlot;

@@ -208,7 +208,7 @@ export function renderFUTCard(player, options = {}) {
     <div class="fut-card ${currentTier.cssClass} relative flex flex-col justify-between cursor-pointer ${
       selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_25px_#00f59b] scale-[1.02]' : ''
     }"
-         style="width: ${large ? '245px' : '200px'}; height: ${large ? '365px' : '300px'}; border-radius: ${large ? '22px' : '18px'};"
+         style="width: ${large ? '270px' : '200px'}; height: ${large ? '395px' : '300px'}; border-radius: ${large ? '22px' : '18px'};"
          data-player-id="${player.id}"
          ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}
          onmousemove="window.handleCardTilt(event, this)"
@@ -225,20 +225,20 @@ export function renderFUTCard(player, options = {}) {
         <div class="flex flex-col items-center gap-1">
           <!-- OVR Badge -->
           <div class="flex flex-col items-center leading-none">
-            <span class="font-display font-black text-3xl tracking-tighter bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow-md">
+            <span class="font-display font-black ${large ? 'text-4xl' : 'text-3xl'} tracking-tighter bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow-md">
               ${effectiveOvr}
             </span>
             ${isOutOfPosition ? '<span class="text-[9px] text-pitch-danger font-extrabold animate-pulse">▼ OOS</span>' : ''}
           </div>
 
           <!-- Position Badge -->
-          <span class="font-mono text-[11px] font-black tracking-wider text-slate-200 uppercase px-1.5 py-0.5 rounded ${currentTier.badgeBg} border">
+          <span class="font-mono ${large ? 'text-xs px-2 py-0.5' : 'text-[11px] px-1.5 py-0.5'} font-black tracking-wider text-slate-200 uppercase rounded ${currentTier.badgeBg} border">
             ${player.position}
           </span>
 
           <!-- Nation Flag -->
           <div class="mt-0.5">
-            ${getNationFlagSVG(player.nationality, 24, 16)}
+            ${getNationFlagSVG(player.nationality, large ? 28 : 24, large ? 19 : 16)}
           </div>
 
           <!-- Chemie Label & Pips -->
@@ -251,9 +251,9 @@ export function renderFUTCard(player, options = {}) {
         </div>
 
         <!-- Center/Right: Dynamic Athletic Avatar Bust (Pop-Out) -->
-        <div class="relative flex-1 flex justify-center items-end" style="height: 140px; margin-right: -4px;">
+        <div class="relative flex-1 flex justify-center items-end" style="height: ${large ? '165px' : '140px'}; margin-right: -4px;">
           <div class="absolute w-24 h-24 rounded-full bg-white/5 blur-xl -z-10"></div>
-          <div class="w-28 h-32 transform scale-110 origin-bottom drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
+          <div class="${large ? 'w-36 h-40 scale-125' : 'w-28 h-32 scale-110'} transform origin-bottom drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
             ${avatarSVG}
           </div>
         </div>
