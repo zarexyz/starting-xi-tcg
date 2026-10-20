@@ -9,7 +9,7 @@ import { esc } from '../html.js';
 import { formHtml, autoToggle } from '../shell.js';
 import { lineupEditor, selectionBar } from '../screens/squad.js';
 import { currentDay, dayLabel, userMatch, ensureUserSetup } from '../../engine/game.js';
-import { STYLES, STYLE_KEYS, FORMATION_KEYS, styleMatchup } from '../../engine/constants.js';
+import { STYLES, STYLE_KEYS, FORMATION_KEYS } from '../../engine/constants.js';
 import { buildTeam, predictMatch } from '../../engine/match.js';
 import { bestLineup } from '../../engine/ai.js';
 import { createRng } from '../../engine/rng.js';
@@ -72,14 +72,9 @@ export function prepFlow(game, ui) {
 
   const styleTiles = STYLE_KEYS.map(key => {
     const st = STYLES[key];
-    const mu = styleMatchup(key, opp.preferredStyle);
-    const tag = mu > 0 ? `<span class="chip chip--pitch">${icon('up')}Kontert ${oppStyle.name}</span>` :
-      mu < 0 ? `<span class="chip chip--loss">${icon('down')}Anfällig gegen ${oppStyle.name}</span>` :
-        `<span class="chip">Neutral</span>`;
     return `<button class="style-tile ${setup.style === key ? 'is-active' : ''}" data-action="set-style" data-value="${key}" aria-pressed="${setup.style === key}">
       <b>${st.name}</b>
       <span class="small">${st.desc}</span>
-      ${tag}
     </button>`;
   }).join('');
 
@@ -98,7 +93,7 @@ export function prepFlow(game, ui) {
       </div>
     </section>
     <div class="scout__report">
-      <div class="scout__line">${icon('strategy')}<span>Spielt meist <b>${oppStyle.name}</b> im <b>${opp.preferredFormation}</b>. Das trifft in etwa 7 von 10 Spielen zu.</span></div>
+      <div class="scout__line">${icon('strategy')}<span>${opp.coach ? `Trainer <b>${esc(opp.coach.name)}</b> setzt fast immer auf <b>${oppStyle.name}</b>` : `Spielt fast immer <b>${oppStyle.name}</b>`}, meist im <b>${opp.preferredFormation}</b>.</span></div>
       ${star ? `<div class="scout__star">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>Gefährlichster Spieler:</b> ${esc(star.first)} ${esc(star.last)}, ${star.position}, Stärke ${star.ovr}.</p></div>` : ''}
     </div>
 
@@ -136,7 +131,7 @@ export function prepFlow(game, ui) {
         <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b>Remis</span>
         <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b>Niederl.</span>
       </div>
-      <p class="xsmall muted">Die Prognose geht davon aus, dass der Gegner wie meistens spielt.</p>
+      <p class="xsmall muted">Die Prognose geht davon aus, dass der Gegner wie meistens spielt. Welcher Stil gegen welchen hilft, findest du selbst heraus: Der Spielbericht verrät es dir.</p>
     </section>
 
     <div class="prep__cta">

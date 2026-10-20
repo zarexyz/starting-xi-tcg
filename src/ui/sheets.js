@@ -7,7 +7,8 @@ import { itemCard } from './flows/pack.js';
 import { playerRow } from './screens/squad.js';
 import { icon } from './icons.js';
 import { esc } from './html.js';
-import { CONSUMABLES } from '../engine/packs.js';
+import { itemDef, attrMatters } from '../engine/packs.js';
+import { ATTR_NAMES } from '../engine/constants.js';
 import { clubPlayers } from '../engine/world.js';
 
 const NEWS_ICON = {
@@ -44,15 +45,17 @@ export function itemsSheet(game, ui) {
   const inv = game.user.inventory;
   const pickItem = ui.sheet?.itemId ? inv.find(i => i.id === ui.sheet.itemId) : null;
   if (pickItem) {
-    const def = CONSUMABLES[pickItem.type];
+    const def = itemDef(pickItem);
     let players = clubPlayers(game, 'user');
     if (def.target === 'injured') players = players.filter(p => p.injury);
     if (pickItem.type === 'FITNESS') players = players.sort((a, b) => a.condition - b.condition);
+    else if (def.attr) players = players.sort((a, b) => attrMatters(b.position, def.attr) - attrMatters(a.position, def.attr) || b.ovr - a.ovr);
     else players = players.sort((a, b) => b.ovr - a.ovr);
+    const extra = def.attr ? p => `${ATTR_NAMES[def.attr]} ${p.attrs[def.attr]}${p.tempBoost ? ', Matchplan aktiv' : ''}` : null;
     return sheet(def.name, `
-      ${itemCard(pickItem.type)}
+      ${itemCard(pickItem)}
       <p class="small muted">Für wen?</p>
-      ${players.length ? `<ul class="list panel panel--flush">${players.map(p => playerRow(game, p, { action: 'use-item-on' })).join('')}</ul>` :
+      ${players.length ? `<ul class="list panel panel--flush">${players.map(p => playerRow(game, p, { action: 'use-item-on', extra: extra && extra(p) })).join('')}</ul>` :
         '<div class="empty"><p>Gerade gibt es niemanden, für den das passt.</p></div>'}
       <button class="btn btn--ghost btn--block" data-action="open-items">${icon('chevronLeft')}Zurück zum Spind</button>
     `);
@@ -61,12 +64,12 @@ export function itemsSheet(game, ui) {
     return sheet('Spind', `<div class="empty"><div class="h3">Der Spind ist leer</div><p>Ausrüstungs-Packs gibt es im Markt.</p><button class="btn btn--secondary" data-action="go-market">${icon('store')}Zum Markt</button></div>`);
   }
   const groups = {};
-  inv.forEach(i => { (groups[i.type] ||= []).push(i); });
+  inv.forEach(i => { (groups[i.type + (i.attr ? ':' + i.attr : '')] ||= []).push(i); });
   const forPlayer = ui.sheet?.playerId;
   return sheet('Spind', `
     ${forPlayer ? `<p class="small muted">Gegenstand für ${esc(game.players[forPlayer]?.last || '')} auswählen.</p>` : '<p class="small muted">Tippe auf einen Gegenstand, um ihn einzusetzen.</p>'}
     <div class="items-grid">
-      ${Object.entries(groups).map(([type, list]) => itemCard(type, 0, { action: 'use-item', id: list[0].id, count: list.length })).join('')}
+      ${Object.values(groups).map(list => itemCard(list[0], 0, { action: 'use-item', id: list[0].id, count: list.length })).join('')}
     </div>
   `);
 }

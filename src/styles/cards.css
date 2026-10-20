@@ -116,12 +116,15 @@ button.card:active { transform: scale(0.97); }
   line-height: 1.2;
 }
 .card__stats {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 1px 4px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: calc(var(--w) * 0.012) calc(var(--w) * 0.02);
 }
-.card__stat { display: flex; align-items: baseline; gap: 3px; }
-.card__stat b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--w) * 0.088); font-variant-numeric: tabular-nums; }
-.card__stat i { font-style: normal; font-size: calc(var(--w) * 0.05); font-weight: 700; color: var(--ink-3); }
+.card__stat { display: grid; justify-items: center; line-height: 1.05; }
+.card__stat b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--w) * 0.08); font-variant-numeric: tabular-nums; }
+.card__stat i { font-style: normal; font-size: calc(var(--w) * 0.046); font-weight: 700; color: var(--ink-3); letter-spacing: 0.02em; }
+.card__stat.is-key b { color: var(--ink); }
+.card__stat:not(.is-key) b { color: var(--ink-2); }
+.card__stat.is-boost b { color: var(--pitch); }
 .card__foot {
   display: flex; justify-content: space-between; align-items: center;
   font-size: calc(var(--w) * 0.058); font-weight: 700; color: var(--ink-2);

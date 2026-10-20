@@ -11,13 +11,15 @@ import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength }
 import { roundRobin, buildCalendar, createCup, drawCupRound, computeTable, createFinalFour, matchWinner, matchLoser, CUP_ROUND_NAMES } from './schedule.js';
 import { buildTeam, simulateMatch, analyzeMatch } from './match.js';
 import { aiSetup, bestLineup, repairLineup } from './ai.js';
-import { developPlayer, shortName, displayName, salaryFor, createPlayer } from './player.js';
+import { developPlayer, shortName, displayName, salaryFor, createPlayer, trainAttribute, avgRating } from './player.js';
 import { generateStarterSquad, generateStarDraft, generateDraft, generateItems, PACKS, CONSUMABLES } from './packs.js';
 import { matchIncome, seasonPrize, CUP_PRIZES, FINAL_FOUR_PRIZES, weeklyWages, wageCap } from './economy.js';
-import { trainPlayer } from './player.js';
+import { ATTR_NAMES, STYLES } from './constants.js';
+const STYLE_NAMES = Object.fromEntries(Object.entries(STYLES).map(([k, v]) => [k, v.name]));
+import { newCoach } from './world.js';
 import { aiTransferWindow } from './market.js';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // -----------------------------------------------------------------------------
 // Neues Spiel
@@ -59,7 +61,10 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern 
     createWorld(rng, state, { name: clubName, primary, secondary, crest, pattern });
     startSeason(rng, state, null);
   });
-  state.user.inventory = ['FITNESS', 'FITNESS', 'TRAIN', 'MORALE', 'TACTIC'].map(type => ({ id: `i${++state.nextId}`, type }));
+  state.user.inventory = [
+    { type: 'FITNESS' }, { type: 'FITNESS' }, { type: 'TRAIN', attr: 'sch' }, { type: 'BOOST', attr: 'tem' },
+    { type: 'MORALE' }, { type: 'TACTIC' }
+  ].map(item => ({ id: `i${++state.nextId}`, ...item }));
   addNews(state, 'welcome', 'Willkommen, Trainer!',
     `${clubName} startet in der ${LEAGUE_INFO[6].name}. Ziel: Platz 1–4 für das Final Four – die beiden Halbfinalsieger steigen auf. Öffne zuerst dein Starter-Pack.`);
   return state;
@@ -78,7 +83,9 @@ function startSeason(rng, state, cupByes) {
   state.calendar = buildCalendar();
   for (const p of Object.values(state.players)) {
     p.stats = { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0 };
+    p.half = { apps: 0, ratingSum: 0 };
   }
+  for (const c of Object.values(state.clubs)) c.halfGames = 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -193,7 +200,7 @@ export function buyPack(state, packKey) {
     if (pack.kind === 'draft') {
       state.pending = { type: 'draft', source: packKey, title: pack.name, candidates: generateDraft(rng, state, packKey) };
     } else {
-      const items = generateItems(rng, pack.count).map(type => ({ id: `i${++state.nextId}`, type }));
+      const items = generateItems(rng, pack.count).map(item => ({ id: `i${++state.nextId}`, ...item }));
       state.user.inventory.push(...items);
       state.pending = { type: 'items', source: packKey, title: pack.name, items };
     }
@@ -260,8 +267,20 @@ export function useItem(state, itemId, playerId = null) {
         break;
       case 'TRAIN':
       case 'TRAIN_PLUS': {
-        const delta = trainPlayer(rng, player, item.type === 'TRAIN' ? 1.6 : 3.4);
-        message = delta > 0 ? `${shortName(player)} verbessert sich auf ${player.ovr} (+${delta}).` : `${shortName(player)} ist an seiner Grenze – kaum noch Fortschritt.`;
+        const attr = item.attr || 'pas';
+        const amount = item.type === 'TRAIN' ? 1 : 2;
+        const before = player.attrs[attr];
+        const { gain, ovrDelta } = trainAttribute(rng, player, attr, amount);
+        message = gain > 0
+          ? `${shortName(player)}: ${ATTR_NAMES[attr]} ${before} → ${player.attrs[attr]}${ovrDelta > 0 ? `, Stärke jetzt ${player.ovr}` : ''}.`
+          : `${shortName(player)} ist an seiner Grenze, das Training bringt kaum noch etwas.`;
+        break;
+      }
+      case 'BOOST': {
+        const attr = item.attr || 'tem';
+        if (player.tempBoost) return { error: `${shortName(player)} hat schon eine Karte für das nächste Spiel.` };
+        player.tempBoost = { attr, amount: 6 };
+        message = `${shortName(player)}: ${ATTR_NAMES[attr]} +6 im nächsten Spiel.`;
         break;
       }
       case 'MORALE':
@@ -469,13 +488,19 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     if (!p) continue;
     played.add(id);
     const isSub = subsIn.includes(id);
-    p.condition = Math.max(30, p.condition - (isSub ? 5 : 10 + fatigue + rng.int(0, 3) + (p.age > 30 ? 2 : 0)));
+    // Physis: robuste Spieler ermüden langsamer (etwa ±2 pro Spiel)
+    const phyAdj = Math.round(((p.attrs.phy ?? 55) - 60) / 10);
+    p.condition = Math.max(30, p.condition - (isSub ? 5 : Math.max(5, 10 + fatigue + rng.int(0, 3) + (p.age > 30 ? 2 : 0) - phyAdj)));
     p.morale = Math.max(20, Math.min(100, p.morale + (outcome === 'W' ? 4 : outcome === 'L' ? -4 : 1)));
     const rating = result.ratings[id];
     if (rating) {
       p.stats.apps++;
       p.careerStats.apps++;
       p.stats.ratingSum += rating;
+      p.careerStats.ratingSum = (p.careerStats.ratingSum || 0) + rating;
+      p.half = p.half || { apps: 0, ratingSum: 0 };
+      p.half.apps++;
+      p.half.ratingSum += rating;
       p.form = [...(p.form || []), rating].slice(-5);
     }
     const goals = result.goals.filter(g => g.scorerId === id).length;
@@ -484,6 +509,11 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     p.stats.assists += assists; p.careerStats.assists += assists;
     if (result.motm === id) p.stats.motm++;
   }
+  // Temporäre Karten gelten genau ein Spiel
+  for (const id of state.clubs[clubId]?.playerIds || []) {
+    if (state.players[id]?.tempBoost) state.players[id].tempBoost = null;
+  }
+  if (state.clubs[clubId]) state.clubs[clubId].halfGames = (state.clubs[clubId].halfGames || 0) + 1;
   for (const inj of result.injuries.filter(x => x.side === side)) {
     const p = state.players[inj.playerId];
     if (!p) continue;
@@ -524,7 +554,7 @@ export function playDay(state) {
       const as = setupFor(rng, state, m.away);
       const home = buildTeam(state, m.home, hs);
       const away = buildTeam(state, m.away, as);
-      const result = simulateMatch(rng, home, away, { knockout, neutral });
+      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout });
       m.hg = result.hg;
       m.ag = result.ag;
       if (result.pens) m.pens = result.pens;
@@ -643,10 +673,10 @@ function handleWages(state) {
 
 function afterDay(rng, state, day) {
   if (day.type === 'league' && day.md === 9) {
-    const changes = developAll(rng, state, 9, false);
+    const changes = developAll(rng, state, false);
     recordHistory(state);
     state.devReport = { title: `Halbserie, Saison ${state.season}`, changes };
-    addNews(state, 'development', 'Halbzeit der Saison', 'Die Spieler haben sich weiterentwickelt. Junge Talente legen zu, ältere Spieler bauen teils ab. Schau in deinen Kader!');
+    addNews(state, 'development', 'Halbzeit der Saison', 'Die Spieler haben sich weiterentwickelt. Es zählen Alter, Spielzeit und Leistung: Wer jung ist, spielt und gute Noten holt, legt zu. Ältere Spieler bauen langsam ab. Schau in deinen Kader!');
   }
   if (day.type === 'cup') {
     const round = state.cup.rounds[day.round];
@@ -698,18 +728,23 @@ function afterDay(rng, state, day) {
   }
 }
 
-function developAll(rng, state, games, aging) {
+function developAll(rng, state, aging) {
   const changes = [];
   for (const p of Object.values(state.players)) {
-    const share = Math.min(1, p.stats.apps / Math.max(1, games));
+    const half = p.half || { apps: 0, ratingSum: 0 };
+    const games = state.clubs[p.clubId]?.halfGames || 9;
+    const share = Math.min(1, half.apps / Math.max(1, games));
+    const avg = half.apps >= 3 ? half.ratingSum / half.apps : null;
     const before = p.ovr;
-    const delta = developPlayer(rng, p, share);
+    const delta = developPlayer(rng, p, share, avg);
     if (aging) p.age++;
     if (p.clubId === 'user') {
       p.lastDelta = delta;
-      changes.push({ id: p.id, before, after: p.ovr, delta, apps: p.stats.apps });
+      changes.push({ id: p.id, before, after: p.ovr, delta, apps: half.apps, avg, share });
     }
+    p.half = { apps: 0, ratingSum: 0 };
   }
+  for (const c of Object.values(state.clubs)) c.halfGames = 0;
   changes.sort((a, b) => b.delta - a.delta);
   return changes;
 }
@@ -781,7 +816,7 @@ function endSeason(rng, state) {
   }
 
   // Entwicklung zweite Saisonhälfte, Alterung, Karriereende
-  const devChanges = developAll(rng, state, MATCHDAYS, true);
+  const devChanges = developAll(rng, state, true);
   for (const p of Object.values(state.players)) {
     if (p.age >= 33) {
       const prob = p.age >= 38 ? 1 : 0.12 + (p.age - 33) * 0.2;
@@ -846,7 +881,24 @@ function endSeason(rng, state) {
       const isCore = rng.chance(0.3);
       createClubPlayer(rng, state, club, pos, isCore, { age: isCore ? rng.int(22, 28) : rng.int(17, 20) });
     }
-    if (rng.chance(0.2)) club.preferredStyle = rng.pick(STYLE_KEYS);
+  }
+
+  // Trainerwechsel: nach Abstieg oder schwacher Saison oft, sonst selten. Neuer Trainer, neue Philosophie.
+  for (const club of Object.values(state.clubs)) {
+    if (club.isUser) continue;
+    const oldTier = summary.moves.find(m => m.id === club.id)?.from ?? club.tier;
+    const pos = tables[oldTier].find(r => r.clubId === club.id)?.pos ?? 5;
+    const down = relegated[oldTier]?.includes(club.id);
+    const chance = down ? 0.65 : pos >= 8 ? 0.35 : pos <= 2 ? 0.03 : 0.1;
+    if (rng.chance(chance)) {
+      const prev = club.coach;
+      club.coach = newCoach(rng, club.preferredStyle);
+      club.preferredStyle = club.coach.style;
+      if (prev && (club.tier === state.clubs.user.tier)) {
+        addNews(state, 'coach', `Trainerwechsel bei ${club.name}`,
+          `${prev.name} muss gehen. Nachfolger ${club.coach.name} steht für ${STYLE_NAMES[club.coach.style]}.`, { clubId: club.id });
+      }
+    }
   }
 
   state.history.unshift(userSummary);

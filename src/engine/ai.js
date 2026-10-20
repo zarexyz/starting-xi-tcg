@@ -85,7 +85,8 @@ export function repairLineup(state, clubId, setup) {
 export function aiSetup(rng, state, clubId) {
   const club = state.clubs[clubId];
   const formation = club.preferredFormation;
-  const style = rng.chance(0.72) ? club.preferredStyle : rng.pick(STYLE_KEYS);
+  // Trainer-Philosophie: in etwa 85 % der Spiele sein Stil
+  const style = rng.chance(0.85) ? club.preferredStyle : rng.pick(STYLE_KEYS.filter(k => k !== club.preferredStyle));
   const { lineup, bench } = bestLineup(state, clubId, formation, { minCondition: 70 });
   return { formation, style, lineup, bench, boosts: {} };
 }
@@ -97,6 +98,6 @@ export function scoutReport(state, clubId) {
     formation: club.preferredFormation,
     style: club.preferredStyle,
     styleName: STYLES[club.preferredStyle].name,
-    reliability: 72
+    reliability: 85
   };
 }

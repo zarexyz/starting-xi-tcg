@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { FORMATIONS, STYLES, POSITION_GROUP, styleMatchup } from './constants.js';
-import { effectiveRating, familiarity, shortName, fitnessFactor } from './player.js';
+import { effectiveRating, familiarity, shortName, fitnessFactor, attrOf } from './player.js';
 import { clamp } from './rng.js';
 
 /** Formationsbedingte Verschiebung der Mannschaftsteile */
@@ -18,6 +18,15 @@ const FORMATION_SHAPE = {
 };
 
 const BASE_ATTACKS = 20; // Angriffe beider Teams zusammen
+
+/** Stil-Vorteil: halbiert gegenüber v1.0, entspricht etwa 2–3 Stärkepunkten */
+const EDGE_MID = 0.75;
+const EDGE_ATTACK_UP = 1.07;
+const EDGE_ATTACK_DOWN = 0.96;
+const EDGE_BREAK = 0.11;
+
+/** Mental: Abweichung vom Mittelwert 55, als Faktor um 0 */
+const mentalEdge = team => (team.mental - 55) / 40;
 
 /**
  * Aufstellung in Spielstärke umrechnen.
@@ -56,6 +65,7 @@ export function buildTeam(state, clubId, setup) {
     attackPower: att * 0.65 + mid * 0.35 + (boosts.att || 0),
     defensePower: def * 0.7 + mid * 0.3 + style.defBonus + (boosts.def || 0),
     keeper: slots.find(s => s.group === 'GK'),
+    mental: slots.reduce((s, x) => s + (x.player ? attrOf(x.player, 'men') : 30), 0) / 11,
     avgCondition: slots.reduce((s, x) => s + (x.player?.condition ?? 0), 0) / 11
   };
 }
@@ -66,7 +76,7 @@ function pickShooter(rng, team) {
   const weightFor = s => {
     const g = { ATT: 3.2, MID: 1.4, DEF: 0.35, GK: 0 }[s.group];
     const bonus = s.pos === 'ST' ? 1.4 : s.pos === 'ZOM' ? 1.2 : 1;
-    return g * bonus * Math.max(1, (s.player?.attrs.sch ?? 30) - 30);
+    return g * bonus * Math.max(1, (s.player ? attrOf(s.player, 'sch') : 30) - 30);
   };
   return rng.weighted(team.slots.filter(s => s.player).map(s => ({ value: s, weight: weightFor(s) })));
 }
@@ -75,7 +85,7 @@ function pickAssister(rng, team, shooter) {
   const cands = team.slots.filter(s => s.player && s !== shooter && s.group !== 'GK');
   return rng.weighted(cands.map(s => ({
     value: s,
-    weight: ({ MID: 2.2, ATT: 1.8, DEF: 0.7 }[s.group]) * Math.max(1, (s.player.attrs.pas ?? 30) - 30)
+    weight: ({ MID: 2.2, ATT: 1.8, DEF: 0.7 }[s.group]) * Math.max(1, attrOf(s.player, 'pas') - 30)
   })));
 }
 
@@ -83,7 +93,7 @@ function pickDefender(rng, team) {
   const cands = team.slots.filter(s => s.player && (s.group === 'DEF' || s.group === 'MID'));
   return rng.weighted(cands.map(s => ({
     value: s,
-    weight: (s.group === 'DEF' ? 2.5 : 1) * Math.max(1, (s.player.attrs.abw ?? 30) - 25)
+    weight: (s.group === 'DEF' ? 2.5 : 1) * Math.max(1, attrOf(s.player, 'abw') - 25)
   })));
 }
 
@@ -91,25 +101,27 @@ const pct = p => Math.round(p * 100);
 
 /**
  * Ein komplettes Spiel simulieren.
- * opts: { neutral, knockout }
+ * opts: { neutral, knockout, big }  big = Pokal, Final Four: Mental zählt mehr
  */
 export function simulateMatch(rng, home, away, opts = {}) {
   const homeAdv = opts.neutral ? 0 : 1.6;
   const edge = styleMatchup(home.style.key, away.style.key); // +1 Heim kontert, -1 Gast kontert
+  const bigH = opts.big ? mentalEdge(home) * 1.2 : 0;
+  const bigA = opts.big ? mentalEdge(away) * 1.2 : 0;
 
-  const midH = home.midControl + home.style.midBonus + homeAdv + edge * 1.5;
-  const midA = away.midControl + away.style.midBonus - edge * 1.5;
+  const midH = home.midControl + home.style.midBonus + homeAdv + edge * EDGE_MID + bigH;
+  const midA = away.midControl + away.style.midBonus - edge * EDGE_MID + bigA;
   const possession = clamp(sigmoid((midH - midA) / 13), 0.3, 0.7);
 
   const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
   let lamH = BASE_ATTACKS * possession * home.style.chanceMult * concede(away.style);
   let lamA = BASE_ATTACKS * (1 - possession) * away.style.chanceMult * concede(home.style);
-  if (edge > 0) { lamH *= 1.14; lamA *= 0.92; }
-  if (edge < 0) { lamA *= 1.14; lamH *= 0.92; }
+  if (edge > 0) { lamH *= EDGE_ATTACK_UP; lamA *= EDGE_ATTACK_DOWN; }
+  if (edge < 0) { lamA *= EDGE_ATTACK_UP; lamH *= EDGE_ATTACK_DOWN; }
 
   const sides = [
-    { key: 'home', team: home, opp: away, attacks: rng.poisson(lamH), edge, adv: homeAdv },
-    { key: 'away', team: away, opp: home, attacks: rng.poisson(lamA), edge: -edge, adv: 0 }
+    { key: 'home', team: home, opp: away, attacks: rng.poisson(lamH), edge, adv: homeAdv, big: bigH },
+    { key: 'away', team: away, opp: home, attacks: rng.poisson(lamA), edge: -edge, adv: 0, big: bigA }
   ];
 
   // Verletzungen zuerst festlegen, damit spätere Szenen den Einwechselspieler zeigen
@@ -145,51 +157,64 @@ export function simulateMatch(rng, home, away, opts = {}) {
     return { ...sl, player: subPlayer, rating: effectiveRating(subPlayer, sl.pos) };
   }).filter(sl => sl.player);
 
+  // Angriffe auf Minuten verteilen, dann der Reihe nach ausspielen (Spielstand zählt für Mental)
   const usedMinutes = new Set();
-  const chances = [];
+  const attacks = [];
   for (const side of sides) {
     for (let i = 0; i < side.attacks; i++) {
       let minute;
       do { minute = rng.int(2, 93); } while (usedMinutes.has(minute) && usedMinutes.size < 90);
       usedMinutes.add(minute);
-      const attSlots = { slots: slotsAt(side.team, side.key, minute) };
-      const defSlots = { slots: slotsAt(side.opp, side.key === 'home' ? 'away' : 'home', minute) };
-      const shooter = pickShooter(rng, attSlots);
-      const defender = pickDefender(rng, defSlots);
-      const keeper = defSlots.slots.find(sl => sl.group === 'GK') || null;
-      const assister = rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
-
-      // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
-      const shooterBreak = ((shooter.player.attrs.tem + shooter.player.attrs.dri) / 2) * familiarity(shooter.player, shooter.pos);
-      const defenderHold = (defender.player.attrs.abw * 0.65 + defender.player.attrs.phy * 0.35) * familiarity(defender.player, defender.pos);
-      const p1 = clamp(sigmoid(
-        (side.team.attackPower - side.opp.defensePower) / 24 +
-        (shooterBreak - defenderHold) / 60 +
-        side.edge * 0.22 + side.adv / 12 - 0.15
-      ), 0.12, 0.85);
-
-      // Phase 2: Abschluss – Schuss gegen Torwart
-      const finish = shooter.player.attrs.sch * familiarity(shooter.player, shooter.pos) *
-        fitnessFactor(shooter.player.condition);
-      const keep = keeper?.rating ?? 30;
-      const p2 = clamp(0.3 * side.team.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
-
-      const broke = rng.chance(p1);
-      const scored = broke && rng.chance(p2);
-      chances.push({
-        side: side.key,
-        minute,
-        shooter, assister, defender, keeper,
-        p1, p2, broke, scored,
-        xg: p1 * p2,
-        att: { label: 'Tempo & Dribbling', value: Math.round(shooterBreak) },
-        def: { label: 'Abwehr & Physis', value: Math.round(defenderHold) },
-        fin: { label: 'Schuss', value: Math.round(finish) },
-        gk: { label: 'Torwart', value: Math.round(keep) }
-      });
+      attacks.push({ side, minute });
     }
   }
-  chances.sort((a, b) => a.minute - b.minute);
+  attacks.sort((a, b) => a.minute - b.minute);
+
+  const chances = [];
+  const score = { home: 0, away: 0 };
+  for (const { side, minute } of attacks) {
+    const attSlots = { slots: slotsAt(side.team, side.key, minute) };
+    const defSlots = { slots: slotsAt(side.opp, side.key === 'home' ? 'away' : 'home', minute) };
+    const shooter = pickShooter(rng, attSlots);
+    const defender = pickDefender(rng, defSlots);
+    const keeper = defSlots.slots.find(sl => sl.group === 'GK') || null;
+    const assister = rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
+    const sp = shooter.player;
+    const dp = defender.player;
+
+    // Mental bei Rückstand: starke Köpfe bäumen sich auf, schwache verkrampfen
+    const behind = score[side.key] < score[side.key === 'home' ? 'away' : 'home'];
+    const nerve = behind && minute > 55 ? mentalEdge(side.team) * 0.25 : 0;
+
+    // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
+    const shooterBreak = ((attrOf(sp, 'tem') + attrOf(sp, 'dri')) / 2) * familiarity(sp, shooter.pos);
+    const defenderHold = (attrOf(dp, 'abw') * 0.65 + attrOf(dp, 'phy') * 0.35) * familiarity(dp, defender.pos);
+    const p1 = clamp(sigmoid(
+      (side.team.attackPower - side.opp.defensePower) / 24 +
+      (shooterBreak - defenderHold) / 60 +
+      side.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve - 0.15
+    ), 0.12, 0.85);
+
+    // Phase 2: Abschluss – Schuss gegen Torwart
+    const finish = attrOf(sp, 'sch') * familiarity(sp, shooter.pos) * fitnessFactor(sp.condition);
+    const keep = keeper?.rating ?? 30;
+    const p2 = clamp(0.3 * side.team.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
+
+    const broke = rng.chance(p1);
+    const scored = broke && rng.chance(p2);
+    if (scored) score[side.key]++;
+    chances.push({
+      side: side.key,
+      minute,
+      shooter, assister, defender, keeper,
+      p1, p2, broke, scored,
+      xg: p1 * p2,
+      att: { label: 'Tempo & Dribbling', value: Math.round(shooterBreak) },
+      def: { label: 'Abwehr & Physis', value: Math.round(defenderHold) },
+      fin: { label: 'Schuss', value: Math.round(finish) },
+      gk: { label: 'Torwart', value: Math.round(keep) }
+    });
+  }
 
   let hg = 0;
   let ag = 0;
@@ -255,12 +280,13 @@ export function simulateMatch(rng, home, away, opts = {}) {
 function penaltyShootout(rng, home, away) {
   const taker = team => {
     const shooters = team.slots.filter(s => s.player && s.group !== 'GK')
-      .sort((a, b) => b.player.attrs.sch - a.player.attrs.sch);
+      .sort((a, b) => (attrOf(b.player, 'sch') + attrOf(b.player, 'men') * 0.5) - (attrOf(a.player, 'sch') + attrOf(a.player, 'men') * 0.5));
     return shooters;
   };
   const hs = taker(home);
   const as = taker(away);
-  const prob = (s, keeper) => clamp(0.76 + (s.player.attrs.sch - (keeper?.rating ?? 50)) / 200, 0.55, 0.92);
+  // Schuss gegen Torwart, die Nerven des Schützen entscheiden mit
+  const prob = (s, keeper) => clamp(0.76 + (attrOf(s.player, 'sch') - (keeper?.rating ?? 50)) / 200 + (attrOf(s.player, 'men') - 55) / 250, 0.5, 0.93);
   let h = 0;
   let a = 0;
   for (let i = 0; i < 5; i++) {
@@ -524,18 +550,20 @@ export function predictMatch(rng, home, away, opts = {}, runs = 120) {
 function simulateMatchLite(rng, home, away, opts) {
   const homeAdv = opts.neutral ? 0 : 1.6;
   const edge = styleMatchup(home.style.key, away.style.key);
-  const possession = clamp(sigmoid(((home.midControl + home.style.midBonus + homeAdv + edge * 1.5) - (away.midControl + away.style.midBonus - edge * 1.5)) / 13), 0.3, 0.7);
+  const bigH = opts.big ? mentalEdge(home) * 1.2 : 0;
+  const bigA = opts.big ? mentalEdge(away) * 1.2 : 0;
+  const possession = clamp(sigmoid(((home.midControl + home.style.midBonus + homeAdv + edge * EDGE_MID + bigH) - (away.midControl + away.style.midBonus - edge * EDGE_MID + bigA)) / 13), 0.3, 0.7);
   const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
   let lamH = BASE_ATTACKS * possession * home.style.chanceMult * concede(away.style);
   let lamA = BASE_ATTACKS * (1 - possession) * away.style.chanceMult * concede(home.style);
-  if (edge > 0) { lamH *= 1.14; lamA *= 0.92; }
-  if (edge < 0) { lamA *= 1.14; lamH *= 0.92; }
-  const goalsFor = (team, opp, lam, e, adv) => {
-    const p1 = clamp(sigmoid((team.attackPower - opp.defensePower) / 24 + e * 0.22 + adv / 12 - 0.15), 0.12, 0.85);
-    const avgFinish = team.slots.filter(s => s.group === 'ATT').reduce((s, x) => s + (x.player?.attrs.sch ?? 30), 0) /
+  if (edge > 0) { lamH *= EDGE_ATTACK_UP; lamA *= EDGE_ATTACK_DOWN; }
+  if (edge < 0) { lamA *= EDGE_ATTACK_UP; lamH *= EDGE_ATTACK_DOWN; }
+  const goalsFor = (team, opp, lam, e, adv, big) => {
+    const p1 = clamp(sigmoid((team.attackPower - opp.defensePower) / 24 + e * EDGE_BREAK + adv / 12 + big / 24 - 0.15), 0.12, 0.85);
+    const avgFinish = team.slots.filter(s => s.group === 'ATT').reduce((s, x) => s + (x.player ? attrOf(x.player, 'sch') : 30), 0) /
       Math.max(1, team.slots.filter(s => s.group === 'ATT').length);
     const p2 = clamp(0.3 * team.style.qualityMult * Math.exp((avgFinish * 0.9 - (opp.keeper?.rating ?? 30)) / 40), 0.06, 0.62);
     return rng.poisson(lam * p1 * p2);
   };
-  return goalsFor(home, away, lamH, edge, homeAdv) - goalsFor(away, home, lamA, -edge, 0);
+  return goalsFor(home, away, lamH, edge, homeAdv, bigH) - goalsFor(away, home, lamA, -edge, 0, bigA);
 }

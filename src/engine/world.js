@@ -4,6 +4,16 @@
 
 import { createPlayer } from './player.js';
 import { STYLE_KEYS, FORMATION_KEYS, AI_SQUAD_SIZE } from './constants.js';
+import { generateName, pickNation } from './names.js';
+
+/** Trainer mit fester Philosophie. Ein neuer Trainer bringt meist einen anderen Stil mit. */
+export function newCoach(rng, avoidStyle = null) {
+  const nation = pickNation(rng);
+  const { first, last } = generateName(rng, nation);
+  const options = STYLE_KEYS.filter(k => k !== avoidStyle);
+  const style = rng.pick(options);
+  return { name: `${first} ${last}`, nation, style, age: rng.int(36, 64) };
+}
 
 export const LEAGUE_INFO = {
   1: { name: 'Apex Premier', short: 'Liga 1', baseOvr: 74 },
@@ -115,12 +125,14 @@ function createClub(rng, state, tier, idx, [name, primary, secondary]) {
     crest: { shape: rng.pick(CREST_SHAPES), pattern: rng.int(0, 3) },
     isUser: false,
     strength: Math.round(rng.normal(0, 1.8) * 10) / 10,
-    preferredStyle: rng.pick(STYLE_KEYS),
+    preferredStyle: null,
     preferredFormation: rng.pick(FORMATION_KEYS),
     playerIds: [],
     coins: 4000 + (7 - tier) * 3000,
     reputation: (7 - tier) * 15
   };
+  club.coach = newCoach(rng);
+  club.preferredStyle = club.coach.style;
   state.clubs[id] = club;
   SQUAD_TEMPLATE.slice(0, AI_SQUAD_SIZE).forEach((pos, i) => createClubPlayer(rng, state, club, pos, i < 11));
   return club;

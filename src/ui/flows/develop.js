@@ -29,7 +29,7 @@ export function devFlow(game) {
       <div class="section__head"><h2 class="section__title">Alle Spieler</h2><span class="small muted">${changes.length}</span></div>
       <ul class="list panel panel--flush">${changes.map(c => `<li class="row">
         <span class="prow__face tier-${c.p.tier}" style="--club:${colors.primary}">${portraitSvg(c.p, { colors })}</span>
-        <div class="row__main"><div class="row__title">${esc(c.p.first[0])}. ${esc(c.p.last)}</div><div class="row__sub">${c.p.position}, ${c.p.age} J., ${c.apps} Einsätze</div></div>
+        <div class="row__main"><div class="row__title">${esc(c.p.first[0])}. ${esc(c.p.last)}</div><div class="row__sub">${c.p.position}, ${c.p.age} J., ${c.apps} Einsätze${c.avg != null ? `, Ø ${c.avg.toFixed(1).replace('.', ',')}` : ''}${devReason(c) ? ` · ${devReason(c)}` : ''}</div></div>
         <span class="num devrow__from">${c.before}</span>${icon('arrowRight', 'devrow__arrow')}<b class="num">${c.after}</b>
         <span class="devrow__delta ${c.delta > 0 ? 'pos' : c.delta < 0 ? 'neg' : 'muted'}">${c.delta > 0 ? '+' : c.delta < 0 ? '−' : '±'}${Math.abs(c.delta)}</span>
       </li>`).join('')}</ul>
@@ -61,4 +61,15 @@ export function historyChart(p) {
       <text x="${x(h.length - 1)}" y="${(y(h[h.length - 1].ovr) - 8).toFixed(1)}" font-size="12" font-weight="700" fill="var(--ink)" text-anchor="end">${h[h.length - 1].ovr}</text>
     </svg>
   </figure>`;
+}
+
+/** Kurze Begründung: Alter, Spielzeit oder Leistung */
+function devReason(c) {
+  const age = c.p.age;
+  if (c.delta > 0 && c.avg != null && c.avg >= 7) return 'starke Leistungen';
+  if (c.delta <= 0 && age <= 23 && c.share != null && c.share < 0.35) return 'zu wenig Spielzeit';
+  if (c.delta > 0 && age <= 23) return 'Talent reift';
+  if (c.delta < 0 && age >= 30) return 'Alter';
+  if (c.delta < 0 && c.avg != null && c.avg < 6.2) return 'schwache Form';
+  return '';
 }

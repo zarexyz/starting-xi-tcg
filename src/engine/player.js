@@ -3,7 +3,7 @@
 // =============================================================================
 
 import {
-  FIELD_ATTRS, GK_ATTRS, ALL_ATTRS, OVR_WEIGHTS, RELATED_POSITIONS, POSITION_GROUP,
+  ATTRS, OVR_WEIGHTS, RELATED_POSITIONS, POSITION_GROUP,
   TIERS, tierForPotential
 } from './constants.js';
 import { generateName, pickNation } from './names.js';
@@ -12,11 +12,18 @@ import { clamp } from './rng.js';
 const ATTR_MIN = 15;
 const ATTR_MAX = 99;
 
+/** Wert eines Attributs, auf Wunsch inklusive temporärer Karte für das nächste Spiel */
+export function attrOf(player, key, withBoost = true) {
+  const base = player.attrs[key] ?? 30;
+  const b = withBoost && player.tempBoost;
+  return b && b.attr === key ? Math.min(99, base + b.amount) : base;
+}
+
 /** Stärke eines Spielers auf einer bestimmten Position (nur Attribute, ohne Tagesform) */
-export function ovrAt(player, pos) {
+export function ovrAt(player, pos, withBoost = false) {
   const weights = OVR_WEIGHTS[pos];
   let sum = 0;
-  for (const key in weights) sum += (player.attrs[key] ?? 30) * weights[key];
+  for (const key in weights) sum += attrOf(player, key, withBoost) * weights[key];
   return sum;
 }
 
@@ -43,29 +50,55 @@ export function fitnessFactor(condition) {
   return 0.91 - (75 - condition) * 0.0055;
 }
 
-/** Tatsächliche Stärke im Spiel: Position, Fitness, Moral */
-export function effectiveRating(player, pos) {
-  const base = ovrAt(player, pos) * familiarity(player, pos);
-  const fitness = fitnessFactor(player.condition);
-  const morale = 0.96 + 0.08 * (player.morale / 100);
-  return base * fitness * morale;
+/** Durchschnitt der letzten Noten (oder null, wenn zu wenige Spiele) */
+export function formAverage(player) {
+  const f = player.form || [];
+  if (f.length < 2) return null;
+  const last = f.slice(-4);
+  return last.reduce((s, x) => s + x, 0) / last.length;
 }
 
-/** Profil je Position: Abweichung der Attribute vom Zielwert */
+/** Form wirkt leicht: höchstens ±2 % Leistung */
+export function formFactor(player) {
+  const avg = formAverage(player);
+  if (avg == null) return 1;
+  return 1 + clamp((avg - 6.5) * 0.016, -0.02, 0.02);
+}
+
+/** Formtrend für die Anzeige: 'up', 'down' oder null */
+export function formTrend(player) {
+  const avg = formAverage(player);
+  if (avg == null) return null;
+  if (avg >= 7.0) return 'up';
+  if (avg <= 6.0) return 'down';
+  return null;
+}
+
+/** Tatsächliche Stärke im Spiel: Position, Fitness, Moral, Form, temporäre Karte */
+export function effectiveRating(player, pos) {
+  const base = ovrAt(player, pos, true) * familiarity(player, pos);
+  const fitness = fitnessFactor(player.condition);
+  const morale = 0.96 + 0.08 * (player.morale / 100);
+  return base * fitness * morale * formFactor(player);
+}
+
+/** Durchschnittsnote einer Statistik ({ apps, ratingSum }) */
+export function avgRating(stats) {
+  return stats && stats.apps && stats.ratingSum ? stats.ratingSum / stats.apps : null;
+}
+
+/** Profil je Position: Abweichung der Attribute vom Zielwert. null = Nebenwert, unabhängig von der Stärke */
 function attrProfile(pos) {
   const w = OVR_WEIGHTS[pos];
   const profile = {};
-  for (const a of FIELD_ATTRS) {
-    profile[a] = w[a] ? 2 + w[a] * 10 : -12;
-  }
   if (pos === 'TW') {
-    for (const a of FIELD_ATTRS) profile[a] = -28;
-    profile.tem = -18;
-    profile.phy = -6;
-    for (const a of GK_ATTRS) profile[a] = 2 + (w[a] || 0) * 10;
-  } else {
-    for (const a of GK_ATTRS) profile[a] = null; // Feldspieler: niedrige Torwartwerte
+    for (const a of ATTRS) profile[a] = w[a] ? 1 + w[a] * 6 : -26;
+    profile.tem = -16;
+    return profile;
   }
+  for (const a of ATTRS) profile[a] = w[a] ? 2 + w[a] * 10 : -12;
+  profile.men = -2 + (w.men || 0) * 10;
+  profile.tor = null; // Feldspieler: niedriger Torwartwert
   return profile;
 }
 
@@ -75,22 +108,25 @@ function attrProfile(pos) {
 function buildAttrs(rng, pos, targetOvr) {
   const profile = attrProfile(pos);
   const attrs = {};
-  for (const a of ALL_ATTRS) {
-    if (profile[a] === null) {
-      attrs[a] = rng.int(12, 28);
-    } else {
-      attrs[a] = targetOvr + profile[a] + rng.normal(0, 4);
-    }
+  for (const a of ATTRS) {
+    if (profile[a] === null) attrs[a] = rng.int(10, 26);
+    else attrs[a] = targetOvr + profile[a] + rng.normal(0, 4);
   }
   // Auf Zielstärke normalisieren (nur die gewichteten Attribute verschieben)
+  normalizeTo(attrs, pos, targetOvr);
+  for (const a of ATTRS) attrs[a] = Math.round(clamp(attrs[a], ATTR_MIN, ATTR_MAX));
+  return attrs;
+}
+
+/** Verschiebt die gewichteten Attribute, bis die Stärke auf der Position dem Ziel entspricht */
+export function normalizeTo(attrs, pos, targetOvr) {
   const weights = OVR_WEIGHTS[pos];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const current = ovrAt({ attrs }, pos);
     const diff = targetOvr - current;
-    for (const a in weights) attrs[a] += diff;
+    if (Math.abs(diff) < 0.3) break;
+    for (const a in weights) attrs[a] = clamp(attrs[a] + diff, ATTR_MIN, ATTR_MAX);
   }
-  for (const a of ALL_ATTRS) attrs[a] = Math.round(clamp(attrs[a], ATTR_MIN, ATTR_MAX));
-  return attrs;
 }
 
 /** Aussehen für den Porträt-Generator – einmal festgelegt, ein Leben lang gleich */
@@ -176,7 +212,8 @@ export function createPlayer(rng, opts) {
     look: opts.look || buildLook(rng, nation),
     clubId: null,
     stats: { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0 },
-    careerStats: { apps: 0, goals: 0, assists: 0 },
+    careerStats: { apps: 0, goals: 0, assists: 0, ratingSum: 0 },
+    half: { apps: 0, ratingSum: 0 },
     form: []
   };
   player.ovr = calcOvr(player);
@@ -195,33 +232,54 @@ export function shortName(p) {
 // Entwicklung
 // -----------------------------------------------------------------------------
 
-function ageGrowth(age) {
-  if (age <= 19) return 2.6;
-  if (age <= 21) return 2.0;
-  if (age <= 23) return 1.4;
-  if (age <= 26) return 0.6;
-  if (age <= 29) return 0;
-  if (age <= 31) return -0.9;
-  if (age <= 33) return -1.7;
-  return -2.8;
+/** Mittlere Spielnote aller Spieler: darüber hilft die Leistung, darunter bremst sie */
+export const RATING_MEAN = 6.3;
+
+/** Grundtrend pro Halbserie nach Alter */
+export function ageGrowth(age) {
+  if (age <= 19) return 2.0;
+  if (age <= 21) return 1.5;
+  if (age <= 23) return 1.0;
+  if (age <= 25) return 0.4;
+  if (age <= 28) return 0.1;
+  if (age <= 30) return -0.35;
+  if (age <= 32) return -0.85;
+  if (age <= 34) return -1.4;
+  return -2.0;
 }
 
 /**
- * Halbjährliche Entwicklung. minutesShare = Anteil gespielter Minuten (0..1).
+ * Halbjährliche Entwicklung aus drei Zutaten:
+ * Alter (Grundtrend), Spielzeit (minutesShare 0..1) und Leistung (Durchschnittsnote der Halbserie).
+ * Bewusst moderat: typischer Ausschlag 0 bis 3 Punkte pro Halbserie.
  * Gibt die OVR-Veränderung zurück.
  */
-export function developPlayer(rng, player, minutesShare = 0.5) {
+export function developPlayer(rng, player, minutesShare = 0.5, avg = null) {
   const before = player.ovr;
   const softCap = TIERS[player.tier].softCap;
+  const share = clamp(minutesShare, 0, 1);
   let growth = ageGrowth(player.age);
 
   if (growth > 0) {
     const gap = player.potential - player.ovr;
-    let gapFactor = gap > 0 ? clamp(gap / 7, 0.35, 1.6) : 0.2;
-    if (player.ovr >= softCap) gapFactor *= 0.35;
-    growth *= gapFactor * (0.6 + 0.7 * minutesShare);
+    let gapFactor = gap > 0 ? clamp(gap / 8, 0.3, 1.3) : 0.15;
+    if (player.ovr >= softCap) gapFactor *= 0.3;
+    growth *= gapFactor * (0.45 + 0.9 * share);
+  } else {
+    // Wer regelmäßig spielt, baut langsamer ab
+    growth *= 1.15 - 0.3 * share;
   }
-  growth += rng.normal(0, 0.7);
+
+  // Leistung: gute Noten bringen einen kleinen Schub, schwache bremsen
+  if (avg != null) {
+    let perf = clamp((avg - RATING_MEAN) * 0.8, -0.5, 0.8);
+    if (perf > 0 && player.ovr >= player.potential) perf *= 0.4;
+    if (perf > 0 && player.ovr >= softCap) perf *= 0.5;
+    growth += perf;
+  }
+
+  growth += rng.normal(0, 0.5);
+  growth = clamp(growth, -3, 4);
   applyOvrChange(rng, player, growth);
   return player.ovr - before;
 }
@@ -231,19 +289,35 @@ export function applyOvrChange(rng, player, delta) {
   if (Math.abs(delta) < 0.2) return;
   const weights = OVR_WEIGHTS[player.position];
   const keys = Object.keys(weights);
-  // Bei Abbau verlieren Tempo und Physis zuerst
   for (const a of keys) {
     let share = delta;
+    // Bei Abbau verlieren Tempo und Physis zuerst, Kopf und Technik halten länger
     if (delta < 0 && (a === 'tem' || a === 'phy')) share *= 1.5;
-    if (delta < 0 && (a === 'pas' || a === 'ste' || a === 'spi')) share *= 0.5;
+    if (delta < 0 && (a === 'pas' || a === 'men')) share *= 0.5;
+    if (delta > 0 && a === 'men' && player.age >= 24) share *= 1.2;
     player.attrs[a] = Math.round(clamp(player.attrs[a] + share + rng.normal(0, 0.6), ATTR_MIN, ATTR_MAX));
   }
   player.ovr = calcOvr(player);
 }
 
 /**
- * Trainingskarte: gezielter Push. Wirkt oberhalb der Talentgrenze kaum noch.
+ * Trainingskarte: hebt genau einen Wert um amount Punkte.
+ * Nahe am Potenzial und über der Talentgrenze wirkt sie kaum noch.
  */
+export function trainAttribute(rng, player, attr, amount) {
+  const softCap = TIERS[player.tier].softCap;
+  let effect = amount;
+  if (player.ovr >= player.potential) effect *= 0.5;
+  if (player.ovr >= softCap) effect *= 0.5;
+  const gain = effect >= 1 ? Math.round(effect) : rng.chance(effect) ? 1 : 0;
+  const before = player.ovr;
+  player.attrs[attr] = clamp(player.attrs[attr] + gain, ATTR_MIN, ATTR_MAX);
+  player.ovr = calcOvr(player);
+  player.trainingBoosts = (player.trainingBoosts || 0) + 1;
+  return { gain, ovrDelta: player.ovr - before };
+}
+
+/** Alte Trainingskarte (Gesamtstärke). Bleibt für Tests und alte Spielstände. */
 export function trainPlayer(rng, player, amount) {
   const softCap = TIERS[player.tier].softCap;
   let effect = amount;

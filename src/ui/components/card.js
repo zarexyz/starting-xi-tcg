@@ -2,7 +2,7 @@
 // Spielerkarte (Pocket-Stil): großes Porträt, Talentklassen-Rahmen, Holo bei Gold/Ikone
 // =============================================================================
 
-import { CARD_ATTRS, ATTR_LABELS, TIERS } from '../../engine/constants.js';
+import { CARD_ATTRS, ATTR_LABELS, TIERS, OVR_WEIGHTS } from '../../engine/constants.js';
 import { portraitSvg } from './portrait.js';
 import { flagSvg } from './flag.js';
 import { icon } from '../icons.js';
@@ -52,7 +52,12 @@ export function cardHtml(p, opts = {}) {
     </${tag}>`;
   }
 
-  const stats = attrs.map(a => `<span class="card__stat"><b>${p.attrs[a]}</b><i>${ATTR_LABELS[a]}</i></span>`).join('');
+  const weights = OVR_WEIGHTS[p.position] || {};
+  const stats = attrs.map(a => {
+    const boosted = p.tempBoost?.attr === a;
+    const v = boosted ? Math.min(99, p.attrs[a] + p.tempBoost.amount) : p.attrs[a];
+    return `<span class="card__stat${weights[a] ? ' is-key' : ''}${boosted ? ' is-boost' : ''}"><b>${v}</b><i>${ATTR_LABELS[a]}</i></span>`;
+  }).join('');
   return `<${tag} class="card card--${size} tier-${p.tier}${sel}" style="${style}" ${actionAttrs} aria-label="${esc(p.first)} ${esc(p.last)}, ${p.position}, Stärke ${p.ovr}, ${TIERS[p.tier].name}">
     <span class="card__frame">
       <span class="card__art">

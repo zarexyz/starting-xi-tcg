@@ -630,7 +630,7 @@ button.item-card { cursor: pointer; }
    ---------------------------------------------------------------------------- */
 
 .report__label { text-align: center; margin: var(--s-4) 0 0; }
-.report__title { text-align: center; margin: var(--s-2) 0 var(--s-4); font-size: var(--t-4xl); }
+.report__title { text-align: center; margin: var(--s-2) 0 var(--s-4); font-size: min(var(--t-4xl), 13.5vw); overflow-wrap: anywhere; }
 .report__title--W { color: var(--pitch); }
 .report__title--L { color: var(--loss); }
 .report__center { text-align: center; }
@@ -745,3 +745,12 @@ button.item-card { cursor: pointer; }
 .tips__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
 .tips__list li { display: flex; gap: var(--s-3); align-items: flex-start; }
 .tips__list p { margin: 2px 0 0; }
+
+/* Form und Noten */
+.form-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); }
+.form-line__label { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-sm); font-weight: 600; }
+.form-line__label svg { width: 16px; height: 16px; }
+.form-line__notes { display: flex; gap: 4px; }
+.note { min-width: 34px; padding: 3px 6px; border-radius: 6px; background: var(--chalk); border: 1px solid var(--line); font-size: 12px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.note.is-good { background: #e3f4ea; border-color: #b9e0c9; color: var(--pitch); }
+.note.is-bad { background: #fde8e8; border-color: #f4c4c4; color: var(--loss); }

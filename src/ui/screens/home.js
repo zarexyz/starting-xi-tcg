@@ -67,7 +67,7 @@ function matchTicket(game) {
         ${formHtml(formOf(away.id))}
       </div>
     </div>
-    <div class="ticket__scout">${icon('strategy')}<span>${esc(opp.name)} spielt meist <b>${oppStyle.name}</b> im ${opp.preferredFormation}.</span></div>
+    <div class="ticket__scout">${icon('strategy')}<span>${esc(opp.name)} spielt fast immer <b>${oppStyle.name}</b> im ${opp.preferredFormation}.</span></div>
     <button class="btn btn--primary btn--block" data-action="open-prep">${icon('whistle')}Spiel vorbereiten</button>
   </section>`;
 }

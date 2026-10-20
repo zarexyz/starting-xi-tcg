@@ -15,7 +15,7 @@ git clone https://github.com/zarexyz/starting-xi-tcg.git
 cd starting-xi-tcg
 git checkout claude/v1-roadmap
 npm install
-npm test          # 16 Tests der Spiellogik müssen grün sein
+npm test          # alle Tests der Spiellogik müssen grün sein
 npm run dev       # Spiel im Browser unter http://localhost:3000
 ```
 

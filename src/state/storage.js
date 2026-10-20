@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { SAVE_VERSION } from '../engine/game.js';
+import { migrateSave } from '../engine/migrate.js';
 
 const KEY = slot => `sxi-tcg-save-${slot}`;
 const ACTIVE = 'sxi-tcg-active-slot';
@@ -27,8 +28,7 @@ export function loadGame(slot) {
     const raw = localStorage.getItem(KEY(slot));
     if (!raw) return null;
     const state = JSON.parse(raw);
-    if (state.version !== SAVE_VERSION) return null;
-    return state;
+    return migrateSave(state, SAVE_VERSION);
   });
 }
 

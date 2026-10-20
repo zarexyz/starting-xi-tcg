@@ -7,11 +7,13 @@ import { createWorld, clubStrength } from '../src/engine/world.js';
 import { roundRobin } from '../src/engine/schedule.js';
 import { buildTeam, simulateMatch } from '../src/engine/match.js';
 import { bestLineup } from '../src/engine/ai.js';
-import { createPlayer, developPlayer, trainPlayer } from '../src/engine/player.js';
+import { createPlayer, developPlayer, trainPlayer, trainAttribute, calcOvr } from '../src/engine/player.js';
+import { migrateSave } from '../src/engine/migrate.js';
+import { ATTRS } from '../src/engine/constants.js';
 import { TIERS } from '../src/engine/constants.js';
 import {
   createGame, openStarterPack, pickDraft, playDay, buyPack, useItem, currentDay,
-  setUserSetup, autoLineup, placePlayer, swapPlayers, ensureUserSetup
+  setUserSetup, autoLineup, placePlayer, swapPlayers, ensureUserSetup, useItem as useItemFn, SAVE_VERSION
 } from '../src/engine/game.js';
 import { computeTable } from '../src/engine/schedule.js';
 
@@ -339,4 +341,85 @@ test('Aufstellung: Tauschen zwischen Feld, Bank und Reserve verliert niemanden',
   }
   assert.deepEqual(squadSize(), before);
   assert.equal(s.user.autoLineup, false);
+});
+
+test('8 Werte: jeder Spieler hat alle acht, Torhüter leben vom Torwartwert', () => {
+  const s = newStartedGame(21);
+  for (const p of Object.values(s.players)) {
+    for (const a of ATTRS) assert.ok(Number.isFinite(p.attrs[a]), `${p.id} ohne ${a}`);
+    assert.equal(p.attrs.ref, undefined);
+  }
+  const gks = Object.values(s.players).filter(p => p.position === 'TW');
+  const field = Object.values(s.players).filter(p => p.position !== 'TW');
+  const avg = (list, k) => list.reduce((x, p) => x + p.attrs[k], 0) / list.length;
+  assert.ok(avg(gks, 'tor') > avg(field, 'tor') + 25);
+  assert.ok(avg(gks, 'tor') > avg(gks, 'sch') + 15);
+});
+
+test('Training: eine Karte hebt genau einen Wert, Gesamtstärke kaum', () => {
+  const rng = createRng(4);
+  const p = createPlayer(rng, { id: 'x', position: 'ST', age: 22, ovr: 60, potential: 75, tier: 'silver' });
+  const before = { ...p.attrs };
+  const ovr = p.ovr;
+  const { gain } = trainAttribute(rng, p, 'sch', 2);
+  assert.equal(gain, 2);
+  assert.equal(p.attrs.sch, before.sch + 2);
+  for (const a of ATTRS) if (a !== 'sch') assert.equal(p.attrs[a], before[a]);
+  assert.ok(p.ovr - ovr <= 1);
+});
+
+test('Matchplan: temporäre Karte gilt genau ein Spiel', () => {
+  const s = newStartedGame(5);
+  const st = ensureUserSetup(s);
+  const pid = Object.values(st.lineup)[3];
+  s.user.inventory.push({ id: 'boost1', type: 'BOOST', attr: 'tem' });
+  assert.equal(useItemFn(s, 'boost1', pid).ok, true);
+  assert.equal(s.players[pid].tempBoost.amount, 6);
+  const base = s.players[pid].attrs.tem;
+  let guard = 0;
+  while (!playDay(s) && guard++ < 5) { /* bis zum eigenen Spiel */ }
+  assert.equal(s.players[pid].tempBoost, null);
+  assert.equal(s.players[pid].attrs.tem, base);
+});
+
+test('Entwicklung: moderat, Junge mit Spielzeit wachsen schneller als Junge auf der Bank', () => {
+  const rng = createRng(12);
+  const runs = (share, avg, age) => {
+    let sum = 0;
+    for (let i = 0; i < 300; i++) {
+      const p = createPlayer(rng, { id: 'd' + i, position: 'ZM', age, ovr: 55, potential: 72, tier: 'silver' });
+      sum += developPlayer(rng, p, share, avg);
+    }
+    return sum / 300;
+  };
+  const starter = runs(1, 6.9, 18);
+  const bench = runs(0.05, null, 18);
+  const veteran = runs(1, 6.3, 34);
+  assert.ok(starter > bench + 0.7, `Stamm ${starter} vs Bank ${bench}`);
+  assert.ok(starter < 4, 'nicht zu schnell');
+  assert.ok(veteran < 0 && veteran > -3, `Abbau ${veteran}`);
+});
+
+test('Spielstand v1 wird auf 8 Werte umgerechnet, Stärke bleibt fast gleich', () => {
+  const s = newStartedGame(8);
+  // Einen v1-Stand nachbauen
+  const old = structuredClone(s);
+  old.version = 1;
+  const ovrs = {};
+  for (const p of Object.values(old.players)) {
+    if (p.position === 'TW') Object.assign(p.attrs, { ref: p.attrs.tor, hal: p.attrs.tor - 2, ste: p.attrs.tor + 1, spi: p.attrs.pas });
+    delete p.attrs.men; delete p.attrs.tor;
+    ovrs[p.id] = p.ovr;
+    delete p.half;
+  }
+  for (const c of Object.values(old.clubs)) delete c.coach;
+  const m = migrateSave(old, SAVE_VERSION);
+  assert.ok(m);
+  assert.equal(m.version, SAVE_VERSION);
+  for (const p of Object.values(m.players)) {
+    for (const a of ATTRS) assert.ok(Number.isFinite(p.attrs[a]));
+    assert.ok(Math.abs(p.ovr - ovrs[p.id]) <= 2, `${p.position} ${ovrs[p.id]} → ${p.ovr}`);
+    assert.equal(p.ovr, calcOvr(p));
+  }
+  for (const c of Object.values(m.clubs)) if (!c.isUser) assert.ok(c.coach?.style);
 });

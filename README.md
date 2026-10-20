@@ -10,9 +10,10 @@ Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wähls
 - **Spieltag:** Vorbereitung mit Gegneranalyse, Spielstil (Konter-Kreislauf) und Formation, Siegprognose
 - **Live-Spiel:** Ticker mit Karten-Einblendungen bei Schlüsselszenen, Spielbericht mit Erklärung
 - **Kader:** Müdigkeit, Verletzungen, Rotation, Co-Trainer-Aufstellung, Moral, Gehälter mit Soft-Cap
-- **Karten:** illustrierte Porträts, Talentklassen Bronze, Silber, Gold und Ikone, Potenzial als Scout-Schätzung
-- **Packs:** Starter-Pack, Draft-Packs (1 aus 3), Ausrüstungs-Packs mit Fitness, Training und Taktik
-- **Entwicklung:** zweimal pro Saison, Karriereende, Jugendakademie
+- **Karten:** illustrierte Porträts, 8 Werte (inklusive Mental und Torwart), Talentklassen Bronze, Silber, Gold und Ikone, Potenzial als Scout-Schätzung
+- **Packs:** Starter-Pack, Draft-Packs (1 aus 3), Ausrüstungs-Packs mit Fitness, Training für einzelne Werte, Matchplänen und Taktik
+- **Gegner:** Jeder Verein hat einen Trainer mit fester Spielphilosophie
+- **Entwicklung:** zweimal pro Saison nach Alter, Spielzeit und Leistung, Durchschnittsnote und Form, Karriereende, Jugendakademie
 - **Transfermarkt:** Kaufen mit Wechselwilligkeit, Verkaufen über Angebote, KI-Transferfenster
 - **Wettbewerbe:** Liga, Pokal mit allen 60 Vereinen, Final Four mit Auf- und Abstieg
 

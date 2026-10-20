@@ -2,24 +2,34 @@
 // Spielregeln als Daten: Positionen, Formationen, Spielstile, Talentklassen
 // =============================================================================
 
-export const FIELD_ATTRS = ['tem', 'sch', 'pas', 'dri', 'abw', 'phy'];
-export const GK_ATTRS = ['ref', 'hal', 'ste', 'spi'];
-export const ALL_ATTRS = [...FIELD_ATTRS, ...GK_ATTRS];
+/** Acht Werte für jeden Spieler, auch für Torhüter */
+export const ATTRS = ['tem', 'sch', 'pas', 'dri', 'abw', 'phy', 'men', 'tor'];
+export const FIELD_ATTRS = ATTRS;
+export const ALL_ATTRS = ATTRS;
 
 export const ATTR_LABELS = {
-  tem: 'TEM', sch: 'SCH', pas: 'PAS', dri: 'DRI', abw: 'ABW', phy: 'PHY',
-  ref: 'REF', hal: 'HAL', ste: 'STE', spi: 'SPI'
+  tem: 'TEM', sch: 'SCH', pas: 'PAS', dri: 'DRI', abw: 'ABW', phy: 'PHY', men: 'MEN', tor: 'TOR'
 };
 
 export const ATTR_NAMES = {
-  tem: 'Tempo', sch: 'Schuss', pas: 'Passspiel', dri: 'Dribbling', abw: 'Abwehr', phy: 'Physis',
-  ref: 'Reflexe', hal: 'Halten', ste: 'Stellungsspiel', spi: 'Spielaufbau'
+  tem: 'Tempo', sch: 'Schuss', pas: 'Passspiel', dri: 'Dribbling', abw: 'Abwehr', phy: 'Physis', men: 'Mental', tor: 'Torwart'
 };
 
-/** Welche sechs Werte auf der Karte stehen */
+export const ATTR_HINTS = {
+  tem: 'Antritt und Laufduelle',
+  sch: 'Abschluss und Elfmeter',
+  pas: 'Spielaufbau, Vorlagen',
+  dri: 'Durchsetzen im Eins gegen Eins',
+  abw: 'Zweikämpfe und Stellungsspiel',
+  phy: 'Robustheit, ermüdet langsamer',
+  men: 'Nerven in großen Spielen, bei Rückstand und im Elfmeterschießen',
+  tor: 'Reflexe, Halten, Herauslaufen'
+};
+
+/** Reihenfolge der acht Werte auf der Karte (4 × 2) */
 export const CARD_ATTRS = {
-  field: ['tem', 'sch', 'pas', 'dri', 'abw', 'phy'],
-  gk: ['ref', 'hal', 'ste', 'spi', 'tem', 'phy']
+  field: ['tem', 'sch', 'pas', 'dri', 'abw', 'phy', 'men', 'tor'],
+  gk: ['tor', 'men', 'pas', 'phy', 'tem', 'sch', 'dri', 'abw']
 };
 
 export const POSITIONS = ['TW', 'IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST'];
@@ -38,18 +48,18 @@ export const POSITION_GROUP = {
 
 /** Gewichtung der Attribute für die Stärke auf einer Position */
 export const OVR_WEIGHTS = {
-  TW: { ref: 0.35, hal: 0.25, ste: 0.3, spi: 0.1 },
-  IV: { abw: 0.45, phy: 0.3, tem: 0.1, pas: 0.15 },
-  LV: { abw: 0.35, tem: 0.3, phy: 0.1, pas: 0.25 },
-  RV: { abw: 0.35, tem: 0.3, phy: 0.1, pas: 0.25 },
-  ZDM: { abw: 0.35, phy: 0.25, pas: 0.3, tem: 0.1 },
-  ZM: { pas: 0.35, dri: 0.2, abw: 0.15, phy: 0.15, sch: 0.1, tem: 0.05 },
-  ZOM: { pas: 0.35, dri: 0.3, sch: 0.2, tem: 0.1, phy: 0.05 },
-  LM: { tem: 0.3, pas: 0.3, dri: 0.25, sch: 0.1, phy: 0.05 },
-  RM: { tem: 0.3, pas: 0.3, dri: 0.25, sch: 0.1, phy: 0.05 },
-  LF: { tem: 0.3, dri: 0.3, sch: 0.25, pas: 0.1, phy: 0.05 },
-  RF: { tem: 0.3, dri: 0.3, sch: 0.25, pas: 0.1, phy: 0.05 },
-  ST: { sch: 0.4, tem: 0.2, dri: 0.15, phy: 0.15, pas: 0.1 }
+  TW: { tor: 0.6, men: 0.15, phy: 0.12, pas: 0.13 },
+  IV: { abw: 0.42, phy: 0.25, tem: 0.08, pas: 0.12, men: 0.13 },
+  LV: { abw: 0.32, tem: 0.28, phy: 0.1, pas: 0.2, men: 0.1 },
+  RV: { abw: 0.32, tem: 0.28, phy: 0.1, pas: 0.2, men: 0.1 },
+  ZDM: { abw: 0.32, phy: 0.2, pas: 0.28, tem: 0.07, men: 0.13 },
+  ZM: { pas: 0.32, dri: 0.18, abw: 0.12, phy: 0.12, sch: 0.08, tem: 0.05, men: 0.13 },
+  ZOM: { pas: 0.32, dri: 0.28, sch: 0.18, tem: 0.1, men: 0.12 },
+  LM: { tem: 0.28, pas: 0.27, dri: 0.23, sch: 0.1, phy: 0.04, men: 0.08 },
+  RM: { tem: 0.28, pas: 0.27, dri: 0.23, sch: 0.1, phy: 0.04, men: 0.08 },
+  LF: { tem: 0.28, dri: 0.28, sch: 0.24, pas: 0.1, men: 0.1 },
+  RF: { tem: 0.28, dri: 0.28, sch: 0.24, pas: 0.1, men: 0.1 },
+  ST: { sch: 0.38, tem: 0.18, dri: 0.14, phy: 0.15, pas: 0.05, men: 0.1 }
 };
 
 /** Verwandte Positionen: Faktor für die Stärke, wenn ein Spieler dort aushilft */
@@ -161,17 +171,17 @@ export const FORMATION_KEYS = Object.keys(FORMATIONS);
 export const STYLES = {
   AUSGEWOGEN: {
     key: 'AUSGEWOGEN', name: 'Ausgewogen', beats: null,
-    desc: 'Kein Vorteil, kein Risiko. Solide gegen jeden Gegner.',
+    desc: 'Kein besonderer Schwerpunkt, keine besondere Schwäche.',
     midBonus: 0, chanceMult: 1, qualityMult: 1, defBonus: 0, fatigue: 0
   },
   BALLBESITZ: {
     key: 'BALLBESITZ', name: 'Ballbesitz', beats: 'MAUERN',
-    desc: 'Kontrolle im Mittelfeld, geduldiger Aufbau. Knackt tiefe Abwehrreihen.',
+    desc: 'Kontrolle im Mittelfeld, geduldiger Aufbau, hochwertige Chancen.',
     midBonus: 3, chanceMult: 0.95, qualityMult: 1.1, defBonus: 0, fatigue: 0
   },
   KONTER: {
     key: 'KONTER', name: 'Konter', beats: 'PRESSING',
-    desc: 'Wenig Ballbesitz, schnelle Gegenstöße. Bestraft hoch stehende Gegner.',
+    desc: 'Wenig Ballbesitz, schnelle Gegenstöße, etwas sicherer hinten.',
     midBonus: -3, chanceMult: 0.9, qualityMult: 1.22, defBonus: 2, fatigue: 0
   },
   PRESSING: {

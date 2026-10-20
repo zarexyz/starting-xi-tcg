@@ -5,7 +5,7 @@
 import { cardHtml, cardBackHtml } from '../components/card.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
-import { CONSUMABLES, PACKS } from '../../engine/packs.js';
+import { itemDef, PACKS } from '../../engine/packs.js';
 import { TIERS, POSITION_NAMES } from '../../engine/constants.js';
 
 const PACK_LOOK = {
@@ -71,7 +71,7 @@ export function packFlow(game, ui) {
     return `<div class="fullscreen packflow"><main class="screen screen--bare">
       <h1 class="h1 packflow__title">${esc(pending.title)}</h1>
       <div class="packflow__items">
-        ${pending.items.map((it, i) => itemCard(it.type, i)).join('')}
+        ${pending.items.map((it, i) => itemCard(it, i)).join('')}
       </div>
       <button class="btn btn--primary btn--block" data-action="pack-items-done">Einpacken</button>
     </main></div>`;
@@ -122,8 +122,8 @@ function draftDetail(p, colors) {
   </section>`;
 }
 
-export function itemCard(type, i = 0, opts = {}) {
-  const c = CONSUMABLES[type];
+export function itemCard(item, i = 0, opts = {}) {
+  const c = itemDef(item);
   const tag = opts.action ? 'button' : 'div';
   return `<${tag} class="item-card tier-${c.rarity}" style="--d:${i * 120}ms" ${opts.action ? `type="button" data-action="${opts.action}" data-id="${opts.id}"` : ''}>
     <span class="item-card__icon">${icon(c.icon)}</span>

@@ -8,11 +8,11 @@ import { portraitSvg } from '../components/portrait.js';
 import { flagSvg } from '../components/flag.js';
 import { icon } from '../icons.js';
 import { esc, fmt } from '../html.js';
-import { FORMATIONS, FORMATION_KEYS, POSITION_GROUP, POSITION_NAMES, TIERS, ATTR_NAMES, CARD_ATTRS, STYLES, MAX_SQUAD } from '../../engine/constants.js';
+import { FORMATIONS, FORMATION_KEYS, POSITION_GROUP, POSITION_NAMES, TIERS, ATTR_NAMES, ATTR_HINTS, CARD_ATTRS, STYLES, MAX_SQUAD } from '../../engine/constants.js';
 import { clubPlayers } from '../../engine/world.js';
 import { ensureUserSetup } from '../../engine/game.js';
 import { buildTeam } from '../../engine/match.js';
-import { familiarity, salaryFor, marketValue } from '../../engine/player.js';
+import { familiarity, salaryFor, marketValue, avgRating, formTrend, formAverage } from '../../engine/player.js';
 import { NATIONS } from '../../engine/names.js';
 import { historyChart } from '../flows/develop.js';
 
@@ -128,6 +128,14 @@ function lineupView(game, ui) {
   `;
 }
 
+/** Durchschnittsnote der Saison und Formpfeil, kurz für Listen */
+function noteText(p) {
+  const avg = avgRating(p.stats);
+  if (avg == null) return '';
+  const t = formTrend(p);
+  return `, Ø ${avg.toFixed(1).replace('.', ',')}${t === 'up' ? ' ↑' : t === 'down' ? ' ↓' : ''}`;
+}
+
 export function playerRow(game, p, opts = {}) {
   const colors = game.clubs[p.clubId]?.colors || game.clubs.user.colors;
   const cond = p.condition;
@@ -137,7 +145,7 @@ export function playerRow(game, p, opts = {}) {
     <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
     <span class="row__main">
       <span class="row__title">${esc(p.first[0])}. ${esc(p.last)}</span>
-      <span class="row__sub">${p.position}${p.secondary.length ? ` (${p.secondary.join(', ')})` : ''}, ${p.age} J.</span>
+      <span class="row__sub">${opts.extra ? esc(opts.extra) : `${p.position}${p.secondary.length ? ` (${p.secondary.join(', ')})` : ''}, ${p.age} J.${noteText(p)}`}</span>
     </span>
     ${status}
     <span class="prow__ovr tier-${p.tier}">${p.ovr}</span>
@@ -183,7 +191,12 @@ export function playerSheet(game, id) {
   const inLineup = setup && Object.values(setup.lineup).includes(p.id);
   const onBench = setup && setup.bench.includes(p.id);
   const attrs = CARD_ATTRS[p.position === 'TW' ? 'gk' : 'field'];
-  const avg = p.stats.apps ? (p.stats.ratingSum / p.stats.apps).toFixed(1) : '–';
+  const nf = x => (x == null ? '–' : x.toFixed(1).replace('.', ','));
+  const avg = nf(avgRating(p.stats));
+  const careerAvg = nf(avgRating(p.careerStats));
+  const fAvg = formAverage(p);
+  const trend = formTrend(p);
+  const formLabel = fAvg == null ? 'Noch keine Form' : trend === 'up' ? 'Formhoch: spielt etwas stärker' : trend === 'down' ? 'Formtief: spielt etwas schwächer' : 'Normale Form';
   const tier = TIERS[p.tier];
 
   const body = `
@@ -205,8 +218,9 @@ export function playerSheet(game, id) {
       <section class="section section--tight">
         <h3 class="h3">Werte</h3>
         <ul class="attr-list">
-          ${attrs.map(a => `<li><span>${ATTR_NAMES[a]}</span><span class="bar"><span style="width:${p.attrs[a]}%"></span></span><b class="num">${p.attrs[a]}</b></li>`).join('')}
+          ${attrs.map(a => `<li title="${esc(ATTR_HINTS[a])}"><span>${ATTR_NAMES[a]}</span><span class="bar"><span style="width:${p.attrs[a]}%"></span></span><b class="num">${p.attrs[a]}${p.tempBoost?.attr === a ? `<small class="pos"> +${p.tempBoost.amount}</small>` : ''}</b></li>`).join('')}
         </ul>
+        ${p.tempBoost ? `<p class="small pos">${icon('up')}Matchplan: ${ATTR_NAMES[p.tempBoost.attr]} +${p.tempBoost.amount} im nächsten Spiel.</p>` : ''}
         <p class="small muted">${POSITION_NAMES[p.position]}${p.secondary.length ? `. Kann auch ${p.secondary.map(s => POSITION_NAMES[s]).join(' und ')}.` : '.'}</p>
       </section>
       ${own && (p.ovrHistory || []).length >= 2 ? `<section class="section section--tight"><h3 class="h3">Stärkeverlauf</h3>${historyChart(p)}</section>` : ''}
@@ -217,9 +231,22 @@ export function playerSheet(game, id) {
           <div><dt>Spiele</dt><dd class="display">${p.stats.apps}</dd></div>
           <div><dt>Tore</dt><dd class="display">${p.stats.goals}</dd></div>
           <div><dt>Vorlagen</dt><dd class="display">${p.stats.assists}</dd></div>
-          <div><dt>Note</dt><dd class="display">${avg}</dd></div>
+          <div><dt>Ø Note</dt><dd class="display">${avg}</dd></div>
         </dl>
-        ${p.form?.length ? `<p class="small muted">Letzte Noten: ${p.form.map(r => r.toFixed(1)).join(', ')}</p>` : ''}
+        <div class="form-line">
+          <span class="form-line__label ${trend === 'up' ? 'pos' : trend === 'down' ? 'neg' : 'muted'}">${trend === 'up' ? icon('up') : trend === 'down' ? icon('down') : ''}${formLabel}</span>
+          ${p.form?.length ? `<span class="form-line__notes">${p.form.map(r => `<span class="note ${r >= 7 ? 'is-good' : r < 6 ? 'is-bad' : ''}">${nf(r)}</span>`).join('')}</span>` : ''}
+        </div>
+      </section>
+
+      <section class="section section--tight">
+        <h3 class="h3">Karriere</h3>
+        <dl class="facts facts--4">
+          <div><dt>Spiele</dt><dd class="display">${p.careerStats.apps}</dd></div>
+          <div><dt>Tore</dt><dd class="display">${p.careerStats.goals}</dd></div>
+          <div><dt>Vorlagen</dt><dd class="display">${p.careerStats.assists}</dd></div>
+          <div><dt>Ø Note</dt><dd class="display">${careerAvg}</dd></div>
+        </dl>
       </section>
 
       <section class="section section--tight">

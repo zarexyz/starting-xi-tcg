@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { createPlayer } from './player.js';
-import { TIERS } from './constants.js';
+import { TIERS, ATTR_NAMES, OVR_WEIGHTS } from './constants.js';
 import { nextId, LEAGUE_INFO } from './world.js';
 import { clamp } from './rng.js';
 
@@ -23,12 +23,16 @@ export const CONSUMABLES = {
     desc: 'Verkürzt eine Verletzung um 4 Spieltage.'
   },
   TRAIN: {
-    name: 'Trainingseinheit', icon: 'dumbbell', rarity: 'bronze', target: 'player',
-    desc: 'Kleiner, dauerhafter Stärke-Push für einen Spieler.'
+    name: 'Training', icon: 'dumbbell', rarity: 'bronze', target: 'player', perAttr: true,
+    desc: '+1 auf einen Wert, dauerhaft.'
   },
   TRAIN_PLUS: {
-    name: 'Intensivtraining', icon: 'flame', rarity: 'gold', target: 'player',
-    desc: 'Deutlicher, dauerhafter Stärke-Push für einen Spieler.'
+    name: 'Intensivtraining', icon: 'flame', rarity: 'gold', target: 'player', perAttr: true,
+    desc: '+2 auf einen Wert, dauerhaft.'
+  },
+  BOOST: {
+    name: 'Matchplan', icon: 'up', rarity: 'bronze', target: 'player', perAttr: true,
+    desc: '+6 auf einen Wert, nur im nächsten Spiel.'
   },
   MORALE: {
     name: 'Kabinenansprache', icon: 'megaphone', rarity: 'bronze', target: 'team',
@@ -121,10 +125,37 @@ export function generateDraft(rng, state, packKey) {
   return positions.map((pos, i) => draftCandidate(rng, state, pack, pos, i === veteranSlot));
 }
 
+/** Welche Werte Trainings- und Matchkarten treffen können (Torwart seltener) */
+const TRAIN_ATTRS = [
+  { value: 'tem', weight: 3 }, { value: 'sch', weight: 3 }, { value: 'pas', weight: 3 }, { value: 'dri', weight: 3 },
+  { value: 'abw', weight: 3 }, { value: 'phy', weight: 3 }, { value: 'men', weight: 2.5 }, { value: 'tor', weight: 1.5 }
+];
+
 export function generateItems(rng, count) {
   const weights = { bronze: 6, silver: 3, gold: 1 };
   const entries = Object.entries(CONSUMABLES).map(([type, c]) => ({ value: type, weight: weights[c.rarity] }));
-  return Array.from({ length: count }, () => rng.weighted(entries));
+  return Array.from({ length: count }, () => {
+    const type = rng.weighted(entries);
+    return CONSUMABLES[type].perAttr ? { type, attr: rng.weighted(TRAIN_ATTRS) } : { type };
+  });
+}
+
+/** Anzeige-Daten eines Gegenstands, inklusive Wert bei Trainings- und Matchkarten */
+export function itemDef(item) {
+  const type = typeof item === 'string' ? item : item.type;
+  const base = CONSUMABLES[type];
+  const attr = typeof item === 'object' && item.attr;
+  if (!base.perAttr || !attr) return { ...base, type };
+  const n = ATTR_NAMES[attr];
+  const name = type === 'BOOST' ? `Matchplan ${n}` : type === 'TRAIN_PLUS' ? `Intensiv: ${n}` : `${n}-Training`;
+  const amount = type === 'BOOST' ? 6 : type === 'TRAIN_PLUS' ? 2 : 1;
+  const desc = type === 'BOOST' ? `+${amount} ${n}, nur im nächsten Spiel.` : `+${amount} ${n}, dauerhaft.`;
+  return { ...base, type, attr, name, desc, amount };
+}
+
+/** Passt ein Wert zur Position? (für die Sortierung bei der Spielerwahl) */
+export function attrMatters(position, attr) {
+  return (OVR_WEIGHTS[position]?.[attr] || 0) > 0;
 }
 
 // -----------------------------------------------------------------------------
