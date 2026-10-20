@@ -118,24 +118,12 @@ export function renderKaderScreen(state) {
 }
 
 function renderPitchSlot(player, slotName, pips = 2) {
-  if (!player) return `<div class="w-16 h-20 border-2 border-dashed border-slate-700 rounded-lg flex items-center justify-center text-[10px] text-slate-500 font-mono">${slotName}</div>`;
+  if (!player) return `<div class="w-16 h-24 border-2 border-dashed border-slate-700 rounded-xl flex items-center justify-center text-[10px] text-slate-500 font-mono">${slotName}</div>`;
 
   return `
     <div class="flex flex-col items-center cursor-pointer transition-transform hover:scale-105 active:scale-95" data-starter-id="${player.id}">
-      <div class="w-14 h-18 rounded-lg p-1 flex flex-col justify-between items-center shadow-lg border relative"
-           style="background: linear-gradient(180deg, #161f30 0%, #0d1320 100%); border-color: ${player.tier === 'gold' ? '#ffd15c' : (player.tier === 'special' ? '#00f59b' : '#64748b')};">
-        <div class="w-full flex items-center justify-between text-[9px] font-mono leading-none">
-          <b class="text-pitch-gold">${player.ovr}</b>
-          <span class="text-slate-400">${player.position}</span>
-        </div>
-        <div class="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-200">
-          ${player.shortName.substring(0, 2)}
-        </div>
-        <span class="font-sans font-semibold text-[8px] text-slate-200 truncate max-w-full text-center leading-none">
-          ${player.shortName}
-        </span>
-      </div>
-      <span class="font-mono text-[9px] text-pitch-emerald font-bold mt-0.5">${slotName}</span>
+      ${renderFUTCard(player, { compact: true, chemistryPips: pips })}
+      <span class="font-mono text-[9px] text-pitch-emerald font-extrabold mt-1 uppercase tracking-wider drop-shadow">${slotName}</span>
     </div>
   `;
 }

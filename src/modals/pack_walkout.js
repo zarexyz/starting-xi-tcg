@@ -2,7 +2,7 @@
 // Starting XI TCG — Modal: Booster Pack Opening & Walkout Celebration
 // =============================================================================
 
-import { renderFUTCard } from '../components/card.js';
+import { renderFUTCard, renderConsumableCard } from '../components/card.js';
 
 export function renderPackWalkoutModal(packResult) {
   const { pack, isDraft, candidates, cards } = packResult;
@@ -24,17 +24,23 @@ export function renderPackWalkoutModal(packResult) {
       </div>
 
       <!-- Center Stage -->
-      <div class="relative z-10 flex-1 flex flex-col justify-center items-center my-3">
+      <div class="relative z-10 flex-1 flex flex-col justify-center items-center my-3 w-full">
         ${isDraft ? `
-          <!-- Pick 1 of 3 Selection View -->
-          <div class="flex items-center justify-center gap-2 w-full overflow-x-auto py-2 no-scrollbar">
+          <!-- Pick 1 of 3 Selection View (Smooth horizontal carousel) -->
+          <div class="flex items-center gap-3 w-full overflow-x-auto py-3 px-1 no-scrollbar snap-x snap-mandatory justify-start sm:justify-center">
             ${candidates.map(candidate => {
               const isSelected = candidate.id === selectedId;
               return `
-                <div class="flex flex-col items-center gap-2 cursor-pointer transition-transform ${isSelected ? 'scale-105' : 'opacity-70 hover:opacity-100'}"
+                <div class="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 snap-center ${
+                  isSelected ? 'scale-105 z-20' : 'opacity-65 hover:opacity-100 scale-95'
+                }"
                      data-pick-candidate="${candidate.id}">
                   ${renderFUTCard(candidate, { compact: false, selected: isSelected })}
-                  <button class="px-3 py-1 rounded-lg text-[10px] font-display font-bold uppercase ${isSelected ? 'bg-pitch-emerald text-pitch-dark' : 'bg-slate-800 text-slate-400'}">
+                  <button class="px-4 py-1.5 rounded-xl text-xs font-display font-black uppercase tracking-wider transition-all ${
+                    isSelected
+                      ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_15px_#00f59b]'
+                      : 'bg-slate-800/90 text-slate-400 hover:text-slate-100 border border-slate-700'
+                  }">
                     ${isSelected ? 'Ausgewählt ✓' : 'Wählen'}
                   </button>
                 </div>
@@ -42,16 +48,9 @@ export function renderPackWalkoutModal(packResult) {
             }).join('')}
           </div>
         ` : `
-          <!-- Consumable Cards Reveal Grid -->
-          <div class="grid grid-cols-2 gap-3 w-full">
-            ${cards.map(card => `
-              <div class="glass-card rounded-2xl p-3 border border-slate-700 flex flex-col items-center text-center shadow-xl">
-                <span class="text-3xl my-1">${card.icon}</span>
-                <h4 class="font-display font-extrabold text-xs text-slate-100">${card.name}</h4>
-                <span class="font-mono text-[9px] text-pitch-cyan font-bold uppercase mt-0.5">${card.title}</span>
-                <p class="font-sans text-[10px] text-slate-400 mt-1 leading-snug">${card.description}</p>
-              </div>
-            `).join('')}
+          <!-- Consumable Cards Reveal Grid (Real TCG Items) -->
+          <div class="grid grid-cols-2 gap-2.5 w-full justify-items-center">
+            ${cards.map(card => renderConsumableCard(card, { compact: true, showAction: false })).join('')}
           </div>
         `}
       </div>

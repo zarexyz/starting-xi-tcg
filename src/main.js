@@ -16,10 +16,39 @@ import { renderPostfachModal } from './modals/postfach.js';
 import { renderConsumablesModal } from './modals/consumables.js';
 import { renderSettingsModal } from './modals/settings.js';
 import { renderOnboardingModal } from './modals/onboarding.js';
+import { renderCardLabModal } from './modals/card_lab.js';
 import { openPack } from './engine/packs.js';
 import { setupMatchSimulation, resolveDuelClash, simulateInstantMatch } from './engine/duel.js';
 
 let activeMatchState = null;
+
+// Global 3D Card Tilt & Holographic tracking
+window.handleCardTilt = function (e, cardEl) {
+  const rect = cardEl.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const rotateX = ((y - centerY) / centerY) * -10;
+  const rotateY = ((x - centerX) / centerX) * 10;
+  cardEl.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.03, 1.03, 1.03)`;
+
+  const sheen = cardEl.querySelector('.card-holo-sheen');
+  if (sheen) {
+    const moveX = (x / rect.width) * 100;
+    const moveY = (y / rect.height) * 100;
+    sheen.style.backgroundPosition = `${moveX}% ${moveY}%`;
+    sheen.style.opacity = '0.7';
+  }
+};
+
+window.resetCardTilt = function (cardEl) {
+  cardEl.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+  const sheen = cardEl.querySelector('.card-holo-sheen');
+  if (sheen) {
+    sheen.style.opacity = '0.35';
+  }
+};
 
 function renderApp() {
   const appEl = document.getElementById('app');
@@ -103,6 +132,10 @@ function renderModals(state, modalRoot) {
       modalRoot.innerHTML = renderSettingsModal(state);
       setupSettingsEvents();
       break;
+    case 'card_lab':
+      modalRoot.innerHTML = renderCardLabModal();
+      setupCardLabEvents();
+      break;
     default:
       modalRoot.innerHTML = '';
   }
@@ -117,7 +150,11 @@ function setupGlobalEvents(state) {
     });
   });
 
-  // Header Postfach & Settings
+  // Header Postfach, Card Lab & Settings
+  document.getElementById('btn-header-lab')?.addEventListener('click', () => {
+    store.openModal('card_lab');
+  });
+
   document.getElementById('btn-header-inbox')?.addEventListener('click', () => {
     store.openModal('postfach');
   });
@@ -320,6 +357,12 @@ function setupConsumablesEvents() {
         store.applyConsumable(cardInstId, targetPlayerId);
       }
     });
+  });
+}
+
+function setupCardLabEvents() {
+  document.querySelectorAll('#btn-close-modal').forEach(btn => {
+    btn.addEventListener('click', () => store.closeModal());
   });
 }
 

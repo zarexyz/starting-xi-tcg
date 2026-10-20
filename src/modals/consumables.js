@@ -39,29 +39,44 @@ export function renderConsumablesModal(inventory, squad) {
         </div>
 
         <!-- Consumable Cards List -->
-        <div class="flex-1 flex flex-col gap-2.5 overflow-y-auto no-scrollbar pr-1 pb-4">
+        <div class="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pr-1 pb-4">
           ${inventory.length ? inventory.map(card => {
+            const isGold = card.rarity === 'gold';
+            const isCyan = card.rarity === 'cyan';
+            const borderColor = isGold ? 'border-amber-400/50' : (isCyan ? 'border-cyan-400/50' : 'border-slate-600/60');
+            const glowBg = isGold ? 'bg-amber-950/20' : (isCyan ? 'bg-cyan-950/20' : 'bg-slate-900/40');
+            const badgeColor = isGold ? 'text-amber-300 border-amber-500/50 bg-amber-950/80' : (isCyan ? 'text-cyan-300 border-cyan-500/50 bg-cyan-950/80' : 'text-slate-300 border-slate-600 bg-slate-900/80');
+
             return `
-              <div class="glass-card rounded-2xl p-3 border border-slate-700/60 flex flex-col gap-2">
-                <div class="flex items-center gap-3">
-                  <span class="text-2xl p-2 rounded-xl bg-slate-800 border border-slate-700">${card.icon}</span>
+              <div class="relative rounded-2xl p-3 border ${borderColor} ${glowBg} shadow-lg flex flex-col gap-2.5 overflow-hidden">
+                <div class="card-rayburst opacity-20 pointer-events-none"></div>
+
+                <div class="relative z-10 flex items-start gap-3">
+                  <div class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-inner">
+                    ${card.icon}
+                  </div>
                   <div class="flex-1">
-                    <h4 class="font-display font-black text-xs text-slate-100">${card.name}</h4>
-                    <span class="font-mono text-[10px] text-pitch-cyan font-bold block">${card.title}</span>
-                    <p class="font-sans text-[11px] text-slate-400 leading-snug mt-0.5">${card.description}</p>
+                    <div class="flex items-center justify-between">
+                      <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wide">${card.name}</h4>
+                      <span class="font-mono text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${badgeColor}">
+                        ${card.type}
+                      </span>
+                    </div>
+                    <span class="font-mono text-[10px] text-pitch-gold font-bold block mt-0.5">${card.title}</span>
+                    <p class="font-sans text-[10px] text-slate-300 leading-tight mt-1">${card.description}</p>
                   </div>
                 </div>
 
                 <!-- Target Player Selector & Apply CTA -->
-                <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
-                  <select data-target-select="${card.instanceId}" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-xs font-mono text-slate-200 outline-none">
+                <div class="relative z-10 flex items-center gap-2 pt-2 border-t border-white/10">
+                  <select data-target-select="${card.instanceId}" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-mono text-slate-200 outline-none focus:border-pitch-emerald">
                     ${squad.map(p => `
                       <option value="${p.id}">
                         ${p.shortName} (${p.position}, ${p.ovr} OVR, ${p.condition}% Fit)
                       </option>
                     `).join('')}
                   </select>
-                  <button data-apply-card="${card.instanceId}" class="px-3 py-1.5 rounded-xl bg-pitch-emerald hover:bg-emerald-400 text-pitch-dark font-display font-black text-xs uppercase tracking-wide active:scale-95 transition-all">
+                  <button data-apply-card="${card.instanceId}" class="px-4 py-1.5 rounded-xl bg-pitch-emerald hover:bg-emerald-400 text-pitch-dark font-display font-black text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,245,155,0.4)] active:scale-95 transition-all">
                     Anwenden
                   </button>
                 </div>
