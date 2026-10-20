@@ -6,7 +6,7 @@ import { crestSvg } from '../components/crest.js';
 import { cardHtml } from '../components/card.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
-import { formHtml } from '../shell.js';
+import { formHtml, autoToggle } from '../shell.js';
 import { lineupPitch } from '../screens/squad.js';
 import { currentDay, dayLabel, userMatch, ensureUserSetup } from '../../engine/game.js';
 import { STYLES, STYLE_KEYS, FORMATION_KEYS, styleMatchup } from '../../engine/constants.js';
@@ -111,6 +111,7 @@ export function prepFlow(game, ui) {
       <div class="section__head"><h2 class="section__title">Formation</h2></div>
       <div class="segmented">${FORMATION_KEYS.map(k => `<button data-action="set-formation" data-value="${k}" aria-pressed="${setup.formation === k}">${k}</button>`).join('')}</div>
       ${lineupPitch(game, setup, null, { compact: true })}
+      ${autoToggle(game)}
       <div class="prep__lineup-actions">
         <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}Automatisch aufstellen</button>
         <button class="btn btn--sm btn--ghost" data-action="edit-lineup">${icon('squad')}Im Kader bearbeiten</button>

@@ -665,3 +665,13 @@ button.item-card { cursor: pointer; }
 .news-text { font-size: var(--t-md); line-height: 1.55; }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-4); }
 .sheet .btn--ghost.btn--block { margin-top: var(--s-2); }
+
+.auto-toggle {
+  display: flex; align-items: center; gap: var(--s-3);
+  margin: var(--s-3) 0;
+  padding: var(--s-3);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.auto-toggle__text { flex: 1; display: grid; gap: 2px; }

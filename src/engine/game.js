@@ -43,7 +43,8 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern 
       premium: 0,
       matchBoost: null,
       ledger: [],
-      unpaidDays: 0
+      unpaidDays: 0,
+      autoLineup: true
     },
     pending: { type: 'starter' },
     inbox: [],
@@ -295,6 +296,7 @@ export function useItem(state, itemId, playerId = null) {
 
 export function setUserSetup(state, patch) {
   ensureUserSetup(state);
+  if (patch.lineup || patch.bench) state.user.autoLineup = false;
   const setup = { ...state.user.setup, ...patch };
   if (patch.formation && patch.formation !== state.user.setup.formation) {
     // Spieler auf neue Slots übertragen: gleiche Positionen bevorzugt
@@ -329,6 +331,7 @@ export function autoLineup(state) {
 /** Spieler A auf den Platz von B (Slot-ID oder Bank-Index) */
 export function placePlayer(state, playerId, target) {
   const setup = ensureUserSetup(state);
+  state.user.autoLineup = false;
   const lineup = { ...setup.lineup };
   const bench = [...setup.bench];
   const fromSlot = Object.keys(lineup).find(k => lineup[k] === playerId);
@@ -366,6 +369,13 @@ export function placePlayer(state, playerId, target) {
   return state.user.setup;
 }
 
+/** Co-Trainer stellt vor jedem Spiel die fitteste beste Elf auf */
+export function setAutoLineup(state, on) {
+  state.user.autoLineup = !!on;
+  if (on) autoLineup(state);
+  return { ok: true };
+}
+
 export function releasePlayer(state, playerId) {
   const club = state.clubs.user;
   const p = state.players[playerId];
@@ -386,6 +396,7 @@ const INJURY_LABELS = ['Muskelfaserriss', 'Bänderdehnung', 'Prellung', 'Zerrung
 
 function setupFor(rng, state, clubId) {
   if (clubId === 'user') {
+    if (state.user.autoLineup) autoLineup(state);
     const setup = ensureUserSetup(state);
     return { ...setup, boosts: state.user.matchBoost || {} };
   }
@@ -408,7 +419,7 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     if (!p) continue;
     played.add(id);
     const isSub = subsIn.includes(id);
-    p.condition = Math.max(25, p.condition - (isSub ? 5 : 11 + fatigue + rng.int(0, 4) + (p.age > 30 ? 2 : 0)));
+    p.condition = Math.max(30, p.condition - (isSub ? 5 : 10 + fatigue + rng.int(0, 3) + (p.age > 30 ? 2 : 0)));
     p.morale = Math.max(20, Math.min(100, p.morale + (outcome === 'W' ? 4 : outcome === 'L' ? -4 : 1)));
     const rating = result.ratings[id];
     if (rating) {
@@ -493,7 +504,7 @@ export function playDay(state) {
     // Erholung aller Spieler, die heute nicht gespielt haben; Verletzungen heilen
     for (const p of Object.values(state.players)) {
       if (!played.has(p.id)) p.condition = Math.min(100, p.condition + 16);
-      else p.condition = Math.min(100, p.condition + 3);
+      else p.condition = Math.min(100, p.condition + 5);
       if (p.injury && !played.has(p.id)) {
         p.injury.days--;
         if (p.injury.days <= 0) {

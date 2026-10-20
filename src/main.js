@@ -6,7 +6,7 @@ import { store, subscribe, notify, act, setUi, setView, toast, startGame, resume
 import { deleteGame } from './state/storage.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, releasePlayer, playDay, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
+  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -343,12 +343,14 @@ const handlers = {
     });
   },
 
+  'toggle-auto': () => { const on = !store.game.user.autoLineup; act(setAutoLineup, on); toast(on ? 'Der Co-Trainer stellt ab jetzt die Elf auf.' : 'Du stellst ab jetzt selbst auf.'); },
+
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'set-speed': d => updateSettings({ speed: d.value }),
 
   // Spieltag
-  'open-prep': () => { setUi({ flow: { type: 'prep' } }); },
+  'open-prep': () => { if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' } }); },
   'close-flow': () => {
     stopMatch();
     setUi({ flow: null });

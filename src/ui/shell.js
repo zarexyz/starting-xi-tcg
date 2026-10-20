@@ -68,3 +68,11 @@ export function sheet(title, body, opts = {}) {
 export function moneyRow(label, amount) {
   return `<li class="row"><span class="row__main">${esc(label)}</span><b class="num ${amount >= 0 ? 'pos' : 'neg'}">${amount >= 0 ? '+' : '−'}${fmt(Math.abs(amount))}</b></li>`;
 }
+
+export function autoToggle(game) {
+  const on = !!game.user.autoLineup;
+  return `<div class="auto-toggle">
+    <div class="auto-toggle__text"><b>Co-Trainer stellt auf</b><span class="small muted">${on ? 'Vor jedem Spiel spielt die fitteste beste Elf. Formation und Spielstil bestimmst du.' : 'Du stellst selbst auf. Achte auf müde Spieler.'}</span></div>
+    <button class="toggle" role="switch" aria-checked="${on}" aria-label="Co-Trainer stellt auf" data-action="toggle-auto"><span></span></button>
+  </div>`;
+}

@@ -38,7 +38,7 @@ function tableView(game, tier) {
 
 function resultClass(m, me) {
   const w = matchWinner(m);
-  if (m.hg == null) return '';
+  if (m.hg == null || (m.home !== me && m.away !== me)) return '';
   if (!w) return 'res-d';
   return w === me ? 'res-w' : 'res-l';
 }

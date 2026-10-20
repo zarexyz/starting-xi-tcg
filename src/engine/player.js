@@ -40,7 +40,7 @@ export function familiarity(player, pos) {
 /** Leistungsfaktor nach Fitness: bis 75 % kaum spürbar, darunter deutlicher Abfall */
 export function fitnessFactor(condition) {
   if (condition >= 75) return 1 - (100 - condition) * 0.0036;
-  return 0.91 - (75 - condition) * 0.009;
+  return 0.91 - (75 - condition) * 0.0055;
 }
 
 /** Tatsächliche Stärke im Spiel: Position, Fitness, Moral */

@@ -2,7 +2,7 @@
 // Kader: Aufstellung auf dem Spielfeld & Kaderliste, Spielerdetails
 // =============================================================================
 
-import { topbar, segmented, sheet } from '../shell.js';
+import { topbar, segmented, sheet, autoToggle } from '../shell.js';
 import { cardHtml, starsHtml, potentialStars } from '../components/card.js';
 import { portraitSvg } from '../components/portrait.js';
 import { flagSvg } from '../components/flag.js';
@@ -74,6 +74,7 @@ function lineupView(game, ui) {
       <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}Automatisch</button>
     </div>
     ${lineStrength(game, setup)}
+    ${autoToggle(game)}
     ${lineupPitch(game, setup, selected)}
     <p class="hint small">${selPlayer ? `<b>${esc(selPlayer.last)}</b> ausgewählt. Tippe auf eine Position oder einen Bankspieler zum Tauschen.` : 'Tippe auf einen Spieler und dann auf eine Position, um zu tauschen. Langes Tippen öffnet die Details.'}</p>
     ${benchRow(game, setup, selected)}
