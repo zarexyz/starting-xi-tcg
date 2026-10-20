@@ -17,6 +17,7 @@ export function renderFUTCard(player, options = {}) {
     chemistryPips = 3,
     compact = false,
     medium = false,
+    large = false,
     selectable = false,
     selected = false,
     draggable = true,
@@ -207,7 +208,7 @@ export function renderFUTCard(player, options = {}) {
     <div class="fut-card ${currentTier.cssClass} relative flex flex-col justify-between cursor-pointer ${
       selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_25px_#00f59b] scale-[1.02]' : ''
     }"
-         style="width: 200px; height: 300px; border-radius: 18px;"
+         style="width: ${large ? '245px' : '200px'}; height: ${large ? '365px' : '300px'}; border-radius: ${large ? '22px' : '18px'};"
          data-player-id="${player.id}"
          ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}
          onmousemove="window.handleCardTilt(event, this)"
@@ -370,19 +371,19 @@ export function renderConsumableCard(item, options = {}) {
 
   if (compact) {
     return `
-      <div class="relative rounded-xl p-2.5 border ${theme.border} ${theme.shadow} flex flex-col justify-between"
-           style="background: ${theme.bg}; width: 140px; min-height: 170px;">
+      <div class="relative rounded-2xl p-2 border ${theme.border} ${theme.shadow} flex flex-col justify-between flex-shrink-0 cursor-pointer transition-transform hover:scale-105 active:scale-95"
+           style="background: ${theme.bg}; width: 108px; height: 162px;">
         <div class="flex items-center justify-between">
-          <span class="w-2 h-2 rounded-full ${theme.gem}"></span>
-          <span class="font-mono text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${theme.badge} border">${item.type}</span>
+          <span class="w-1.5 h-1.5 rounded-full ${theme.gem}"></span>
+          <span class="font-mono text-[7px] font-black uppercase px-1 py-0.5 rounded ${theme.badge} border">${item.type}</span>
         </div>
-        <div class="flex flex-col items-center my-2 text-center">
-          <span class="text-3xl filter drop-shadow mb-1">${item.icon}</span>
-          <h5 class="font-display font-black text-xs text-slate-100 tracking-tight leading-tight">${item.name}</h5>
-          <span class="font-mono text-[9px] text-pitch-gold font-bold mt-0.5">${item.title}</span>
+        <div class="flex flex-col items-center my-1 text-center">
+          <span class="text-3xl filter drop-shadow my-0.5">${item.icon}</span>
+          <h5 class="font-display font-black text-[10px] text-slate-100 uppercase tracking-tight leading-tight truncate max-w-full">${item.name}</h5>
+          <span class="font-mono text-[8px] text-pitch-gold font-bold mt-0.5 truncate max-w-full">${item.title}</span>
         </div>
         ${showAction ? `
-          <button data-apply-card="${item.instanceId || item.id}" class="w-full py-1.5 rounded-lg bg-pitch-emerald/20 hover:bg-pitch-emerald/30 border border-pitch-emerald text-pitch-emerald font-display font-extrabold text-[9px] uppercase tracking-wider active:scale-95 transition-all">
+          <button data-apply-card="${item.instanceId || item.id}" class="w-full py-1 rounded-lg bg-pitch-emerald/20 hover:bg-pitch-emerald/30 border border-pitch-emerald text-pitch-emerald font-display font-black text-[8px] uppercase tracking-wider active:scale-95 transition-all">
             Anwenden ➔
           </button>
         ` : ''}

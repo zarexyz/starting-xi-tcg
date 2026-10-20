@@ -37,9 +37,11 @@ export function renderPlayerInspectModal(player, club) {
         </button>
       </div>
 
-      <!-- Showcase Card (3D Tilt) -->
-      <div class="relative z-10 flex justify-center items-center my-3">
-        ${renderFUTCard(player, { compact: false, draggable: false })}
+      <!-- Showcase Card (3D Tilt & Enlarged for Legibility) -->
+      <div class="relative z-10 flex justify-center items-center my-2">
+        <div class="filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)] transform transition-transform">
+          ${renderFUTCard(player, { large: true, compact: false, draggable: false })}
+        </div>
       </div>
 
       <!-- Player Management KPIs & Actions -->

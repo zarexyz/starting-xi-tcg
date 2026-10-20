@@ -260,6 +260,31 @@ function setupGlobalEvents(state) {
     });
   }
 
+  // Wettbewerb 4 Sub-Tabs
+  document.querySelectorAll('[data-wettbewerb-tab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      store.getState().wettbewerbTab = e.currentTarget.dataset.wettbewerbTab;
+      store.notify();
+    });
+  });
+
+  // Spielplan Matchday Slider
+  document.getElementById('btn-prev-matchday')?.addEventListener('click', (e) => {
+    const day = parseInt(e.currentTarget.dataset.day, 10);
+    if (day >= 1) {
+      store.getState().viewMatchday = day;
+      store.notify();
+    }
+  });
+
+  document.getElementById('btn-next-matchday')?.addEventListener('click', (e) => {
+    const day = parseInt(e.currentTarget.dataset.day, 10);
+    if (day <= (store.getState().maxMatchdays || 18)) {
+      store.getState().viewMatchday = day;
+      store.notify();
+    }
+  });
+
   // Pack Buttons auf Markt
   document.querySelectorAll('[data-open-pack]').forEach(btn => {
     btn.addEventListener('click', () => {

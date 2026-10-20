@@ -264,8 +264,10 @@ export function renderKaderScreen(state) {
           </div>
         </div>
 
-        <!-- Horizontal Swipe Deck (Larger ~108x162px Cards) -->
-        <div class="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 snap-x snap-mandatory">
+        <!-- Horizontal Swipe Deck (Larger ~108x162px Cards with Mousewheel & Touch Pan) -->
+        <div class="horizontal-scroll-deck flex gap-3 overflow-x-auto py-2 px-1 snap-x snap-mandatory"
+             style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"
+             onwheel="this.scrollLeft += event.deltaY; event.preventDefault();">
           ${bench.map(player => `
             <div class="snap-start" data-inspect-player="${player.id}">
               ${renderFUTCard(player, { medium: true, draggable: true, chemistryPips: 2 })}
@@ -274,14 +276,14 @@ export function renderKaderScreen(state) {
         </div>
       </div>
 
-      <!-- Dedicated Verbrauchskarten & Buffs Section (Scroll Down) -->
+      <!-- Dedicated Verbrauchskarten Section (Scroll Down) -->
       <div class="glass-panel rounded-3xl p-3.5 border border-white/10 flex flex-col gap-3 shadow-xl">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-base">📦</span>
             <div>
               <h3 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider">
-                Verbrauchskarten & Buffs
+                Verbrauchskarten
               </h3>
               <span class="font-mono text-[9px] text-pitch-emerald font-bold">
                 ${state.inventory.length} KARTEN IM VEREINSLAGER
@@ -293,8 +295,10 @@ export function renderKaderScreen(state) {
           </button>
         </div>
 
-        <!-- Horizontal Item Cards List -->
-        <div class="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+        <!-- Horizontal Item Cards List with Mousewheel & Touch Pan -->
+        <div class="horizontal-scroll-deck flex gap-3 overflow-x-auto py-1 px-1"
+             style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"
+             onwheel="this.scrollLeft += event.deltaY; event.preventDefault();">
           ${state.inventory.length ? state.inventory.map(item => renderConsumableCard(item, { compact: true })).join('') : `
             <div class="w-full py-4 text-center text-slate-500 font-sans text-xs">
               Keine Verbrauchskarten vorhanden. Ziehe Bundles auf dem TCG-Markt!
@@ -305,6 +309,24 @@ export function renderKaderScreen(state) {
 
     </div>
   `;
+}
+
+const POSITION_GROUPS = {
+  att: ['ST', 'LF', 'RF'],
+  mid: ['ZM', 'ZOM', 'ZDM', 'LM', 'RM'],
+  def: ['LV', 'RV', 'IV'],
+  gk: ['TW']
+};
+
+function getPositionFitBadge(playerPos, slotPos) {
+  if (playerPos === slotPos) {
+    return 'text-pitch-emerald bg-emerald-950/90 border-pitch-emerald/60 shadow-[0_0_8px_rgba(0,245,155,0.4)]';
+  }
+  const getGroup = (p) => Object.keys(POSITION_GROUPS).find(g => POSITION_GROUPS[g].includes(p));
+  if (getGroup(playerPos) === getGroup(slotPos)) {
+    return 'text-amber-400 bg-amber-950/90 border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
+  }
+  return 'text-rose-400 bg-rose-950/90 border-rose-500/60 shadow-[0_0_8px_rgba(244,63,94,0.3)]';
 }
 
 function renderPitchSlot(player, slotName, pips = 2) {
@@ -322,6 +344,8 @@ function renderPitchSlot(player, slotName, pips = 2) {
     `;
   }
 
+  const badgeStyle = getPositionFitBadge(player.position, cleanSlot);
+
   return `
     <div class="flex flex-col items-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
          data-starter-id="${player.id}"
@@ -332,7 +356,7 @@ function renderPitchSlot(player, slotName, pips = 2) {
       
       ${renderFUTCard(player, { compact: true, chemistryPips: pips, draggable: true, playedPosition: cleanSlot })}
       
-      <span class="font-mono text-[8px] font-black text-pitch-emerald mt-1 uppercase tracking-widest px-1.5 py-0.5 rounded bg-pitch-dark/80 border border-pitch-emerald/40 drop-shadow">
+      <span class="font-mono text-[8px] font-black mt-1 uppercase tracking-widest px-1.5 py-0.5 rounded border drop-shadow ${badgeStyle}">
         ${cleanSlot}
       </span>
     </div>

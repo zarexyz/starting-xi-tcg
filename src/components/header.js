@@ -18,7 +18,7 @@ export function renderHeader(state) {
             ${club?.name || 'FC Apex Nova'}
           </span>
           <span class="font-mono text-[10px] text-pitch-emerald font-semibold leading-none">
-            ${club?.leagueName?.split(' ')[0] || 'Liga 6'}
+            ${club?.leagueName || 'Liga 6 (Amateur)'}
           </span>
         </div>
       </div>
