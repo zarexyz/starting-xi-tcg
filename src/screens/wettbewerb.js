@@ -123,7 +123,7 @@ function renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, sele
             const rank = idx + 1;
             const isPromotion = rank <= 4;
             const isRelegation = rank >= 9 && selectedTier < 6;
-            const isPlayer = club.isPlayer;
+            const isPlayer club.isPlayer;
 
             let rowClass = 'bg-slate-900/40 text-slate-300';
             let rankColor = 'text-slate-400';
@@ -176,21 +176,40 @@ function renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, sele
 // =============================================================================
 function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
   const selectedCupRound = state.selectedCupRound || 1;
+  const cupState = state.cup || { currentRound: 1, isEliminated: false, history: [] };
+  const currentCupRound = cupState.currentRound || 1;
+  const isEliminated = !!cupState.isEliminated;
 
   const cupRounds = [
-    { round: 1, name: 'Runde 1', teamsCount: 64, prize: '500 🪙', date: 'Nach Sp. 3', status: 'Ausgelost' },
-    { round: 2, name: 'Sechzehntelfinale', teamsCount: 32, prize: '1.000 🪙', date: 'Nach Sp. 6', status: 'Ausstehend' },
-    { round: 3, name: 'Achtelfinale', teamsCount: 16, prize: '2.000 🪙', date: 'Nach Sp. 9', status: 'Ausstehend' },
-    { round: 4, name: 'Viertelfinale', teamsCount: 8, prize: '4.000 🪙', date: 'Nach Sp. 12', status: 'Ausstehend' },
-    { round: 5, name: 'Halbfinale', teamsCount: 4, prize: '8.000 🪙', date: 'Nach Sp. 15', status: 'Ausstehend' },
-    { round: 6, name: 'Großes Finale', teamsCount: 2, prize: '15.000 🪙', date: 'Nach Sp. 18', status: 'Ausstehend' }
-  ];
+    { round: 1, name: 'Runde 1', teamsCount: 64, prize: '500 🪙', date: 'Nach Sp. 3' },
+    { round: 2, name: 'Sechzehntelfinale', teamsCount: 32, prize: '1.000 🪙', date: 'Nach Sp. 6' },
+    { round: 3, name: 'Achtelfinale', teamsCount: 16, prize: '2.000 🪙', date: 'Nach Sp. 9' },
+    { round: 4, name: 'Viertelfinale', teamsCount: 8, prize: '4.000 🪙', date: 'Nach Sp. 12' },
+    { round: 5, name: 'Halbfinale', teamsCount: 4, prize: '8.000 🪙', date: 'Nach Sp. 15' },
+    { round: 6, name: 'Großes Finale', teamsCount: 2, prize: '15.000 🪙', date: 'Nach Sp. 18' }
+  ].map(r => {
+    let status = 'Ausstehend';
+    let statusColor = 'text-slate-400 bg-slate-800/80 border-slate-700';
+    if (cupState.history?.some(h => h.round === r.round && h.won)) {
+      status = 'Gewonnen ✓';
+      statusColor = 'text-pitch-emerald bg-emerald-950/80 border-pitch-emerald/50';
+    } else if (isEliminated && r.round >= currentCupRound) {
+      status = r.round === currentCupRound ? 'Ausgeschieden ✕' : 'Verpasst';
+      statusColor = 'text-pitch-danger bg-red-950/80 border-pitch-danger/50';
+    } else if (r.round === currentCupRound) {
+      status = cupState.activeCupMatchPending ? '🔥 Jetzt spielbereit!' : 'Als Nächstes';
+      statusColor = 'text-pitch-gold bg-yellow-500/15 border-pitch-gold/50';
+    }
+    return { ...r, status, statusColor };
+  });
 
   const currentRoundData = cupRounds.find(r => r.round === selectedCupRound) || cupRounds[0];
 
   // Beispielduele für den Apex Cup Bracket (Bundesweiter K.-o.-Baum über alle 6 Ligen)
   const allLeaguesClubs = state.leagues.flatMap(l => l.clubs);
-  const oppClub = allLeaguesClubs.find(c => c.id !== playerClub.id && c.tier === 6) || allLeaguesClubs[1];
+  const targetTier = Math.max(1, 7 - currentCupRound);
+  const targetLeague = state.leagues.find(l => l.tier === targetTier) || state.leagues[0];
+  const oppClub = targetLeague.clubs.find(c => c.id !== playerClub.id) || allLeaguesClubs[1];
 
   const sampleMatchups = [
     { home: playerClub, away: oppClub, isPlayerMatch: true, result: null, time: 'Nach Sp. 3' },
@@ -286,19 +305,32 @@ function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
         </p>
 
         <!-- Player Next Cup Fixture Box -->
-        <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-pitch-gold/30 flex items-center justify-between shadow-inner">
-          <div class="flex items-center gap-2.5">
-            ${renderClubCrest(playerClub, 28)}
-            <div>
-              <span class="font-display font-extrabold text-xs text-slate-100 block">Runde 1 Auslosung</span>
-              <span class="font-mono text-[10px] text-pitch-gold font-bold">vs. ${oppClub.name} (${oppClub.tier ? `Liga ${oppClub.tier}` : 'Liga 6'})</span>
+        ${isEliminated ? `
+          <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-red-500/40 flex items-center justify-between shadow-inner">
+            <div class="flex items-center gap-2.5">
+              <span class="text-2xl">❌</span>
+              <div>
+                <span class="font-display font-extrabold text-xs text-red-300 block">Aus dem Pokal ausgeschieden</span>
+                <span class="font-mono text-[10px] text-slate-400">In Runde ${currentCupRound} unterlegen • Neuer Pokalanlauf nächste Saison</span>
+              </div>
+            </div>
+            <span class="px-2 py-1 rounded bg-red-950 text-red-400 text-[10px] font-bold border border-red-500/30">K.O.</span>
+          </div>
+        ` : `
+          <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-pitch-gold/30 flex items-center justify-between shadow-inner">
+            <div class="flex items-center gap-2.5">
+              ${renderClubCrest(playerClub, 28)}
+              <div>
+                <span class="font-display font-extrabold text-xs text-slate-100 block">Runde ${currentCupRound} Auslosung</span>
+                <span class="font-mono text-[10px] text-pitch-gold font-bold">vs. ${oppClub.name} (${oppClub.tier ? `Liga ${oppClub.tier}` : 'Liga 6'})</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="font-mono text-[9px] text-slate-400 block">Siegprämie</span>
+              <span class="font-display font-black text-xs text-pitch-emerald">+${cupRounds[currentCupRound - 1]?.prize || '500 🪙'}</span>
             </div>
           </div>
-          <div class="text-right">
-            <span class="font-mono text-[9px] text-slate-400 block">Siegprämie</span>
-            <span class="font-display font-black text-xs text-pitch-emerald">+500 🪙</span>
-          </div>
-        </div>
+        `}
       </div>
 
       <!-- K.-o.-Turnierbaum Runden-Wähler (Horizontal Scrollable) -->
@@ -319,10 +351,15 @@ function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
       <div class="glass-panel rounded-2xl p-3.5 border border-white/10 flex flex-col gap-2.5 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-white/5">
           <div>
-            <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider">
-              ${currentRoundData.name} (${currentRoundData.teamsCount} Klubs)
-            </h4>
-            <span class="font-mono text-[10px] text-slate-400">${currentRoundData.date} • Single Elimination</span>
+            <div class="flex items-center gap-2">
+              <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider">
+                ${currentRoundData.name} (${currentRoundData.teamsCount} Klubs)
+              </h4>
+              <span class="px-2 py-0.5 rounded font-mono text-[8px] font-bold border ${currentRoundData.statusColor}">
+                ${currentRoundData.status}
+              </span>
+            </div>
+            <span class="font-mono text-[10px] text-slate-400 mt-0.5 block">${currentRoundData.date} • Single Elimination</span>
           </div>
           <div class="text-right">
             <span class="font-mono text-[8px] text-slate-400 block">RUNDEN-PRÄMIE</span>
