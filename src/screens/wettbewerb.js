@@ -123,7 +123,7 @@ function renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, sele
             const rank = idx + 1;
             const isPromotion = rank <= 4;
             const isRelegation = rank >= 9 && selectedTier < 6;
-            const isPlayer club.isPlayer;
+            const isPlayer = club.isPlayer;
 
             let rowClass = 'bg-slate-900/40 text-slate-300';
             let rankColor = 'text-slate-400';
