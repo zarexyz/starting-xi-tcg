@@ -2,7 +2,7 @@
 // Starting XI TCG — High-End FUT Trading Card Component
 // =============================================================================
 
-import { getEffectiveOVR } from '../engine/ratings.js';
+import { getEffectiveOVR, getPositionFitStyle } from '../engine/ratings.js';
 import { generatePlayerAvatarSVG } from './avatar.js';
 import { getNationFlagSVG } from './flags.js';
 
@@ -115,7 +115,9 @@ export function renderFUTCard(player, options = {}) {
             <span class="font-display font-black text-xs leading-none bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow">
               ${effectiveOvr}
             </span>
-            <span class="font-mono text-[7px] font-extrabold text-slate-300 leading-tight">${player.position}</span>
+            <span class="font-mono text-[7px] font-black uppercase px-1 py-0.2 rounded border ${getPositionFitStyle(player.position, playedPosition)} leading-tight mt-0.5">
+              ${player.position}
+            </span>
           </div>
           <div class="flex items-center">
             ${flagSVG}
@@ -141,14 +143,20 @@ export function renderFUTCard(player, options = {}) {
   }
 
   // =========================================================================
-  // 2. MEDIUM CARD (~108x160px for the expanded Ersatzbank)
+  // 2. MEDIUM CARD (~108x162px for expanded Ersatzbank & ~126x186px for Duels)
   // =========================================================================
   if (medium) {
+    const isDuel = options.duel || false;
+    const cardWidth = isDuel ? '124px' : '108px';
+    const cardHeight = isDuel ? '184px' : '162px';
+    const avatarHeight = isDuel ? '82px' : '72px';
+    const avatarWidth = isDuel ? 'w-24 h-24' : 'w-20 h-20';
+
     return `
       <div class="fut-card ${currentTier.cssClass} relative flex flex-col justify-between cursor-pointer flex-shrink-0 ${
         selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_20px_#00f59b] scale-105' : ''
       }"
-           style="width: 108px; height: 162px; border-radius: 14px;"
+           style="width: ${cardWidth}; height: ${cardHeight}; border-radius: 14px;"
            data-player-id="${player.id}"
            ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}
            onmousemove="window.handleCardTilt(event, this)"
@@ -161,30 +169,30 @@ export function renderFUTCard(player, options = {}) {
         <!-- Top Row: OVR + Pos + Flag -->
         <div class="relative z-10 flex items-start justify-between px-2 pt-1.5">
           <div class="flex flex-col items-center">
-            <span class="font-display font-black text-base leading-none bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow">
+            <span class="font-display font-black ${isDuel ? 'text-lg' : 'text-base'} leading-none bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow">
               ${effectiveOvr}
             </span>
-            <span class="font-mono text-[8px] font-black uppercase text-slate-300 mt-0.5 px-1 rounded ${currentTier.badgeBg} border">
+            <span class="font-mono text-[8px] font-black uppercase rounded border ${getPositionFitStyle(player.position, playedPosition)} mt-0.5 px-1 py-0.2">
               ${player.position}
             </span>
           </div>
           <div class="flex flex-col items-end gap-1">
-            ${getNationFlagSVG(player.nationality, 18, 12)}
+            ${getNationFlagSVG(player.nationality, isDuel ? 22 : 18, isDuel ? 15 : 12)}
             <div class="flex gap-0.5">${pipsHTML}</div>
           </div>
         </div>
 
         <!-- Center: Vector Avatar Bust -->
-        <div class="relative z-10 w-full flex justify-center -my-1 overflow-hidden" style="height: 72px;">
-          <div class="w-20 h-20 transform scale-100 origin-top">
+        <div class="relative z-10 w-full flex justify-center -my-1 overflow-hidden" style="height: ${avatarHeight};">
+          <div class="${avatarWidth} transform scale-100 origin-top">
             ${avatarSVG}
           </div>
         </div>
 
-        <!-- Middle Plinth: Name (Age) -->
+        <!-- Middle Plinth: Full Name (Age) -->
         <div class="relative z-20 ${currentTier.namePlateBg} border-t border-white/10 px-1 py-1 text-center shadow">
-          <p class="font-sans font-black text-[9px] text-slate-100 truncate tracking-tight leading-tight">
-            ${player.shortName} <span class="text-slate-400 font-mono font-normal">(${age})</span>
+          <p class="font-sans font-black ${isDuel ? 'text-[10px]' : 'text-[9px]'} text-slate-100 truncate tracking-tight leading-tight">
+            ${player.name || player.shortName} <span class="text-slate-400 font-mono font-normal">(${age})</span>
           </p>
         </div>
 

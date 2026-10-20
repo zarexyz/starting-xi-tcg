@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { renderFUTCard, renderConsumableCard } from '../components/card.js';
-import { calculateSquadChemistry } from '../engine/ratings.js';
+import { calculateSquadChemistry, getPositionFitStyle } from '../engine/ratings.js';
 
 export const FORMATIONS = {
   '4-3-3': {
@@ -361,17 +361,6 @@ const POSITION_GROUPS = {
   gk: ['TW']
 };
 
-function getPositionFitBadge(playerPos, slotPos) {
-  if (playerPos === slotPos) {
-    return 'text-pitch-emerald bg-emerald-950/90 border-pitch-emerald/60 shadow-[0_0_8px_rgba(0,245,155,0.4)]';
-  }
-  const getGroup = (p) => Object.keys(POSITION_GROUPS).find(g => POSITION_GROUPS[g].includes(p));
-  if (getGroup(playerPos) === getGroup(slotPos)) {
-    return 'text-amber-400 bg-amber-950/90 border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
-  }
-  return 'text-rose-400 bg-rose-950/90 border-rose-500/60 shadow-[0_0_8px_rgba(244,63,94,0.3)]';
-}
-
 function renderPitchSlot(player, slotName, pips = 2, selectedSwapId = null) {
   const cleanSlot = slotName.replace(/_\d+$/, '');
 
@@ -389,7 +378,7 @@ function renderPitchSlot(player, slotName, pips = 2, selectedSwapId = null) {
   }
 
   const isSelected = player.id === selectedSwapId;
-  const badgeStyle = getPositionFitBadge(player.position, cleanSlot);
+  const badgeStyle = getPositionFitStyle(player.position, cleanSlot);
 
   return `
     <div class="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-105 active:scale-95"

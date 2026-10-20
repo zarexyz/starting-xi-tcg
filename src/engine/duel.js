@@ -167,6 +167,9 @@ export function simulateInstantMatch(matchState) {
     resolveDuelClash(duel);
 
     if (duel.outcome === 'GOAL') {
+      if (!duel.attacker.stats) duel.attacker.stats = {};
+      duel.attacker.stats.goals = (duel.attacker.stats.goals || 0) + 1;
+
       if (duel.isHomeAttacking) {
         matchState.homeScore++;
         matchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${matchState.homeClub.name}! ${duel.attacker.name} trifft im 3-Phasen Duell!` });

@@ -24,6 +24,37 @@ export function getRarityTier(ovr) {
 }
 
 /**
+ * Ermittelt den Positions-Fit (perfect | group | out)
+ */
+export function getPositionFit(playerPos, playedSlot) {
+  if (!playedSlot || !playerPos) return 'perfect';
+  const cleanSlot = playedSlot.replace(/_\d+$/, '');
+  if (playerPos === cleanSlot) return 'perfect';
+
+  const naturalCat = POSITION_CATEGORY[playerPos];
+  const playedCat = POSITION_CATEGORY[cleanSlot];
+
+  if (naturalCat && playedCat && naturalCat === playedCat) {
+    return 'group';
+  }
+  return 'out';
+}
+
+/**
+ * Liefert Tailwind-Klassen für den 3-Farben-Indikator
+ */
+export function getPositionFitStyle(playerPos, playedSlot) {
+  const fit = getPositionFit(playerPos, playedSlot);
+  if (fit === 'perfect') {
+    return 'text-pitch-emerald bg-emerald-950/90 border-pitch-emerald/80 shadow-[0_0_8px_rgba(0,245,155,0.4)]';
+  }
+  if (fit === 'group') {
+    return 'text-amber-400 bg-amber-950/90 border-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]';
+  }
+  return 'text-rose-400 bg-rose-950/90 border-rose-500/80 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
+}
+
+/**
  * Berechnet die effektive OVR unter Berücksichtigung der Position
  */
 export function getEffectiveOVR(player, playedPosition) {

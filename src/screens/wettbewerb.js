@@ -172,31 +172,79 @@ function renderLigaContent({ activeSubTab, league, sortedClubs, playerClub, sele
 }
 
 // =============================================================================
-// POKAL CONTENT (APEX CUP: ÜBERSICHT, RUNDEN, PRÄMIEN)
+// POKAL CONTENT (APEX CUP: ÜBERSICHT, TURNIERBAUM & SPIELPLAN)
 // =============================================================================
 function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
+  const selectedCupRound = state.selectedCupRound || 1;
+
   const cupRounds = [
-    { name: 'Runde 1', teams: '60 Teams', prize: '500 🪙', status: 'Aktiv' },
-    { name: 'Sechzehntelfinale', teams: '32 Teams', prize: '1.000 🪙', status: 'Ausstehend' },
-    { name: 'Achtelfinale', teams: '16 Teams', prize: '2.000 🪙', status: 'Ausstehend' },
-    { name: 'Viertelfinale', teams: '8 Teams', prize: '4.000 🪙', status: 'Ausstehend' },
-    { name: 'Halbfinale', teams: '4 Teams', prize: '8.000 🪙', status: 'Ausstehend' },
-    { name: 'Großes Finale', teams: '2 Teams', prize: '15.000 🪙 + Pokal', status: 'Ausstehend' }
+    { round: 1, name: 'Runde 1', teamsCount: 64, prize: '500 🪙', date: 'Nach Sp. 3', status: 'Ausgelost' },
+    { round: 2, name: 'Sechzehntelfinale', teamsCount: 32, prize: '1.000 🪙', date: 'Nach Sp. 6', status: 'Ausstehend' },
+    { round: 3, name: 'Achtelfinale', teamsCount: 16, prize: '2.000 🪙', date: 'Nach Sp. 9', status: 'Ausstehend' },
+    { round: 4, name: 'Viertelfinale', teamsCount: 8, prize: '4.000 🪙', date: 'Nach Sp. 12', status: 'Ausstehend' },
+    { round: 5, name: 'Halbfinale', teamsCount: 4, prize: '8.000 🪙', date: 'Nach Sp. 15', status: 'Ausstehend' },
+    { round: 6, name: 'Großes Finale', teamsCount: 2, prize: '15.000 🪙', date: 'Nach Sp. 18', status: 'Ausstehend' }
+  ];
+
+  const currentRoundData = cupRounds.find(r => r.round === selectedCupRound) || cupRounds[0];
+
+  // Beispielduele für den Apex Cup Bracket (Bundesweiter K.-o.-Baum über alle 6 Ligen)
+  const allLeaguesClubs = state.leagues.flatMap(l => l.clubs);
+  const oppClub = allLeaguesClubs.find(c => c.id !== playerClub.id && c.tier === 6) || allLeaguesClubs[1];
+
+  const sampleMatchups = [
+    { home: playerClub, away: oppClub, isPlayerMatch: true, result: null, time: 'Nach Sp. 3' },
+    { home: allLeaguesClubs.find(c => c.tier === 1) || allLeaguesClubs[0], away: allLeaguesClubs.find(c => c.tier === 5) || allLeaguesClubs[10], isPlayerMatch: false, result: null, time: 'Nach Sp. 3' },
+    { home: allLeaguesClubs.find(c => c.tier === 2) || allLeaguesClubs[5], away: allLeaguesClubs.find(c => c.tier === 6 && c.id !== playerClub.id) || allLeaguesClubs[15], isPlayerMatch: false, result: null, time: 'Nach Sp. 3' },
+    { home: allLeaguesClubs.find(c => c.tier === 3) || allLeaguesClubs[8], away: allLeaguesClubs.find(c => c.tier === 4) || allLeaguesClubs[12], isPlayerMatch: false, result: null, time: 'Nach Sp. 3' }
   ];
 
   if (activeSubTab === 'spielplan') {
     return `
-      <div class="glass-card rounded-2xl p-4 border border-pitch-gold/30 flex flex-col gap-3 shadow-xl">
-        <div class="flex items-center justify-between">
-          <h3 class="font-display font-black text-xs uppercase tracking-wider text-slate-100">Pokal-Termine & Auslosung</h3>
-          <span class="font-mono text-[9px] text-pitch-gold font-bold">K.O.-SYSTEM</span>
+      <div class="flex flex-col gap-3">
+        <div class="glass-card rounded-2xl p-4 border border-pitch-gold/40 flex flex-col gap-2.5 shadow-xl relative overflow-hidden">
+          <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-pitch-gold/10 blur-xl pointer-events-none"></div>
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[9px] font-black uppercase text-pitch-gold px-2 py-0.5 rounded bg-yellow-500/10 border border-pitch-gold/40">
+              POKAL-SPIELPLAN • K.O.-SYSTEM
+            </span>
+            <span class="text-xl">📅</span>
+          </div>
+          <h3 class="font-display font-black text-sm text-slate-100 uppercase tracking-tight">
+            Nächste Pokalrunde: ${currentRoundData.name}
+          </h3>
+          <p class="text-xs font-sans text-slate-300 leading-relaxed">
+            Der Apex Cup wird parallel zum Ligabetrieb alle 3 Spieltage ausgespielt. Verlierer scheiden sofort aus, Sieger erhalten Prämien und ziehen in die nächste Runde ein.
+          </p>
         </div>
-        <p class="text-xs font-sans text-slate-300 leading-relaxed">
-          Die Pokalrunden finden alle 3 Spieltage parallel zum Ligabetrieb statt. Nach Matchday 3 startet Runde 1 des Apex Cups!
-        </p>
-        <div class="p-3 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-between">
-          <span class="font-mono text-xs text-slate-300">Nächster Pokal-Termin:</span>
-          <b class="font-display text-xs text-pitch-emerald">Nach Spieltag 3</b>
+
+        <!-- Match List for Selected Round -->
+        <div class="flex flex-col gap-2">
+          ${sampleMatchups.map(m => `
+            <div class="glass-card rounded-2xl p-3 border ${
+              m.isPlayerMatch
+                ? 'border-pitch-emerald/60 bg-emerald-950/30 shadow-[0_0_15px_rgba(0,245,155,0.25)]'
+                : 'border-white/10'
+            } flex items-center justify-between">
+              <div class="flex-1 flex items-center gap-2 truncate">
+                ${renderClubCrest(m.home, 24)}
+                <span class="font-display font-bold text-xs truncate ${m.home.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-100'}">
+                  ${m.home.name}
+                </span>
+              </div>
+
+              <div class="px-3 py-1 rounded-xl font-mono font-black text-xs bg-slate-900 border border-slate-700 text-pitch-gold">
+                VS
+              </div>
+
+              <div class="flex-1 flex items-center justify-end gap-2 truncate">
+                <span class="font-display font-bold text-xs truncate ${m.away.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-100'}">
+                  ${m.away.name}
+                </span>
+                ${renderClubCrest(m.away, 24)}
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
@@ -204,17 +252,19 @@ function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
 
   if (activeSubTab === 'stats') {
     return `
-      <div class="glass-card rounded-2xl p-6 border border-white/10 text-center flex flex-col items-center justify-center my-4">
-        <span class="text-4xl mb-2">🏆</span>
-        <h3 class="font-display font-black text-sm text-slate-100 uppercase tracking-tight">Noch keine Pokalspiele</h3>
-        <p class="font-sans text-xs text-slate-400 max-w-xs mt-1">
-          Der Apex Cup startet nach Spieltag 3. Alle Tore und Trophäen-Statistiken werden hier erfasst!
+      <div class="glass-card rounded-2xl p-8 border border-white/10 text-center flex flex-col items-center justify-center my-4 shadow-xl">
+        <span class="text-4xl mb-3">🥊</span>
+        <h3 class="font-display font-black text-sm text-slate-100 uppercase tracking-tight">
+          Noch keine Pokalspiele absolviert
+        </h3>
+        <p class="font-sans text-xs text-slate-400 max-w-xs mt-1.5 leading-relaxed">
+          Runde 1 des Apex Cups startet nach Spieltag 3. Alle Tore, Pokalsensationen und Trophäen werden hier dokumentiert!
         </p>
       </div>
     `;
   }
 
-  // Default: Cup Overview
+  // Default: Cup Overview / Interactive Tournament Bracket
   return `
     <div class="flex flex-col gap-3">
       <!-- Cup Hero Banner -->
@@ -232,16 +282,16 @@ function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
           Der Apex Cup
         </h3>
         <p class="font-sans text-xs text-slate-300 leading-snug mt-0.5">
-          Alle 60 Vereine aus allen 6 Ligen kämpfen im K.o.-Modus um den Pokalsieg und massive Prämien!
+          Alle 60 Vereine aus allen 6 Spielklassen (Bundesweit) kämpfen im K.o.-Modus um den Pokaltitel und 15.000 🪙 Prämie!
         </p>
 
-        <!-- Player Next Cup Fixture -->
-        <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-pitch-gold/30 flex items-center justify-between">
+        <!-- Player Next Cup Fixture Box -->
+        <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-pitch-gold/30 flex items-center justify-between shadow-inner">
           <div class="flex items-center gap-2.5">
             ${renderClubCrest(playerClub, 28)}
             <div>
               <span class="font-display font-extrabold text-xs text-slate-100 block">Runde 1 Auslosung</span>
-              <span class="font-mono text-[10px] text-pitch-gold font-bold">vs. Dynamo Süd (Liga 6)</span>
+              <span class="font-mono text-[10px] text-pitch-gold font-bold">vs. ${oppClub.name} (${oppClub.tier ? `Liga ${oppClub.tier}` : 'Liga 6'})</span>
             </div>
           </div>
           <div class="text-right">
@@ -251,33 +301,56 @@ function renderPokalContent({ activeSubTab, playerClub, state, viewMatchday }) {
         </div>
       </div>
 
-      <!-- Cup Tournament Rounds -->
-      <div class="glass-panel rounded-2xl p-3 border border-white/10 flex flex-col gap-2 shadow-lg">
-        <h4 class="font-display font-black text-xs uppercase tracking-wider text-slate-200 px-1">
-          Turnierbaum & Runden
-        </h4>
+      <!-- K.-o.-Turnierbaum Runden-Wähler (Horizontal Scrollable) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        ${cupRounds.map(r => `
+          <button data-cup-round="${r.round}" class="px-3 py-1.5 rounded-xl border flex flex-col items-center flex-shrink-0 transition-all ${
+            selectedCupRound === r.round
+              ? 'bg-pitch-gold/20 border-pitch-gold text-pitch-gold shadow-[0_0_12px_rgba(255,209,92,0.3)]'
+              : 'bg-slate-900 border-white/5 text-slate-400 hover:text-slate-200'
+          }">
+            <b class="font-display font-black text-[10px] uppercase whitespace-nowrap">${r.name}</b>
+            <span class="font-mono text-[8px] opacity-75">${r.teamsCount} Teams</span>
+          </button>
+        `).join('')}
+      </div>
 
-        <div class="flex flex-col gap-1.5">
-          ${cupRounds.map((round, idx) => `
-            <div class="flex items-center justify-between p-2.5 rounded-xl border ${
-              idx === 0
-                ? 'bg-pitch-gold/10 border-pitch-gold/40 shadow-[0_0_10px_rgba(255,209,92,0.2)]'
-                : 'bg-slate-900/50 border-white/5 opacity-70'
-            }">
-              <div class="flex items-center gap-2.5">
-                <span class="w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] ${
-                  idx === 0 ? 'bg-pitch-gold text-pitch-dark' : 'bg-slate-800 text-slate-400'
-                }">${idx + 1}</span>
-                <div>
-                  <b class="font-display text-xs text-slate-100 block leading-tight">${round.name}</b>
-                  <span class="font-mono text-[9px] text-slate-400">${round.teams}</span>
-                </div>
+      <!-- Detail Box zur gewählten Runde -->
+      <div class="glass-panel rounded-2xl p-3.5 border border-white/10 flex flex-col gap-2.5 shadow-xl">
+        <div class="flex items-center justify-between pb-2 border-b border-white/5">
+          <div>
+            <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider">
+              ${currentRoundData.name} (${currentRoundData.teamsCount} Klubs)
+            </h4>
+            <span class="font-mono text-[10px] text-slate-400">${currentRoundData.date} • Single Elimination</span>
+          </div>
+          <div class="text-right">
+            <span class="font-mono text-[8px] text-slate-400 block">RUNDEN-PRÄMIE</span>
+            <span class="font-display font-black text-xs text-pitch-emerald">${currentRoundData.prize}</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          ${sampleMatchups.map(m => `
+            <div class="p-2.5 rounded-xl border ${
+              m.isPlayerMatch
+                ? 'bg-emerald-950/20 border-pitch-emerald/50 shadow-[0_0_12px_rgba(0,245,155,0.2)]'
+                : 'bg-slate-900/60 border-white/5'
+            } flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 flex-1 truncate">
+                ${renderClubCrest(m.home, 20)}
+                <span class="font-display font-bold text-[11px] truncate ${m.home.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-200'}">
+                  ${m.home.name}
+                </span>
               </div>
-              <div class="text-right">
-                <span class="font-mono text-[10px] text-pitch-emerald font-bold block">${round.prize}</span>
-                <span class="font-mono text-[8px] uppercase tracking-wider ${
-                  idx === 0 ? 'text-pitch-gold font-extrabold' : 'text-slate-500'
-                }">${round.status}</span>
+
+              <span class="font-mono font-bold text-[10px] text-slate-500 px-2">VS</span>
+
+              <div class="flex items-center justify-end gap-2 flex-1 truncate">
+                <span class="font-display font-bold text-[11px] truncate ${m.away.id === playerClub.id ? 'text-pitch-emerald' : 'text-slate-200'}">
+                  ${m.away.name}
+                </span>
+                ${renderClubCrest(m.away, 20)}
               </div>
             </div>
           `).join('')}
@@ -427,6 +500,49 @@ function renderRealStatsSection(playerClub, league, state) {
             </span>
           </div>
         </div>
+      </div>
+
+      <!-- Real Top Scorers (Torschützenliste) -->
+      <div class="glass-panel rounded-2xl p-3.5 border border-white/10 flex flex-col gap-2 shadow-xl">
+        <h4 class="font-display font-black text-xs text-slate-100 uppercase tracking-wider px-1">
+          Top-Torschützen des Vereins
+        </h4>
+
+        ${(() => {
+          const scorers = (playerClub.squad || [])
+            .filter(p => (p.stats?.goals || 0) > 0)
+            .sort((a, b) => (b.stats?.goals || 0) - (a.stats?.goals || 0));
+
+          if (!scorers.length) {
+            return `
+              <div class="p-3 text-center text-xs font-sans text-slate-400">
+                Noch kein Spieler hat ein Tor erzielt.
+              </div>
+            `;
+          }
+
+          return `
+            <div class="flex flex-col gap-1.5">
+              ${scorers.map((p, idx) => `
+                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-white/5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold text-[10px] flex items-center justify-center">
+                      ${idx + 1}
+                    </span>
+                    <div>
+                      <b class="font-display text-xs text-slate-100 block leading-tight">${p.name}</b>
+                      <span class="font-mono text-[9px] text-slate-400 uppercase">${p.position} • ${p.ovr} OVR</span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="font-display font-black text-sm text-pitch-emerald">${p.stats.goals} ⚽</span>
+                    <span class="font-mono text-[9px] text-slate-400 block">${p.stats.assists || 0} Vorlagen</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        })()}
       </div>
     </div>
   `;

@@ -422,6 +422,14 @@ function setupGlobalEvents(state) {
     });
   });
 
+  document.querySelectorAll('[data-cup-round]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      playClickSound();
+      store.getState().selectedCupRound = parseInt(e.currentTarget.dataset.cupRound, 10);
+      store.notify();
+    });
+  });
+
   document.getElementById('btn-quick-start-from-stats')?.addEventListener('click', () => {
     document.getElementById('btn-start-match')?.click();
   });
@@ -605,6 +613,9 @@ function setupMatchArenaEvents() {
 
       if (duel.outcome === 'GOAL') {
         playGoalChime();
+        if (!duel.attacker.stats) duel.attacker.stats = {};
+        duel.attacker.stats.goals = (duel.attacker.stats.goals || 0) + 1;
+
         if (duel.isHomeAttacking) {
           activeMatchState.homeScore++;
           activeMatchState.events.push({ minute: duel.minute, text: `⚽ TOR für ${activeMatchState.homeClub.name}! ${duel.attacker.name} überwindet die Abwehr und netzt ein!${tacticNote}` });
@@ -614,10 +625,12 @@ function setupMatchArenaEvents() {
         }
       } else if (duel.outcome === 'TACKLED') {
         playCardFlipSound();
+        if (!duel.defender.stats) duel.defender.stats = {};
+        duel.defender.stats.duelsWon = (duel.defender.stats.duelsWon || 0) + 1;
         activeMatchState.events.push({ minute: duel.minute, text: `🛑 Starker Zweikampf! ${duel.defender.name} stoppt den Vorstoß von ${duel.attacker.name} (${duel.minute}').${tacticNote}` });
       } else {
         playCardFlipSound();
-        activeMatchState.events.push({ minute: duel.minute, text: `🧤 Glanzparade von ${duel.goalkeeper?.shortName || 'TW'} (${duel.minute}'). Glänzend pariert!${tacticNote}` });
+        activeMatchState.events.push({ minute: duel.minute, text: `🧤 Glanzparade von ${duel.goalkeeper?.shortName || duel.goalkeeper?.name || 'TW'} (${duel.minute}'). Glänzend pariert!${tacticNote}` });
       }
 
       activeMatchState.currentDuelIndex++;
