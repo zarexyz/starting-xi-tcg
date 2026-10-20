@@ -22,7 +22,8 @@ const GROUP_NAMES = { GK: 'Tor', DEF: 'Abwehr', MID: 'Mittelfeld', ATT: 'Angriff
 export function lineupPitch(game, setup, selected, opts = {}) {
   const formation = FORMATIONS[setup.formation];
   const colors = game.clubs.user.colors;
-  return `<div class="pitch ${opts.compact ? 'pitch--compact' : ''}">
+  const picking = !!selected && opts.editable !== false;
+  return `<div class="pitch ${opts.compact ? 'pitch--compact' : ''} ${picking ? 'is-picking' : ''}">
     <div class="pitch__lines" aria-hidden="true"><span class="pitch__half"></span><span class="pitch__circle"></span><span class="pitch__box pitch__box--top"></span><span class="pitch__box pitch__box--bottom"></span></div>
     ${formation.slots.map(slot => {
       const p = game.players[setup.lineup[slot.id]];
@@ -36,15 +37,61 @@ export function lineupPitch(game, setup, selected, opts = {}) {
   </div>`;
 }
 
+function stripCard(game, p, action, selected) {
+  return `<div class="strip__item">
+    ${cardHtml(p, { size: 'xs', colors: game.clubs.user.colors, action, selected: selected === p.id, showCondition: true })}
+    <span class="strip__pos">${p.position}</span>
+  </div>`;
+}
+
 function benchRow(game, setup, selected) {
-  const colors = game.clubs.user.colors;
   const bench = setup.bench.map(id => game.players[id]).filter(Boolean);
-  return `<div class="bench">
-    <div class="bench__label">${icon('bench')}Bank</div>
-    <div class="bench__row">
-      ${bench.map(p => cardHtml(p, { size: 'xs', colors, action: 'bench-tap', selected: selected === p.id, showCondition: true })).join('')}
-      ${bench.length < 7 ? `<button class="bench__empty" data-action="bench-tap" data-id="" aria-label="Freier Bankplatz">${icon('plus')}</button>` : ''}
+  return `<div class="strip ${selected ? 'is-picking' : ''}">
+    <div class="strip__label">${icon('bench')}Bank <span class="muted">${bench.length}/7</span></div>
+    <div class="strip__row">
+      ${bench.map(p => stripCard(game, p, 'bench-tap', selected)).join('')}
+      ${bench.length < 7 ? `<div class="strip__item"><button class="bench__empty" data-action="bench-tap" data-id="" aria-label="Freier Bankplatz">${icon('plus')}</button></div>` : ''}
     </div>
+  </div>`;
+}
+
+function reserveRow(game, setup, selected) {
+  const used = new Set([...Object.values(setup.lineup), ...setup.bench]);
+  const rest = clubPlayers(game, 'user').filter(p => !used.has(p.id))
+    .sort((a, b) => !!a.injury - !!b.injury || GROUP_ORDER[POSITION_GROUP[a.position]] - GROUP_ORDER[POSITION_GROUP[b.position]] || b.ovr - a.ovr);
+  if (!rest.length) return '';
+  return `<div class="strip strip--reserve ${selected ? 'is-picking' : ''}">
+    <div class="strip__label">${icon('user')}Nicht im Kader <span class="muted">${rest.length}</span></div>
+    <div class="strip__row">${rest.map(p => p.injury
+      ? `<div class="strip__item is-out">${cardHtml(p, { size: 'xs', colors: game.clubs.user.colors, showCondition: true })}<span class="strip__pos">verletzt</span></div>`
+      : stripCard(game, p, 'reserve-tap', selected)).join('')}</div>
+  </div>`;
+}
+
+/** Leiste, solange ein Spieler ausgewählt ist: wer, wo, was jetzt */
+export function selectionBar(game, selected) {
+  const p = game.players[selected];
+  if (!p) return '';
+  const setup = ensureUserSetup(game);
+  const slotKey = Object.keys(setup.lineup).find(k => setup.lineup[k] === p.id);
+  const where = slotKey ? `spielt ${FORMATIONS[setup.formation].slots.find(s => s.id === slotKey).pos}` : setup.bench.includes(p.id) ? 'auf der Bank' : 'nicht im Kader';
+  return `<div class="sel-bar" role="status">
+    <span class="sel-bar__face">${portraitSvg(p, { colors: game.clubs.user.colors })}</span>
+    <div class="sel-bar__text">
+      <b>${esc(p.last)}</b> <span class="muted">${p.position}, ${p.ovr}, ${where}, Fitness ${p.condition} %</span>
+      <span class="sel-bar__hint">Tippe auf den Spieler, mit dem er tauschen soll.</span>
+    </div>
+    <button class="icon-btn" data-action="open-player" data-id="${p.id}" aria-label="Details">${icon('info')}</button>
+    <button class="icon-btn" data-action="deselect" aria-label="Abbrechen">${icon('close')}</button>
+  </div>`;
+}
+
+/** Aufstellungs-Editor: Feld, Bank und Reserve auf einen Blick, gleiche Bedienung überall */
+export function lineupEditor(game, setup, selected, opts = {}) {
+  return `<div class="lineup-editor">
+    ${lineupPitch(game, setup, selected, opts)}
+    ${benchRow(game, setup, selected)}
+    ${reserveRow(game, setup, selected)}
   </div>`;
 }
 
@@ -63,7 +110,6 @@ function lineStrength(game, setup) {
 function lineupView(game, ui) {
   const setup = ensureUserSetup(game);
   const selected = ui.selected;
-  const selPlayer = selected ? game.players[selected] : null;
   return `
     <div class="formation-bar">
       <label class="formation-select">
@@ -76,25 +122,10 @@ function lineupView(game, ui) {
     </div>
     ${lineStrength(game, setup)}
     ${autoToggle(game)}
-    ${lineupPitch(game, setup, selected)}
-    <p class="hint small">${selPlayer ? `<b>${esc(selPlayer.last)}</b> ausgewählt. Tippe auf eine Position oder einen Bankspieler zum Tauschen.` : 'Tippe auf einen Spieler und dann auf eine Position, um zu tauschen. Langes Tippen öffnet die Details.'}</p>
-    ${benchRow(game, setup, selected)}
-    ${selPlayer ? `<div class="sel-actions">
-      <button class="btn btn--sm btn--secondary" data-action="open-player" data-id="${selPlayer.id}">${icon('info')}Details</button>
-      <button class="btn btn--sm btn--ghost" data-action="deselect">Abbrechen</button>
-    </div>` : ''}
-    ${reserveList(game, setup, selected)}
+    <p class="hint small">Tippe auf einen Spieler und dann auf den, mit dem er tauschen soll. Das geht auf dem Feld, auf der Bank und mit Spielern außerhalb des Kaders.</p>
+    ${lineupEditor(game, setup, selected)}
+    ${selected ? selectionBar(game, selected) : ''}
   `;
-}
-
-function reserveList(game, setup, selected) {
-  const used = new Set([...Object.values(setup.lineup), ...setup.bench]);
-  const rest = clubPlayers(game, 'user').filter(p => !used.has(p.id)).sort((a, b) => GROUP_ORDER[POSITION_GROUP[a.position]] - GROUP_ORDER[POSITION_GROUP[b.position]] || b.ovr - a.ovr);
-  if (!rest.length) return '';
-  return `<section class="section">
-    <div class="section__head"><h2 class="section__title">Nicht im Kader</h2><span class="small muted">${rest.length} Spieler</span></div>
-    <ul class="list panel panel--flush">${rest.map(p => playerRow(game, p, { action: 'reserve-tap', selected: selected === p.id })).join('')}</ul>
-  </section>`;
 }
 
 export function playerRow(game, p, opts = {}) {

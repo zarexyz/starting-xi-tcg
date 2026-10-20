@@ -7,7 +7,7 @@ import { cardHtml } from '../components/card.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
 import { formHtml, autoToggle } from '../shell.js';
-import { lineupPitch } from '../screens/squad.js';
+import { lineupEditor, selectionBar } from '../screens/squad.js';
 import { currentDay, dayLabel, userMatch, ensureUserSetup } from '../../engine/game.js';
 import { STYLES, STYLE_KEYS, FORMATION_KEYS, styleMatchup } from '../../engine/constants.js';
 import { buildTeam, predictMatch } from '../../engine/match.js';
@@ -110,12 +110,12 @@ export function prepFlow(game, ui) {
     <section class="section">
       <div class="section__head"><h2 class="section__title">Formation</h2></div>
       <div class="segmented">${FORMATION_KEYS.map(k => `<button data-action="set-formation" data-value="${k}" aria-pressed="${setup.formation === k}">${k}</button>`).join('')}</div>
-      ${lineupPitch(game, setup, null, { compact: true })}
       ${autoToggle(game)}
       <div class="prep__lineup-actions">
         <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}Automatisch aufstellen</button>
-        <button class="btn btn--sm btn--ghost" data-action="edit-lineup">${icon('squad')}Im Kader bearbeiten</button>
       </div>
+      <p class="hint small">Tippe auf einen Spieler und dann auf den, mit dem er tauschen soll.</p>
+      ${lineupEditor(game, setup, ui.selected, { compact: true })}
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos">${icon('check')}Aufstellung ohne Schwachstellen.</p>`}
     </section>
 
@@ -140,8 +140,8 @@ export function prepFlow(game, ui) {
     </section>
 
     <div class="prep__cta">
-      <button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}Anpfiff</button>
-      <button class="btn btn--ghost btn--block" data-action="kickoff-instant">Direkt zum Ergebnis</button>
+      ${ui.selected ? selectionBar(game, ui.selected) : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}Anpfiff</button>
+      <button class="btn btn--ghost btn--block" data-action="kickoff-instant">Direkt zum Ergebnis</button>`}
     </div>
   </main></div>`;
 }

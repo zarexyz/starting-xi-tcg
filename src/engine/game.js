@@ -372,6 +372,53 @@ export function placePlayer(state, playerId, target) {
   return state.user.setup;
 }
 
+/**
+ * Ein Tausch für alle Fälle: Spieler A geht an den Platz von Ziel B, B an den Platz von A.
+ * Plätze sind Feld-Slot, Bankplatz oder "nicht im Kader".
+ * target: { playerId } | { slot } (freie Position) | { bench: true } (freier Bankplatz)
+ * Niemand fällt dabei stillschweigend aus dem Kader.
+ */
+export function swapPlayers(state, aId, target) {
+  const setup = ensureUserSetup(state);
+  if (!setup || !state.players[aId] || state.players[aId].clubId !== 'user') return { ok: false };
+  const lineup = { ...setup.lineup };
+  const bench = [...setup.bench];
+  const locate = id => {
+    const slot = Object.keys(lineup).find(k => lineup[k] === id);
+    if (slot) return { type: 'slot', key: slot };
+    const i = bench.indexOf(id);
+    if (i >= 0) return { type: 'bench', idx: i };
+    return { type: 'out' };
+  };
+  const put = (loc, id) => {
+    if (loc.type === 'slot') { if (id) lineup[loc.key] = id; else delete lineup[loc.key]; }
+    else if (loc.type === 'bench') { if (id) bench[loc.idx] = id; else bench[loc.idx] = null; }
+  };
+  const a = locate(aId);
+  let b, bId = null;
+  if (target.playerId) {
+    bId = target.playerId;
+    if (bId === aId || !state.players[bId] || state.players[bId].clubId !== 'user') return { ok: false };
+    if (state.players[bId].injury && a.type !== 'out') return { ok: false, reason: 'injured' };
+    b = locate(bId);
+  } else if (target.slot) {
+    b = { type: 'slot', key: target.slot };
+    bId = lineup[target.slot] || null;
+  } else if (target.bench) {
+    if (bench.length >= 7) return { ok: false };
+    b = { type: 'bench', idx: bench.length };
+    bench.push(null);
+  } else return { ok: false };
+  if (state.players[aId].injury && b.type !== 'out') return { ok: false, reason: 'injured' };
+  if (a.type === 'out' && b.type === 'out') return { ok: false };
+  put(b, aId);
+  put(a, bId);
+  state.user.autoLineup = false;
+  state.user.setup = { ...setup, lineup, bench: bench.filter(Boolean) };
+  state.user.setup = repairLineup(state, 'user', state.user.setup);
+  return { ok: true };
+}
+
 /** Co-Trainer stellt vor jedem Spiel die fitteste beste Elf auf */
 export function setAutoLineup(state, on) {
   state.user.autoLineup = !!on;

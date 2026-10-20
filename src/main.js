@@ -6,7 +6,7 @@ import { store, subscribe, notify, act, setUi, setView, toast, startGame, resume
 import { deleteGame } from './state/storage.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
+  placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -189,52 +189,20 @@ function lineupTap({ slot, id, from }) {
   const game = store.game;
   const setup = ensureUserSetup(structuredClone(game));
   const sel = store.ui.selected;
-  if (from === 'slot') {
-    const occupant = setup.lineup[slot];
-    if (!sel) {
-      if (occupant) setUi({ selected: occupant });
-      return;
-    }
-    if (sel === occupant) { setUi({ selected: null }); return; }
-    act(placePlayer, sel, { slot });
-    setUi({ selected: null });
-    playSound('tap', store.settings);
+  const tapped = from === 'slot' ? setup.lineup[slot] || null : id || null;
+  if (!sel) {
+    if (tapped) { setUi({ selected: tapped }); playSound('tap', store.settings); }
     return;
   }
-  if (from === 'bench') {
-    if (!sel) {
-      if (id) setUi({ selected: id });
-      return;
-    }
-    if (sel === id) { setUi({ selected: null }); return; }
-    const selSlot = Object.keys(setup.lineup).find(k => setup.lineup[k] === sel);
-    if (selSlot) {
-      act(placePlayer, sel, { bench: true, swapWith: id || null });
-    } else if (setup.bench.includes(sel)) {
-      // Bank untereinander: nur Auswahl wechseln
-      setUi({ selected: id || null });
-      return;
-    } else {
-      // Reservist auf die Bank
-      const bench = [...setup.bench];
-      if (id) bench[bench.indexOf(id)] = sel; else if (bench.length < 7) bench.push(sel);
-      act(setUserSetup, { bench });
-    }
-    setUi({ selected: null });
-    return;
-  }
-  if (from === 'reserve') {
-    if (!sel || sel === id) { setUi({ selected: sel === id ? null : id }); return; }
-    const selSlot = Object.keys(setup.lineup).find(k => setup.lineup[k] === sel);
-    if (selSlot) {
-      act(placePlayer, id, { slot: selSlot });
-      act(placePlayer, sel, { out: true });
-    } else if (setup.bench.includes(sel)) {
-      const bench = setup.bench.map(b => (b === sel ? id : b));
-      act(setUserSetup, { bench });
-    }
-    setUi({ selected: null });
-  }
+  if (sel === tapped) { setUi({ selected: null }); return; }
+  const inSquad = pid => Object.values(setup.lineup).includes(pid) || setup.bench.includes(pid);
+  // Zwei Spieler außerhalb des Kaders: nur die Auswahl wechseln
+  if (from === 'reserve' && !inSquad(sel)) { setUi({ selected: tapped }); return; }
+  const target = tapped ? { playerId: tapped } : from === 'slot' ? { slot } : { bench: true };
+  const res = act(swapPlayers, sel, target);
+  if (res && res.ok === false && res.reason === 'injured') toast('Verletzte Spieler können nicht spielen.');
+  setUi({ selected: null });
+  if (res?.ok) playSound('tap', store.settings);
 }
 
 function useItemAction(itemId, playerId = null) {
@@ -356,10 +324,10 @@ const handlers = {
   'set-speed': d => updateSettings({ speed: d.value }),
 
   // Spieltag
-  'open-prep': () => { if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' } }); },
+  'open-prep': () => { if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' }, selected: null }); },
   'close-flow': () => {
     stopMatch();
-    setUi({ flow: null });
+    setUi({ flow: null, selected: null });
     window.scrollTo(0, 0);
   },
   'set-style': d => { act(setUserSetup, { style: d.value }); },

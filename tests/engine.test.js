@@ -11,7 +11,7 @@ import { createPlayer, developPlayer, trainPlayer } from '../src/engine/player.j
 import { TIERS } from '../src/engine/constants.js';
 import {
   createGame, openStarterPack, pickDraft, playDay, buyPack, useItem, currentDay,
-  setUserSetup, autoLineup, placePlayer, ensureUserSetup
+  setUserSetup, autoLineup, placePlayer, swapPlayers, ensureUserSetup
 } from '../src/engine/game.js';
 import { computeTable } from '../src/engine/schedule.js';
 
@@ -305,4 +305,38 @@ test('Transfermarkt: kaufen, verkaufen, Einmaligkeit bleibt erhalten', () => {
   // Saison nach Transfers läuft weiter
   playSeason(s);
   for (const c of Object.values(s.clubs)) if (!c.isUser) assert.equal(c.playerIds.length, 21);
+});
+
+test('Aufstellung: Tauschen zwischen Feld, Bank und Reserve verliert niemanden', () => {
+  const s = newStartedGame(11);
+  const squadSize = () => {
+    const st = ensureUserSetup(s);
+    return { xi: Object.keys(st.lineup).length, bench: st.bench.length, all: new Set([...Object.values(st.lineup), ...st.bench]).size };
+  };
+  const st = ensureUserSetup(s);
+  const before = squadSize();
+  const [s1, s2] = Object.keys(st.lineup);
+  const a = st.lineup[s1], b = st.lineup[s2], c = st.bench[0], d = st.bench[1];
+  // Feld <-> Feld
+  assert.equal(swapPlayers(s, a, { playerId: b }).ok, true);
+  assert.equal(s.user.setup.lineup[s1], b);
+  assert.equal(s.user.setup.lineup[s2], a);
+  // Feld <-> Bank
+  swapPlayers(s, a, { playerId: c });
+  assert.equal(s.user.setup.lineup[s2], c);
+  assert.ok(s.user.setup.bench.includes(a));
+  // Bank <-> Bank behält beide auf der Bank
+  swapPlayers(s, a, { playerId: d });
+  assert.ok(s.user.setup.bench.includes(a) && s.user.setup.bench.includes(d));
+  // Reserve <-> Feld: der Feldspieler wird Reservist, nicht gelöscht
+  const used = new Set([...Object.values(s.user.setup.lineup), ...s.user.setup.bench]);
+  const reserve = s.clubs.user.playerIds.find(id => !used.has(id) && !s.players[id].injury);
+  if (reserve) {
+    swapPlayers(s, reserve, { playerId: b });
+    assert.equal(s.user.setup.lineup[s1], reserve);
+    assert.ok(!s.user.setup.bench.includes(b));
+    assert.ok(s.clubs.user.playerIds.includes(b));
+  }
+  assert.deepEqual(squadSize(), before);
+  assert.equal(s.user.autoLineup, false);
 });
