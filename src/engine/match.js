@@ -112,13 +112,52 @@ export function simulateMatch(rng, home, away, opts = {}) {
     { key: 'away', team: away, opp: home, attacks: rng.poisson(lamA), edge: -edge, adv: 0 }
   ];
 
+  // Verletzungen zuerst festlegen, damit spätere Szenen den Einwechselspieler zeigen
+  const injuries = [];
+  for (const side of sides) {
+    for (const sl of side.team.slots) {
+      if (!sl.player) continue;
+      const p = 0.009 * (1 + (100 - sl.player.condition) / 35) * (sl.player.age > 31 ? 1.3 : 1);
+      if (rng.chance(p)) {
+        injuries.push({ side: side.key, playerId: sl.player.id, minute: rng.int(5, 88), slotPos: sl.pos });
+      }
+    }
+  }
+  injuries.sort((a, b) => a.minute - b.minute);
+  const subs = [];
+  for (const inj of injuries) {
+    const team = inj.side === 'home' ? home : away;
+    const used = new Set(subs.map(x => x.inId));
+    const cand = team.bench
+      .filter(p => !used.has(p.id) && !p.injury)
+      .sort((a, b) => effectiveRating(b, inj.slotPos) - effectiveRating(a, inj.slotPos))[0];
+    if (cand) subs.push({ side: inj.side, outId: inj.playerId, inId: cand.id, minute: inj.minute });
+  }
+
+  /** Aufstellung zu einer bestimmten Minute (Verletzte raus, Einwechselspieler rein) */
+  const slotsAt = (team, sideKey, minute) => team.slots.map(sl => {
+    if (!sl.player) return sl;
+    const inj = injuries.find(x => x.side === sideKey && x.playerId === sl.player.id && x.minute < minute);
+    if (!inj) return sl;
+    const sub = subs.find(x => x.side === sideKey && x.outId === sl.player.id);
+    const subPlayer = sub && team.bench.find(b => b.id === sub.inId);
+    if (!subPlayer) return { ...sl, player: null };
+    return { ...sl, player: subPlayer, rating: effectiveRating(subPlayer, sl.pos) };
+  }).filter(sl => sl.player);
+
+  const usedMinutes = new Set();
   const chances = [];
   for (const side of sides) {
     for (let i = 0; i < side.attacks; i++) {
-      const shooter = pickShooter(rng, side.team);
-      const defender = pickDefender(rng, side.opp);
-      const keeper = side.opp.keeper;
-      const assister = rng.chance(0.75) ? pickAssister(rng, side.team, shooter) : null;
+      let minute;
+      do { minute = rng.int(2, 93); } while (usedMinutes.has(minute) && usedMinutes.size < 90);
+      usedMinutes.add(minute);
+      const attSlots = { slots: slotsAt(side.team, side.key, minute) };
+      const defSlots = { slots: slotsAt(side.opp, side.key === 'home' ? 'away' : 'home', minute) };
+      const shooter = pickShooter(rng, attSlots);
+      const defender = pickDefender(rng, defSlots);
+      const keeper = defSlots.slots.find(sl => sl.group === 'GK') || null;
+      const assister = rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
 
       // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
       const shooterBreak = ((shooter.player.attrs.tem + shooter.player.attrs.dri) / 2) * familiarity(shooter.player, shooter.pos);
@@ -139,7 +178,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
       const scored = broke && rng.chance(p2);
       chances.push({
         side: side.key,
-        minute: 0,
+        minute,
         shooter, assister, defender, keeper,
         p1, p2, broke, scored,
         xg: p1 * p2,
@@ -149,15 +188,6 @@ export function simulateMatch(rng, home, away, opts = {}) {
         gk: { label: 'Torwart', value: Math.round(keep) }
       });
     }
-  }
-
-  // Minuten verteilen
-  const usedMinutes = new Set();
-  for (const c of chances) {
-    let m;
-    do { m = rng.int(2, 93); } while (usedMinutes.has(m) && usedMinutes.size < 90);
-    usedMinutes.add(m);
-    c.minute = m;
   }
   chances.sort((a, b) => a.minute - b.minute);
 
@@ -174,28 +204,6 @@ export function simulateMatch(rng, home, away, opts = {}) {
       assistId: c.assister?.player.id || null,
       score: [hg, ag]
     });
-  }
-
-  // Verletzungen während des Spiels
-  const injuries = [];
-  for (const side of sides) {
-    for (const s of side.team.slots) {
-      if (!s.player) continue;
-      const p = 0.009 * (1 + (100 - s.player.condition) / 35) * (s.player.age > 31 ? 1.3 : 1);
-      if (rng.chance(p)) {
-        injuries.push({ side: side.key, playerId: s.player.id, minute: rng.int(5, 88), slotPos: s.pos });
-      }
-    }
-  }
-  // Einwechslungen für Verletzte
-  const subs = [];
-  for (const inj of injuries) {
-    const team = inj.side === 'home' ? home : away;
-    const used = new Set(subs.map(x => x.inId));
-    const cand = team.bench
-      .filter(p => !used.has(p.id) && !p.injury)
-      .sort((a, b) => effectiveRating(b, inj.slotPos) - effectiveRating(a, inj.slotPos))[0];
-    if (cand) subs.push({ side: inj.side, outId: inj.playerId, inId: cand.id, minute: inj.minute });
   }
 
   // Elfmeterschießen in K.-o.-Spielen
@@ -294,7 +302,9 @@ function rateplayers(rng, result, home, away, chances) {
     }
   }
   for (const sub of result.subs) {
-    ratings[sub.inId] = Math.round(clamp(6 + rng.normal(0, 0.3), 5, 8) * 10) / 10;
+    const g = result.goals.filter(x => x.scorerId === sub.inId).length;
+    const a = result.goals.filter(x => x.assistId === sub.inId).length;
+    ratings[sub.inId] = Math.round(clamp(6 + rng.normal(0, 0.3) + g * 1.05 + a * 0.6, 4.5, 10) * 10) / 10;
   }
   return ratings;
 }
@@ -463,6 +473,29 @@ export function analyzeMatch(state, result, side) {
 
   if (side === 'home' && !result.meta.neutral) {
     // Heimvorteil wird nicht extra erwähnt, er ist eingepreist
+  }
+
+  // Chancenverwertung und Zweikämpfe – geben immer Auskunft, auch in engen Spielen
+  const myBig = result.stats.onTarget[i];
+  const theirAttacks = result.stats.shots[o];
+  const theirBig = result.stats.onTarget[o];
+  if (reasons.length < 3 && myBig > 0 && !reasons.some(r => r.icon === 'target')) {
+    const rate = myGoals / myBig;
+    reasons.push({
+      impact: rate >= 0.34 ? 1 : -1, icon: 'target',
+      text: `Großchancen genutzt: ${myGoals} von ${myBig}.`
+    });
+  }
+  if (reasons.length < 4 && theirAttacks > 0) {
+    const stopped = theirAttacks - theirBig;
+    const share = stopped / theirAttacks;
+    reasons.push({
+      impact: share >= 0.55 ? 1 : -1, icon: 'shield',
+      text: `Deine Abwehr hat ${stopped} von ${theirAttacks} gegnerischen Angriffen vor dem Abschluss gestoppt.`
+    });
+  }
+  if (edge === 0 && reasons.length < 4) {
+    reasons.push({ impact: 0, icon: 'strategy', text: `${myStyle.name} gegen ${theirStyle.name}: Keiner hatte einen taktischen Vorteil.` });
   }
 
   const motm = result.motm && state.players[result.motm];

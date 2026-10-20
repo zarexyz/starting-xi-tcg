@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/src/styles/app.css"><link rel="stylesheet" href="/src/styles/cards.css"><style>body{padding:16px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;background:#eef1f4}.pitchbg{background:#2f7d52;padding:12px;border-radius:12px;display:flex;gap:6px}</style></head><body>
+<script type="module">
+import { createRng } from '/src/engine/rng.js';
+import { createPlayer } from '/src/engine/player.js';
+import { cardHtml, cardBackHtml } from '/src/ui/components/card.js';
+const rng = createRng(12);
+const mk=(tier,pos,ovr,age,nat)=>createPlayer(rng,{id:'x'+Math.random(),position:pos,age,ovr,tier,nation:nat});
+const cols=[{primary:'#b91c1c',secondary:'#facc15'},{primary:'#1d4ed8',secondary:'#fff'},{primary:'#0f766e',secondary:'#facc15'},{primary:'#7e22ce',secondary:'#fff'}];
+let h='';
+h+=cardHtml(mk('gold','ST',84,26,'BRA'),{size:'lg',colors:cols[0]});
+h+=cardHtml(mk('icon','ZOM',90,24,'ESP'),{size:'lg',colors:cols[3]});
+h+=cardHtml(mk('silver','IV',71,23,'GER'),{size:'md',colors:cols[1],action:'x'});
+h+=cardHtml(mk('bronze','TW',58,31,'SEN'),{size:'md',colors:cols[2]});
+h+=cardHtml(mk('bronze','LF',55,19,'NGA'),{size:'sm',colors:cols[1]});
+h+=cardBackHtml('sm','gold');
+h+='<div class="pitchbg">'+[mk('bronze','ST',56,22,'GER'),mk('silver','ZM',63,20,'FRA'),mk('gold','IV',77,28,'ITA')].map((p,i)=>{p.condition=[95,72,55][i]; if(i==2)p.injury={days:2}; return cardHtml(p,{size:'xs',colors:cols[2],showCondition:true});}).join('')+'</div>';
+document.body.innerHTML=h;
+</script></body></html>

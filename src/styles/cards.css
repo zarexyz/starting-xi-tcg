@@ -1,0 +1,214 @@
+/* =============================================================================
+   Spielerkarten – das eine auffällige Element des Designs
+   ============================================================================= */
+
+.card {
+  --w: 150px;
+  --frame-a: var(--bronze-1);
+  --frame-b: var(--bronze-2);
+  --frame-c: var(--bronze-3);
+  position: relative;
+  display: block;
+  width: var(--w);
+  aspect-ratio: 63 / 88;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--ink);
+  font: inherit;
+  cursor: default;
+  flex: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button.card { cursor: pointer; }
+button.card:active { transform: scale(0.97); }
+
+.tier-bronze { --frame-a: var(--bronze-1); --frame-b: var(--bronze-2); --frame-c: var(--bronze-3); }
+.tier-silver { --frame-a: var(--silver-1); --frame-b: var(--silver-2); --frame-c: var(--silver-3); }
+.tier-gold { --frame-a: var(--gold-1); --frame-b: var(--gold-2); --frame-c: var(--gold-3); }
+.tier-icon { --frame-a: var(--icon-1); --frame-b: var(--icon-2); --frame-c: var(--icon-3); }
+
+.card__frame {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  border-radius: calc(var(--w) * 0.075);
+  padding: calc(var(--w) * 0.035);
+  background: linear-gradient(150deg, var(--frame-a) 0%, var(--frame-b) 45%, var(--frame-c) 100%);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.card__art {
+  position: relative;
+  flex: 1 1 62%;
+  min-height: 0;
+  border-radius: calc(var(--w) * 0.05) calc(var(--w) * 0.05) 4px 4px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0 6px, transparent 6px 14px),
+    radial-gradient(120% 90% at 30% 15%, color-mix(in srgb, var(--club) 55%, white) 0%, var(--club) 55%, color-mix(in srgb, var(--club) 70%, black) 100%);
+}
+.card__art .portrait {
+  position: absolute;
+  left: 50%; bottom: 0;
+  height: 112%; width: auto;
+  transform: translateX(-50%);
+}
+
+.card__corner {
+  position: absolute; top: 6%; left: 7%;
+  display: flex; flex-direction: column; align-items: center;
+  line-height: 0.9;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.card__ovr { font-family: var(--font-display); font-weight: 900; font-size: calc(var(--w) * 0.22); }
+.card__pos { font-family: var(--font-display); font-weight: 700; font-size: calc(var(--w) * 0.1); margin-top: 2px; }
+
+.card__meta {
+  position: absolute; top: 7%; right: 6%;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.card__tier {
+  font-size: calc(var(--w) * 0.058);
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  color: var(--frame-c);
+  background: linear-gradient(150deg, var(--frame-a), var(--frame-b));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.card__badge {
+  position: absolute; bottom: 6%; right: 6%;
+  width: calc(var(--w) * 0.16); height: calc(var(--w) * 0.16);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--loss); color: #fff;
+  box-shadow: 0 0 0 2px #fff;
+}
+.card__badge svg { width: 70%; height: 70%; }
+
+.card__body {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column;
+  gap: calc(var(--w) * 0.025);
+  padding: calc(var(--w) * 0.04) calc(var(--w) * 0.04) calc(var(--w) * 0.02);
+  margin-top: calc(var(--w) * 0.025);
+  border-radius: 4px 4px calc(var(--w) * 0.05) calc(var(--w) * 0.05);
+  background: rgba(255, 255, 255, 0.92);
+}
+.card__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--w) * 0.12);
+  line-height: 0.95;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card__name small {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: calc(var(--w) * 0.062);
+  color: var(--ink-3);
+  line-height: 1.2;
+}
+.card__stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px 4px;
+}
+.card__stat { display: flex; align-items: baseline; gap: 3px; }
+.card__stat b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--w) * 0.088); font-variant-numeric: tabular-nums; }
+.card__stat i { font-style: normal; font-size: calc(var(--w) * 0.05); font-weight: 700; color: var(--ink-3); }
+.card__foot {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: calc(var(--w) * 0.058); font-weight: 700; color: var(--ink-2);
+  border-top: 1px solid var(--line-2);
+  padding-top: calc(var(--w) * 0.02);
+}
+
+.stars { letter-spacing: -1px; color: #cfd6df; }
+.stars .on { color: #e0a100; }
+
+.card__cond { position: absolute; left: 10%; right: 10%; bottom: 3px; height: 4px; }
+
+/* Größen */
+.card--lg { --w: 236px; }
+.card--md { --w: 150px; }
+.card--sm { --w: 104px; }
+.card--sm .card__body { gap: 2px; }
+.card--sm .card__name small { display: none; }
+
+/* Mini-Token für das Spielfeld */
+.card--xs {
+  --w: 62px;
+  aspect-ratio: auto;
+  display: flex; flex-direction: column; align-items: center;
+}
+.card--xs .card__art {
+  width: 46px; height: 46px; flex: none;
+  border-radius: 50%;
+  border: 3px solid var(--frame-b);
+  box-shadow: 0 0 0 1px var(--frame-c), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+.card--xs .card__art .portrait { height: 150%; bottom: -14%; }
+.card--xs .card__ovr {
+  position: absolute; top: -4px; right: 0;
+  min-width: 22px; height: 18px; padding: 0 3px;
+  border-radius: 9px;
+  background: linear-gradient(150deg, var(--frame-a), var(--frame-b));
+  color: var(--frame-c);
+  font-size: 13px; line-height: 18px; text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.card--xs .card__name {
+  margin-top: 3px;
+  max-width: 70px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  color: var(--ink);
+}
+.card--xs .bar { width: 44px; height: 4px; margin-top: 2px; background: rgba(255, 255, 255, 0.5); }
+.card--xs .card__badge { width: 18px; height: 18px; bottom: auto; top: 30px; right: 2px; }
+.card.is-selected .card__art { box-shadow: 0 0 0 3px var(--floodlight), 0 0 0 5px var(--ink); }
+.card--md.is-selected .card__frame, .card--sm.is-selected .card__frame { box-shadow: 0 0 0 3px var(--floodlight), var(--shadow-lift); }
+
+/* Holo-Glanz für Gold und Ikone */
+.tier-gold .card__frame::after,
+.tier-icon .card__frame::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0) 60%);
+  background-size: 250% 100%;
+  background-position: var(--holo, 120%) 0;
+  mix-blend-mode: soft-light;
+  transition: background-position 0.4s ease;
+}
+.tier-icon .card__frame::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: conic-gradient(from 200deg at 60% 40%, rgba(255, 0, 170, 0.18), rgba(0, 220, 255, 0.18), rgba(255, 230, 0, 0.16), rgba(140, 90, 255, 0.2), rgba(255, 0, 170, 0.18));
+  mix-blend-mode: color-dodge;
+  z-index: 1;
+}
+button.card:hover .card__frame::after { --holo: -20%; background-position: -20% 0; }
+
+/* Kartenrückseite */
+.card--back .card__frame { padding: calc(var(--w) * 0.05); }
+.card__backface {
+  flex: 1;
+  display: grid; place-items: center; align-content: center; gap: 6px;
+  border-radius: calc(var(--w) * 0.05);
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 8px, transparent 8px 16px),
+    linear-gradient(160deg, #24543b, #133524);
+  color: rgba(255, 255, 255, 0.9);
+}
+.card__backface svg { width: 38%; height: auto; }
+.card__backface b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--w) * 0.12); }

@@ -108,9 +108,9 @@ export function currentDay(state) {
 export function dayLabel(state, day = currentDay(state)) {
   if (!day) return 'Saisonende';
   if (day.type === 'league') return `Spieltag ${day.md}`;
-  if (day.type === 'cup') return `Pokal · ${CUP_ROUND_NAMES[day.round]}`;
-  if (day.type === 'ff_semi') return 'Final Four · Halbfinale';
-  if (day.type === 'ff_final') return 'Final Four · Finale';
+  if (day.type === 'cup') return `Pokal, ${CUP_ROUND_NAMES[day.round]}`;
+  if (day.type === 'ff_semi') return 'Final Four, Halbfinale';
+  if (day.type === 'ff_final') return 'Final Four, Finale';
   return '';
 }
 
@@ -270,7 +270,6 @@ export function useItem(state, itemId, playerId = null) {
         message = 'Taktiktafel aktiv: Mittelfeld +3 im nächsten Spiel.';
         break;
       case 'RETRAIN': {
-        const options = Object.keys(FORMATIONS['4-3-3'].slots.reduce((a, s) => a, {}));
         const related = ['IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST']
           .filter(pos => pos !== player.position && !player.secondary.includes(pos) &&
             POSITION_GROUP[pos] === POSITION_GROUP[player.position]);
@@ -278,7 +277,6 @@ export function useItem(state, itemId, playerId = null) {
         const pos = rng.pick(related);
         player.secondary.push(pos);
         message = `${shortName(player)} beherrscht jetzt auch ${pos}.`;
-        void options;
         break;
       }
       default:

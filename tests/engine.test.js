@@ -246,3 +246,28 @@ test('Aufstellung: Formation wechseln und Spieler tauschen bleibt gültig', () =
   autoLineup(s);
   assert.equal(Object.keys(s.user.setup.lineup).length, 11);
 });
+
+test('Match: Verletzte tauchen nach ihrer Auswechslung nicht mehr auf', () => {
+  const rng = createRng(404);
+  const state = { rng: 1, nextId: 1 };
+  createWorld(rng, state, { name: 'X', primary: '#000', secondary: '#fff' });
+  const [a, b] = state.leagues[4].clubIds;
+  let checked = 0;
+  for (let i = 0; i < 600; i++) {
+    for (const id of [a, b]) Object.values(state.players).filter(p => p.clubId === id).forEach(p => { p.condition = 40; });
+    const h = buildTeam(state, a, { formation: '4-3-3', style: 'PRESSING', ...bestLineup(state, a, '4-3-3') });
+    const w = buildTeam(state, b, { formation: '4-4-2', style: 'KONTER', ...bestLineup(state, b, '4-4-2') });
+    const r = simulateMatch(rng, h, w, {});
+    for (const inj of r.injuries) {
+      checked++;
+      for (const g of r.goals) if (g.minute > inj.minute) assert.notEqual(g.scorerId, inj.playerId);
+      for (const s of r.keyScenes) {
+        if (s.minute > inj.minute) {
+          assert.notEqual(s.attackerId, inj.playerId);
+          assert.notEqual(s.defenderId, inj.playerId);
+        }
+      }
+    }
+  }
+  assert.ok(checked > 10, `genug Verletzungen geprüft (${checked})`);
+});
