@@ -371,10 +371,23 @@ function setupGlobalEvents(state) {
     store.setActiveTab('markt');
   });
 
-  // Match Anpfiff Trigger
-  document.getElementById('btn-start-match')?.addEventListener('click', () => {
+  // Match Anpfiff Trigger (Liga oder Apex Cup K.o.)
+  document.getElementById('btn-start-match')?.addEventListener('click', (e) => {
     playClickSound();
     const club = store.getPlayerClub();
+    const isCupPending = state.cup?.activeCupMatchPending && !state.cup?.isEliminated;
+
+    if (isCupPending) {
+      const roundNum = state.cup.currentRound || 1;
+      const targetTier = Math.max(1, 7 - roundNum);
+      const targetLeague = state.leagues.find(l => l.tier === targetTier) || state.leagues[0];
+      const opponent = targetLeague.clubs.find(c => c.id !== club.id) || state.leagues[0].clubs[1];
+
+      activeMatchState = setupMatchSimulation(club, opponent, { isCupMatch: true, cupRound: roundNum });
+      store.openModal('match_arena');
+      return;
+    }
+
     const liga = state.leagues.find(l => l.tier === 6);
     const scheduleDay = state.schedule.find(s => s.matchday === state.currentMatchday);
     const match = scheduleDay?.matches.find(m => m.homeId === club.id || m.awayId === club.id);
@@ -384,7 +397,7 @@ function setupGlobalEvents(state) {
       const oppId = isHome ? match.awayId : match.homeId;
       const opponent = liga.clubs.find(c => c.id === oppId);
 
-      activeMatchState = setupMatchSimulation(isHome ? club : opponent, isHome ? opponent : club);
+      activeMatchState = setupMatchSimulation(isHome ? club : opponent, isHome ? opponent : club, { isCupMatch: false });
       store.openModal('match_arena');
     }
   });
@@ -653,22 +666,31 @@ function setupMatchArenaEvents() {
     if (activeMatchState) {
       playClickSound();
       const club = store.getPlayerClub();
+      const isCupMatch = !!activeMatchState.isCupMatch;
       const isHome = activeMatchState.homeClub.id === club.id;
       const myScore = isHome ? activeMatchState.homeScore : activeMatchState.awayScore;
       const oppScore = isHome ? activeMatchState.awayScore : activeMatchState.homeScore;
 
       let result = 'DRAW';
       if (myScore > oppScore) result = 'WIN';
-      if (myScore < oppScore) result = 'LOSS';
+      else if (myScore < oppScore) result = 'LOSS';
+      else if (isCupMatch) {
+        // Elfmeterschießen-Entscheidung bei Unentschieden im Pokal
+        const penWon = Math.random() < 0.55;
+        result = penWon ? 'WIN' : 'LOSS';
+      }
 
-      club.stats.played++;
-      club.stats.gf += myScore;
-      club.stats.ga += oppScore;
-      if (result === 'WIN') { club.stats.won++; club.stats.points += 3; }
-      else if (result === 'DRAW') { club.stats.drawn++; club.stats.points += 1; }
-      else { club.stats.lost++; }
+      if (!isCupMatch) {
+        club.stats.played++;
+        club.stats.gf += myScore;
+        club.stats.ga += oppScore;
+        if (result === 'WIN') { club.stats.won++; club.stats.points += 3; }
+        else if (result === 'DRAW') { club.stats.drawn++; club.stats.points += 1; }
+        else { club.stats.lost++; }
+      }
 
-      store.finalizeMatchday({ result, isHome });
+      const opp = isHome ? activeMatchState.awayClub : activeMatchState.homeClub;
+      store.finalizeMatchday({ result, isHome, isCupMatch, cupOpponent: opp });
       activeMatchState = null;
       store.closeModal();
     }
@@ -678,6 +700,10 @@ function setupMatchArenaEvents() {
 function setupPackWalkoutEvents() {
   const packResult = store.getState().activePackResult;
   if (!packResult) return;
+
+  if (!packResult.revealedIndices) {
+    packResult.revealedIndices = new Set();
+  }
 
   const tearStrip = document.getElementById('foil-tear-strip');
   let startX = 0;
@@ -734,8 +760,53 @@ function setupPackWalkoutEvents() {
     triggerTear();
   });
 
+  // 3D Card-Flip: Einzelne Karte antippen zum Aufdecken
+  document.querySelectorAll('[data-flip-card-idx]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const idx = parseInt(el.dataset.flipCardIdx, 10);
+      if (!packResult.revealedIndices.has(idx)) {
+        packResult.revealedIndices.add(idx);
+        playCardFlipSound();
+
+        const allCards = packResult.isDraft ? packResult.candidates : (packResult.cards || []);
+        const card = allCards[idx];
+        if (card && (card.ovr >= 80 || card.tier === 'special' || card.tier === 'gold')) {
+          playGoalChime();
+        }
+
+        // Automatisch den ersten aufgedeckten Draft-Kandidaten vorselektieren falls leer
+        if (packResult.isDraft && !packResult.selectedCandidate && card) {
+          packResult.selectedCandidate = card;
+        }
+
+        store.notify();
+      }
+    });
+  });
+
+  // "Alle aufdecken" Button
+  document.getElementById('btn-reveal-all-cards')?.addEventListener('click', () => {
+    playCardFlipSound();
+    const allCards = packResult.isDraft ? packResult.candidates : (packResult.cards || []);
+    let hasWalkout = false;
+    allCards.forEach((c, idx) => {
+      packResult.revealedIndices.add(idx);
+      if (c && (c.ovr >= 80 || c.tier === 'special' || c.tier === 'gold')) {
+        hasWalkout = true;
+      }
+    });
+    if (packResult.isDraft && !packResult.selectedCandidate && allCards.length) {
+      packResult.selectedCandidate = allCards[0];
+    }
+    if (hasWalkout) {
+      playGoalChime();
+    }
+    store.notify();
+  });
+
   document.querySelectorAll('[data-pick-candidate]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
       playCardFlipSound();
       const candidateId = el.dataset.pickCandidate;
       packResult.selectedCandidate = packResult.candidates.find(c => c.id === candidateId);
