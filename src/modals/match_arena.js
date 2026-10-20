@@ -18,11 +18,13 @@ export function renderMatchArenaModal(matchState, equippedTactics) {
       <!-- Top Arena Scoreboard -->
       <div class="glass-panel rounded-2xl p-3 border border-pitch-emerald/40 shadow-2xl flex flex-col gap-2">
         <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
-          <span class="font-bold text-pitch-emerald flex items-center gap-1.5">
+          <span class="font-bold ${matchState.isCupMatch ? 'text-pitch-gold' : 'text-pitch-emerald'} flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full ${isFinished ? 'bg-slate-500' : 'bg-pitch-danger animate-pulse'}"></span>
-            ${isFinished ? 'SCHLUSSPFIFF (90\')' : `LIVE • ${currentDuel?.minute || matchState.currentMinute}' MINUTE`}
+            ${isFinished ? 'SCHLUSSPFIFF' : `LIVE • ${currentDuel?.minute || matchState.currentMinute}' MINUTE`}
           </span>
-          <span class="font-mono text-pitch-gold font-bold">LIGA 6 PFLICHTSPIEL</span>
+          <span class="font-mono ${matchState.isCupMatch ? 'text-pitch-gold bg-yellow-500/10 border border-pitch-gold/40 px-2 py-0.5 rounded' : 'text-slate-400'} font-bold">
+            ${matchState.isCupMatch ? `🏆 APEX CUP • RUNDE ${matchState.cupRound}` : 'LIGA 6 PFLICHTSPIEL'}
+          </span>
         </div>
 
         <div class="flex items-center justify-between px-2 py-1">
@@ -58,26 +60,30 @@ export function renderMatchArenaModal(matchState, equippedTactics) {
           </div>
 
           <!-- 2 Large Cards Clash Display -->
-          <div class="flex items-center justify-center gap-3">
-            <!-- Attacker Card (Large Medium ~108x162px) -->
+          <div class="flex items-center justify-center gap-2 my-1">
+            <!-- Attacker Card (Large Medium ~124x184px with Full Name) -->
             <div class="flex flex-col items-center">
-              <span class="font-mono text-[9px] text-pitch-emerald font-black uppercase tracking-wider mb-1">
+              <span class="font-mono text-[9px] text-pitch-emerald font-black uppercase tracking-wider mb-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-pitch-emerald/40 shadow">
                 ⚡ ANGRIFF (${currentDuel.attacker.position})
               </span>
-              ${renderFUTCard(currentDuel.attacker, { medium: true, draggable: false })}
+              <div class="filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.7)]">
+                ${renderFUTCard(currentDuel.attacker, { medium: true, duel: true, draggable: false })}
+              </div>
             </div>
 
             <!-- VS Badge with Animated Glow -->
             <div class="flex flex-col items-center px-1">
-              <span class="font-display font-black text-xl italic text-slate-600 animate-pulse">VS</span>
+              <span class="font-display font-black text-2xl italic bg-gradient-to-b from-amber-300 to-orange-500 bg-clip-text text-transparent animate-pulse drop-shadow">VS</span>
             </div>
 
-            <!-- Defender Card (Large Medium ~108x162px) -->
+            <!-- Defender Card (Large Medium ~124x184px with Full Name) -->
             <div class="flex flex-col items-center">
-              <span class="font-mono text-[9px] text-pitch-danger font-black uppercase tracking-wider mb-1">
+              <span class="font-mono text-[9px] text-pitch-danger font-black uppercase tracking-wider mb-1 px-2 py-0.5 rounded-full bg-rose-950/80 border border-pitch-danger/40 shadow">
                 🛡️ ABWEHR (${currentDuel.defender.position})
               </span>
-              ${renderFUTCard(currentDuel.defender, { medium: true, draggable: false })}
+              <div class="filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.7)]">
+                ${renderFUTCard(currentDuel.defender, { medium: true, duel: true, draggable: false })}
+              </div>
             </div>
           </div>
 
@@ -87,60 +93,76 @@ export function renderMatchArenaModal(matchState, equippedTactics) {
               <span>Phase 1: Tempo / Physis</span>
               <span class="font-bold ${activeTactic?.boostAttribute === 'pac' || activeTactic?.boostAttribute === 'phy' ? 'text-pitch-emerald' : 'text-slate-200'}">
                 ${currentDuel.attacker.pac} PAC vs ${currentDuel.defender.phy} PHY
-                ${activeTactic?.boostAttribute === 'pac' ? `(+${activeTactic.boostValue})` : ''}
+                ${activeTactic?.boostAttribute === 'pac' ? `(+${activeTactic.boostValue} 🎴)` : ''}
               </span>
             </div>
             <div class="flex justify-between items-center text-slate-400">
               <span>Phase 2: Dribbling / Defense</span>
-              <span class="font-bold ${activeTactic?.boostAttribute === 'def' ? 'text-pitch-emerald' : 'text-slate-200'}">
+              <span class="font-bold ${activeTactic?.boostAttribute === 'def' || activeTactic?.boostAttribute === 'dri' ? 'text-pitch-emerald' : 'text-slate-200'}">
                 ${currentDuel.attacker.dri} DRI vs ${currentDuel.defender.def} DEF
-                ${activeTactic?.boostAttribute === 'def' ? `(+${activeTactic.boostValue})` : ''}
+                ${activeTactic?.boostAttribute === 'def' || activeTactic?.boostAttribute === 'dri' ? `(+${activeTactic.boostValue} 🎴)` : ''}
               </span>
             </div>
             <div class="flex justify-between items-center text-slate-400">
               <span>Phase 3: Abschluss / Parade</span>
               <span class="font-bold ${activeTactic?.boostAttribute === 'sho' ? 'text-pitch-emerald' : 'text-slate-200'}">
                 ${currentDuel.attacker.sho} SHO vs ${currentDuel.goalkeeper?.def || 65} TW
-                ${activeTactic?.boostAttribute === 'sho' ? `(+${activeTactic.boostValue})` : ''}
+                ${activeTactic?.boostAttribute === 'sho' ? `(+${activeTactic.boostValue} 🎴)` : ''}
               </span>
             </div>
 
             ${activeTactic ? `
-              <div class="mt-1 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-pitch-emerald font-black">
-                <span>AKTIVE TAKTIKKARTE:</span>
-                <span>${activeTactic.name} (+${activeTactic.boostValue} ${activeTactic.boostAttribute.toUpperCase()}) ✓</span>
+              <div class="mt-1 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-pitch-emerald font-black bg-emerald-950/40 px-2 py-1 rounded-lg">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-pitch-emerald animate-ping"></span>
+                  AKTIVE TAKTIK: ${activeTactic.name}
+                </span>
+                <span>+${activeTactic.boostValue} ${activeTactic.boostAttribute.toUpperCase()} ✓</span>
               </div>
             ` : ''}
           </div>
 
-          <!-- In-Game 3 Tactic Cards Hand (Interactive) -->
-          <div class="flex flex-col gap-1.5">
+          <!-- In-Game 3 Tactic Cards Hand (Interactive Fan Deck) -->
+          <div class="flex flex-col gap-1 mt-1">
             <div class="flex items-center justify-between px-1">
               <span class="font-mono text-[9px] text-slate-400 uppercase tracking-wider">
-                🎴 Taktik-Hand (Antippen zum Zünden)
+                🎴 Taktik-Hand (Antippen zum Aufspielen)
               </span>
-              <span class="font-mono text-[8px] text-pitch-gold">1x pro Spiel</span>
+              <span class="font-mono text-[8px] text-pitch-gold">1x pro Spiel zündbar</span>
             </div>
 
-            <div class="grid grid-cols-3 gap-2">
-              ${equippedTactics.map(cardId => {
+            <div class="flex justify-center items-end gap-1.5 pt-2 pb-1">
+              ${equippedTactics.map((cardId, idx) => {
                 const card = TACTIC_CARDS.find(c => c.id === cardId);
                 const isUsed = matchState.usedTactics?.includes(cardId);
                 const isActive = matchState.activeTacticId === cardId;
 
+                const rotationClass = idx === 0 ? '-rotate-3' : (idx === 2 ? 'rotate-3' : 'rotate-0');
+                const elevationClass = isActive
+                  ? '-translate-y-3 scale-105 ring-2 ring-pitch-emerald bg-emerald-950/90 shadow-[0_0_20px_#00f59b] z-20 rotate-0'
+                  : (isUsed ? 'opacity-35 grayscale scale-95 cursor-not-allowed' : 'hover:-translate-y-1 hover:scale-102 cursor-pointer shadow-md');
+
                 return `
-                  <button data-activate-tactic="${card.id}" ${isUsed ? 'disabled' : ''} class="relative rounded-xl p-2 border flex flex-col items-center justify-between text-center transition-all ${
-                    isUsed
-                      ? 'bg-slate-900/40 border-slate-800 opacity-40 cursor-not-allowed'
-                      : (isActive
-                          ? 'bg-emerald-950/80 border-pitch-emerald ring-2 ring-pitch-emerald shadow-[0_0_15px_#00f59b] scale-105'
-                          : 'bg-slate-900/80 hover:bg-slate-800 border-white/15 active:scale-95 cursor-pointer')
-                  }">
-                    <span class="text-xl my-0.5">${card.icon}</span>
-                    <b class="font-display font-black text-[10px] uppercase text-slate-100 leading-tight">${card.name}</b>
-                    <span class="font-mono text-[9px] text-pitch-emerald font-bold mt-0.5">+${card.boostValue} ${card.boostAttribute.toUpperCase()}</span>
-                    ${isUsed ? '<span class="font-mono text-[7px] text-slate-500 uppercase mt-0.5">BENUTZT</span>' : ''}
-                    ${isActive ? '<span class="font-mono text-[7px] text-pitch-emerald font-black uppercase mt-0.5 animate-pulse">BEREIT</span>' : ''}
+                  <button data-activate-tactic="${card.id}" ${isUsed ? 'disabled' : ''} class="w-28 h-36 rounded-2xl p-2.5 border border-white/15 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 flex flex-col items-center justify-between text-center transition-all duration-300 relative select-none ${rotationClass} ${elevationClass}">
+                    <div class="w-full flex items-center justify-between text-[8px] font-mono">
+                      <span class="text-pitch-gold font-bold">TAKTIK</span>
+                      <span class="text-slate-400">#0${idx + 1}</span>
+                    </div>
+
+                    <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-inner my-1">
+                      ${card.icon}
+                    </div>
+
+                    <div class="w-full">
+                      <b class="font-display font-black text-[10px] uppercase text-slate-100 block leading-tight truncate">${card.name}</b>
+                      <span class="font-mono text-[9px] text-pitch-emerald font-bold block mt-0.5">+${card.boostValue} ${card.boostAttribute.toUpperCase()}</span>
+                    </div>
+
+                    <div class="w-full mt-1">
+                      ${isUsed ? '<span class="font-mono text-[7px] text-slate-500 uppercase block font-bold">VERBRAUCHT</span>' : ''}
+                      ${isActive ? '<span class="font-mono text-[8px] text-pitch-emerald font-black uppercase block tracking-wider animate-pulse">BEREIT ➔</span>' : ''}
+                      ${!isUsed && !isActive ? '<span class="font-mono text-[7px] text-slate-400 uppercase block">ANTIPPEN</span>' : ''}
+                    </div>
                   </button>
                 `;
               }).join('')}
@@ -193,7 +215,7 @@ export function renderMatchArenaModal(matchState, equippedTactics) {
           </div>
         ` : `
           <button id="btn-finish-matchday" class="w-full py-3.5 rounded-xl bg-pitch-emerald hover:bg-emerald-400 text-pitch-dark font-display font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(0,245,155,0.5)] active:scale-98 transition-all">
-            Spieltag abschließen & Finanzen buchen ➔
+            ${matchState.isCupMatch ? 'Pokalduell abschließen & Prämie verbuchen ➔' : 'Spieltag abschließen & Finanzen buchen ➔'}
           </button>
         `}
       </div>

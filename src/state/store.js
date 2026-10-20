@@ -139,6 +139,21 @@ class GameStore {
         soundEnabled: true,
         simSpeed: 'blitz'
       },
+      cup: {
+        activeCupMatchPending: false,
+        currentRound: 1, // 1 to 6
+        isEliminated: false,
+        prizes: { 1: 500, 2: 1000, 3: 2000, 4: 4000, 5: 8000, 6: 15000 },
+        roundNames: {
+          1: 'Runde 1 (64)',
+          2: 'Sechzehntelfinale (32)',
+          3: 'Achtelfinale (16)',
+          4: 'Viertelfinale (8)',
+          5: 'Halbfinale (4)',
+          6: 'Großes Finale (2)'
+        },
+        history: []
+      },
       finalFour: null, // Wird nach Spieltag 18 befüllt
       activePackResult: null,
       starterPacksPending: ['pack_starter_foundation', 'pack_starter_star']
@@ -285,7 +300,7 @@ class GameStore {
   /**
    * Zieht das Spieltagsgehalt ab und aktualisiert Kondition & Verträge
    */
-  finalizeMatchday({ result, isHome }) {
+  finalizeMatchday({ result, isHome, isCupMatch = false, cupOpponent = null }) {
     const club = this.getPlayerClub();
     const finances = calculateMatchdayFinances(club, result, isHome);
 
@@ -314,7 +329,87 @@ class GameStore {
       }
     });
 
-    this.state.currentMatchday++;
+    if (!this.state.cup) {
+      this.state.cup = {
+        activeCupMatchPending: false,
+        currentRound: 1,
+        isEliminated: false,
+        prizes: { 1: 500, 2: 1000, 3: 2000, 4: 4000, 5: 8000, 6: 15000 },
+        roundNames: {
+          1: 'Runde 1 (64)',
+          2: 'Sechzehntelfinale (32)',
+          3: 'Achtelfinale (16)',
+          4: 'Viertelfinale (8)',
+          5: 'Halbfinale (4)',
+          6: 'Großes Finale (2)'
+        },
+        history: []
+      };
+    }
+
+    if (isCupMatch) {
+      // Cup Duel Finalization
+      const won = result === 'WIN';
+      const roundNum = this.state.cup.currentRound;
+      const prize = this.state.cup.prizes[roundNum] || 500;
+      const roundName = this.state.cup.roundNames[roundNum] || `Runde ${roundNum}`;
+
+      if (won) {
+        club.coins += prize;
+        this.state.cup.history.push({
+          round: roundNum,
+          roundName,
+          opponentName: cupOpponent?.name || 'Gegner',
+          won: true,
+          prize
+        });
+        this.state.inbox.unshift({
+          id: `cup_win_${Date.now()}`,
+          title: `🏆 Pokalsieg! ${roundName} gemeistert`,
+          type: 'REWARD',
+          unread: true,
+          date: 'Gerade eben',
+          text: `Sensationeller Pokalerfolg! Dein Verein hat das K.o.-Duell gewonnen. Die Siegprämie in Höhe von ${prize.toLocaleString()} 🪙 wurde eurem Vereinskonto gutgeschrieben!`
+        });
+        this.state.cup.currentRound++;
+      } else {
+        this.state.cup.isEliminated = true;
+        this.state.cup.history.push({
+          round: roundNum,
+          roundName,
+          opponentName: cupOpponent?.name || 'Gegner',
+          won: false,
+          prize: 0
+        });
+        this.state.inbox.unshift({
+          id: `cup_loss_${Date.now()}`,
+          title: `💔 Pokal-Aus in ${roundName}`,
+          type: 'ALERT',
+          unread: true,
+          date: 'Gerade eben',
+          text: `Schade! Dein Team musste sich im K.o.-Krimi geschlagen geben und scheidet aus dem Apex Cup aus. Voller Fokus auf die Liga!`
+        });
+      }
+      this.state.cup.activeCupMatchPending = false;
+    } else {
+      // Regular League Matchday Finalization
+      // Check if after this matchday a Cup Wednesday is due (after Spieltag 3, 6, 9, 12, 15, 18)
+      const cupMilestones = [3, 6, 9, 12, 15, 18];
+      if (cupMilestones.includes(this.state.currentMatchday) && !this.state.cup.isEliminated && this.state.cup.currentRound <= 6) {
+        this.state.cup.activeCupMatchPending = true;
+        const nextRoundName = this.state.cup.roundNames[this.state.cup.currentRound] || `Runde ${this.state.cup.currentRound}`;
+        this.state.inbox.unshift({
+          id: `cup_fixture_${Date.now()}`,
+          title: `🏆 Apex Cup Auslosung: ${nextRoundName}`,
+          type: 'INFO',
+          unread: true,
+          date: 'Gerade eben',
+          text: `Englische Woche! Das nächste anstehende Pflichtspiel ist die K.o.-Schlacht im Apex Cup (${nextRoundName}). Stelle deinen stärksten Kader auf!`
+        });
+      }
+      this.state.currentMatchday++;
+    }
+
     this.notify();
   }
 
