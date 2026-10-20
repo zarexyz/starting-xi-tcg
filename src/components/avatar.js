@@ -1,9 +1,8 @@
 // =============================================================================
-// Starting XI TCG — Procedural Vector Player Avatar Engine (SVG)
-// High-contrast, stylized athletic player busts with dynamic lighting & club kits
+// Starting XI TCG — Upgraded Procedural Athletic Player Avatar Engine (SVG)
+// High-contrast, stylized 3D-shaded athletic player busts with rim lighting & jersey details
 // =============================================================================
 
-// Simple deterministic hash from string to seed integer
 function hashSeed(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -13,7 +12,6 @@ function hashSeed(str) {
   return Math.abs(hash);
 }
 
-// Pseudo-random number generator from seed
 function createPRNG(seed) {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
@@ -24,137 +22,124 @@ function createPRNG(seed) {
 }
 
 const SKIN_TONES = [
-  { base: '#f8d5b8', shadow: '#e2ab86', highlight: '#ffebdc' }, // Fair 1
-  { base: '#eec19a', shadow: '#d1996c', highlight: '#fae0c9' }, // Fair/Warm
-  { base: '#cf986d', shadow: '#b27448', highlight: '#dfaf86' }, // Olive/Tan
-  { base: '#a86c47', shadow: '#834b28', highlight: '#c48962' }, // Caramel
-  { base: '#7c4b2f', shadow: '#59321c', highlight: '#996343' }, // Warm Brown
-  { base: '#4e2f1d', shadow: '#331d10', highlight: '#6b432d' }  // Deep Espresso
+  { base: '#f7cfb0', shadow: '#d69d78', deepShadow: '#a66846', highlight: '#ffe8d6' },
+  { base: '#e4b288', shadow: '#ba8056', deepShadow: '#8e5630', highlight: '#f5d3b3' },
+  { base: '#c68c62', shadow: '#9c6139', deepShadow: '#6e3c1a', highlight: '#dfaa83' },
+  { base: '#99633e', shadow: '#744020', deepShadow: '#4e250e', highlight: '#b98059' },
+  { base: '#6e4125', shadow: '#4d2812', deepShadow: '#2f1506', highlight: '#8d5939' },
+  { base: '#442616', shadow: '#2c150a', deepShadow: '#190a04', highlight: '#5e3722' }
 ];
 
-const HAIR_COLORS = [
-  { main: '#1c1917', highlight: '#44403c' }, // Jet Black
-  { main: '#292524', highlight: '#57534e' }, // Dark Brown
-  { main: '#451a03', highlight: '#78350f' }, // Chestnut / Auburn
-  { main: '#a16207', highlight: '#ca8a04' }, // Golden Brown
-  { main: '#ca8a04', highlight: '#eab308' }, // Honey Blonde
-  { main: '#e2e8f0', highlight: '#ffffff' }  // Platinum / Silver
+const HAIR_PALETTES = [
+  { base: '#151414', mid: '#2a2828', highlight: '#4a4646' }, // Jet Black
+  { base: '#2b1b17', mid: '#422822', highlight: '#633e36' }, // Dark Espresso
+  { base: '#4a2311', mid: '#6e391f', highlight: '#995431' }, // Chestnut / Auburn
+  { base: '#8a5c21', mid: '#ad7b34', highlight: '#d19d4e' }, // Golden Brown
+  { base: '#c49a3c', mid: '#deb759', highlight: '#fae08c' }, // Blonde
+  { base: '#cbd5e1', mid: '#e2e8f0', highlight: '#ffffff' }  // Platinum / Silver
 ];
 
 export function generatePlayerAvatarSVG(player, options = {}) {
-  const seed = hashSeed(player.id || player.name || 'avatar_seed');
+  const seed = hashSeed(player.id || player.name || 'avatar_seed_v2');
   const rng = createPRNG(seed);
 
   const primaryColor = options.primaryColor || '#00f59b';
   const secondaryColor = options.secondaryColor || '#ffd15c';
   const isGoalkeeper = player.position === 'TW';
 
-  // Deterministic choices
   const skin = SKIN_TONES[Math.floor(rng() * SKIN_TONES.length)];
-  const hairColor = HAIR_COLORS[Math.floor(rng() * HAIR_COLORS.length)];
-  const hairStyleIndex = Math.floor(rng() * 12);
-  const hasFacialHair = (player.age || 25) > 21 && rng() > 0.45;
-  const facialHairType = Math.floor(rng() * 4); // 0: stubble, 1: goatee, 2: trimmed beard, 3: full jaw
-  const kitJerseyColor = isGoalkeeper ? '#f59e0b' : primaryColor;
-  const kitAccentColor = isGoalkeeper ? '#1e293b' : secondaryColor;
+  const hair = HAIR_PALETTES[Math.floor(rng() * HAIR_PALETTES.length)];
+  const hairStyle = Math.floor(rng() * 10);
+  const hasBeard = (player.age || 25) >= 22 && rng() > 0.45;
+  const beardStyle = Math.floor(rng() * 3); // 0: stubble, 1: trimmed beard, 2: athletic goatee
 
-  // Head and jaw coordinates
-  // Canvas viewport: 0 0 160 170 (bust focus, torso clipped at bottom)
-  const uid = `av_${player.id || Math.floor(rng() * 99999)}`;
+  const kitColor = isGoalkeeper ? '#ea580c' : primaryColor;
+  const accentColor = isGoalkeeper ? '#fed7aa' : secondaryColor;
+  const uid = `av2_${(player.id || 'p').replace(/[^a-zA-Z0-9]/g, '')}_${Math.floor(rng() * 9999)}`;
 
-  // Procedural Hair paths
-  let hairPath = '';
-  switch (hairStyleIndex) {
-    case 0: // Buzzcut / Taper Fade
-      hairPath = `
-        <path d="M 52 64 C 52 38, 108 38, 108 64 C 108 72, 104 78, 104 78 C 100 68, 92 56, 80 56 C 68 56, 60 68, 56 78 Z" fill="${hairColor.main}"/>
-        <path d="M 64 48 C 74 44, 86 44, 96 48 C 90 44, 70 44, 64 48 Z" fill="${hairColor.highlight}" opacity="0.6"/>
+  // Procedural Hair Models
+  let hairMarkup = '';
+  switch (hairStyle) {
+    case 0: // Taper Fade / Buzz
+      hairMarkup = `
+        <path d="M 50 66 C 50 36, 110 36, 110 66 C 110 75, 106 82, 106 82 C 102 70, 94 56, 80 56 C 66 56, 58 70, 54 82 Z" fill="url(#${uid}_hair_grad)"/>
+        <path d="M 60 52 C 72 46, 88 46, 100 52" stroke="${hair.highlight}" stroke-width="2.5" fill="none" opacity="0.6"/>
       `;
       break;
-    case 1: // Modern Quiff / Pompadour
-      hairPath = `
-        <path d="M 50 64 C 48 30, 85 22, 106 32 C 114 36, 112 50, 108 64 C 102 54, 92 46, 78 46 C 64 46, 56 54, 50 64 Z" fill="${hairColor.main}"/>
-        <path d="M 60 36 C 75 28, 95 30, 104 38 C 96 32, 75 32, 60 36 Z" fill="${hairColor.highlight}" opacity="0.75"/>
+    case 1: // Modern Textured Quiff
+      hairMarkup = `
+        <path d="M 48 64 C 44 26, 84 18, 108 28 C 116 32, 114 48, 110 64 C 104 52, 92 44, 78 44 C 64 44, 54 52, 48 64 Z" fill="url(#${uid}_hair_grad)"/>
+        <!-- Hair strands / flow -->
+        <path d="M 58 38 Q 78 26 104 36" stroke="${hair.highlight}" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+        <path d="M 64 48 Q 82 36 98 44" stroke="${hair.highlight}" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
       `;
       break;
-    case 2: // Curly High Top / Fade
-      hairPath = `
-        <path d="M 52 60 C 48 36, 56 26, 80 24 C 104 26, 112 36, 108 60 C 104 52, 94 44, 80 44 C 66 44, 56 52, 52 60 Z" fill="${hairColor.main}"/>
-        <circle cx="65" cy="34" r="7" fill="${hairColor.main}"/>
-        <circle cx="80" cy="30" r="8" fill="${hairColor.main}"/>
-        <circle cx="95" cy="34" r="7" fill="${hairColor.main}"/>
-        <circle cx="72" cy="38" r="6" fill="${hairColor.highlight}" opacity="0.5"/>
-        <circle cx="88" cy="36" r="6" fill="${hairColor.highlight}" opacity="0.5"/>
+    case 2: // Curly Afro Fade
+      hairMarkup = `
+        <path d="M 50 62 C 46 32, 54 22, 80 20 C 106 22, 114 32, 110 62 C 104 52, 92 44, 80 44 C 68 44, 56 52, 50 62 Z" fill="url(#${uid}_hair_grad)"/>
+        <circle cx="62" cy="30" r="8" fill="${hair.mid}"/>
+        <circle cx="78" cy="24" r="9" fill="${hair.mid}"/>
+        <circle cx="96" cy="28" r="8" fill="${hair.mid}"/>
+        <circle cx="68" cy="34" r="6" fill="${hair.highlight}" opacity="0.5"/>
+        <circle cx="88" cy="32" r="6" fill="${hair.highlight}" opacity="0.5"/>
       `;
       break;
-    case 3: // Side Part / Classic Sweep
-      hairPath = `
-        <path d="M 48 64 C 46 36, 80 28, 108 36 C 112 50, 108 66, 108 66 C 102 56, 92 50, 82 50 C 66 50, 56 56, 48 64 Z" fill="${hairColor.main}"/>
-        <path d="M 56 42 Q 80 34 100 42" stroke="${hairColor.highlight}" stroke-width="3" fill="none" opacity="0.6"/>
+    case 3: // Classic Undercut Sweep
+      hairMarkup = `
+        <path d="M 46 64 C 44 32, 82 22, 110 32 C 114 46, 110 64, 110 64 C 104 54, 94 48, 80 48 C 64 48, 54 54, 46 64 Z" fill="url(#${uid}_hair_grad)"/>
+        <path d="M 54 40 Q 80 30 102 38" stroke="${hair.highlight}" stroke-width="3" fill="none" opacity="0.7"/>
+        <path d="M 62 48 Q 82 40 98 46" stroke="${hair.highlight}" stroke-width="2" fill="none" opacity="0.5"/>
       `;
       break;
-    case 4: // Dreadlocks / Braids with Headband
-      hairPath = `
-        <path d="M 50 62 C 48 32, 112 32, 110 62 Z" fill="${hairColor.main}"/>
-        <path d="M 48 58 Q 80 52 112 58" stroke="#ffffff" stroke-width="4" fill="none"/>
-        <path d="M 46 62 Q 40 85 44 95" stroke="${hairColor.main}" stroke-width="5" stroke-linecap="round" fill="none"/>
-        <path d="M 52 64 Q 48 88 50 100" stroke="${hairColor.main}" stroke-width="5" stroke-linecap="round" fill="none"/>
-        <path d="M 108 64 Q 112 88 110 100" stroke="${hairColor.main}" stroke-width="5" stroke-linecap="round" fill="none"/>
-        <path d="M 114 62 Q 120 85 116 95" stroke="${hairColor.main}" stroke-width="5" stroke-linecap="round" fill="none"/>
+    case 4: // Braids / Dreads with Headband
+      hairMarkup = `
+        <path d="M 48 62 C 46 30, 114 30, 112 62 Z" fill="url(#${uid}_hair_grad)"/>
+        <!-- Athletic Headband -->
+        <path d="M 48 58 Q 80 50 112 58" stroke="#ffffff" stroke-width="4.5" fill="none"/>
+        <path d="M 44 64 Q 38 88 42 102" stroke="${hair.base}" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M 50 66 Q 46 92 48 106" stroke="${hair.mid}" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M 110 66 Q 114 92 112 106" stroke="${hair.mid}" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M 116 64 Q 122 88 118 102" stroke="${hair.base}" stroke-width="5" stroke-linecap="round" fill="none"/>
       `;
       break;
     case 5: // Athletic Spikes
-      hairPath = `
-        <polygon points="50,62 55,38 65,48 75,30 85,48 95,32 105,44 110,62" fill="${hairColor.main}"/>
-        <polygon points="68,44 75,34 82,44" fill="${hairColor.highlight}" opacity="0.6"/>
+      hairMarkup = `
+        <polygon points="48,64 54,34 65,46 76,26 86,46 97,28 106,42 112,64" fill="url(#${uid}_hair_grad)"/>
+        <polygon points="68,42 76,30 84,42" fill="${hair.highlight}" opacity="0.7"/>
       `;
       break;
-    case 6: // Wavy Medium Flow
-      hairPath = `
-        <path d="M 46 66 C 44 34, 116 34, 114 66 C 118 80, 114 96, 110 96 C 106 75, 102 54, 80 52 C 58 54, 54 75, 50 96 C 46 96, 42 80, 46 66 Z" fill="${hairColor.main}"/>
-        <path d="M 60 44 C 74 38, 86 38, 100 44" stroke="${hairColor.highlight}" stroke-width="3" fill="none" opacity="0.5"/>
+    case 6: // Wavy Surfer Flow
+      hairMarkup = `
+        <path d="M 44 66 C 42 30, 118 30, 116 66 C 120 84, 116 102, 110 102 C 106 80, 102 54, 80 52 C 58 54, 54 80, 50 102 C 44 102, 40 84, 44 66 Z" fill="url(#${uid}_hair_grad)"/>
+        <path d="M 58 42 Q 80 34 102 42" stroke="${hair.highlight}" stroke-width="3" fill="none" opacity="0.6"/>
       `;
       break;
-    case 7: // Top Knot / Man Bun
-      hairPath = `
-        <circle cx="80" cy="22" r="10" fill="${hairColor.main}"/>
-        <path d="M 50 62 C 48 38, 112 38, 110 62 C 104 54, 94 48, 80 48 C 66 48, 56 54, 50 62 Z" fill="${hairColor.main}"/>
-        <path d="M 74 24 Q 80 18 86 24" stroke="${hairColor.highlight}" stroke-width="2" fill="none" opacity="0.6"/>
+    default: // Clean Textured Crop
+      hairMarkup = `
+        <path d="M 48 64 C 46 34, 114 34, 112 64 C 104 54, 92 46, 80 46 C 68 46, 56 54, 48 64 Z" fill="url(#${uid}_hair_grad)"/>
+        <path d="M 56 46 Q 80 38 104 46" stroke="${hair.highlight}" stroke-width="2.5" fill="none" opacity="0.6"/>
       `;
-      break;
-    default: // Textured Crop
-      hairPath = `
-        <path d="M 50 62 C 48 36, 112 36, 110 62 C 102 54, 90 48, 80 48 C 70 48, 58 54, 50 62 Z" fill="${hairColor.main}"/>
-        <path d="M 58 48 C 70 42, 90 42, 102 48" stroke="${hairColor.highlight}" stroke-width="3" stroke-dasharray="4,3" fill="none" opacity="0.7"/>
-      `;
-      break;
   }
 
-  // Procedural Facial Hair
-  let facialHairPath = '';
-  if (hasFacialHair) {
-    if (facialHairType === 0) {
-      // Stubble
-      facialHairPath = `
-        <path d="M 64 100 C 68 114, 92 114, 96 100 C 94 116, 66 116, 64 100 Z" fill="${hairColor.main}" opacity="0.35"/>
+  // Facial Hair
+  let beardMarkup = '';
+  if (hasBeard) {
+    if (beardStyle === 0) {
+      // 5 o'clock shadow
+      beardMarkup = `
+        <path d="M 62 102 C 66 116, 94 116, 98 102 C 94 118, 66 118, 62 102 Z" fill="${hair.base}" opacity="0.3"/>
       `;
-    } else if (facialHairType === 1) {
-      // Goatee
-      facialHairPath = `
-        <path d="M 72 96 Q 80 94 88 96 Q 80 100 72 96 Z" fill="${hairColor.main}"/>
-        <path d="M 74 104 Q 80 102 86 104 C 86 114, 74 114, 74 104 Z" fill="${hairColor.main}"/>
-      `;
-    } else if (facialHairType === 2) {
-      // Trimmed Beard
-      facialHairPath = `
-        <path d="M 57 82 C 60 106, 68 118, 80 119 C 92 118, 100 106, 103 82 C 106 102, 94 122, 80 122 C 66 122, 54 102, 57 82 Z" fill="${hairColor.main}"/>
-        <path d="M 72 95 Q 80 93 88 95" stroke="${hairColor.main}" stroke-width="2.5" fill="none"/>
+    } else if (beardStyle === 1) {
+      // Trimmed Beard & Stubble
+      beardMarkup = `
+        <path d="M 56 82 C 59 108, 67 122, 80 123 C 93 122, 101 108, 104 82 C 108 104, 95 127, 80 127 C 65 127, 52 104, 56 82 Z" fill="${hair.base}"/>
+        <path d="M 70 98 Q 80 96 90 98" stroke="${hair.base}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
       `;
     } else {
-      // Full jaw beard
-      facialHairPath = `
-        <path d="M 55 76 C 58 108, 68 122, 80 123 C 92 122, 102 108, 105 76 C 108 110, 96 126, 80 126 C 64 126, 52 110, 55 76 Z" fill="${hairColor.main}"/>
-        <path d="M 70 94 Q 80 92 90 94 Q 80 98 70 94 Z" fill="${hairColor.main}"/>
+      // Goatee
+      beardMarkup = `
+        <path d="M 72 96 Q 80 94 88 96 Q 80 100 72 96 Z" fill="${hair.base}"/>
+        <path d="M 74 105 Q 80 103 86 105 C 86 116, 74 116, 74 105 Z" fill="${hair.base}"/>
       `;
     }
   }
@@ -162,96 +147,115 @@ export function generatePlayerAvatarSVG(player, options = {}) {
   return `
     <svg viewBox="0 0 160 170" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" class="player-avatar-svg drop-shadow-md select-none">
       <defs>
-        <!-- Dynamic Gradient for Jersey -->
-        <linearGradient id="${uid}_jersey" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${kitJerseyColor}"/>
-          <stop offset="100%" stop-color="${kitJerseyColor}" stop-opacity="0.75"/>
-        </linearGradient>
+        <!-- 3D Face Shading Gradient -->
+        <radialGradient id="${uid}_face_grad" cx="55%" cy="40%" r="55%">
+          <stop offset="0%" stop-color="${skin.highlight}"/>
+          <stop offset="50%" stop-color="${skin.base}"/>
+          <stop offset="85%" stop-color="${skin.shadow}"/>
+          <stop offset="100%" stop-color="${skin.deepShadow}"/>
+        </radialGradient>
 
-        <!-- Athletic Rim Lighting on Jersey / Silhouette -->
-        <linearGradient id="${uid}_rim" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
-          <stop offset="25%" stop-color="#ffffff" stop-opacity="0"/>
-          <stop offset="85%" stop-color="#ffffff" stop-opacity="0"/>
-          <stop offset="100%" stop-color="${kitAccentColor}" stop-opacity="0.5"/>
-        </linearGradient>
-
-        <!-- Shadow under neck -->
-        <linearGradient id="${uid}_neck_shadow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${skin.shadow}" stop-opacity="0.9"/>
+        <!-- Athletic Neck Shadow -->
+        <linearGradient id="${uid}_neck_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${skin.deepShadow}"/>
+          <stop offset="65%" stop-color="${skin.shadow}"/>
           <stop offset="100%" stop-color="${skin.base}"/>
+        </linearGradient>
+
+        <!-- Hair Gradient -->
+        <linearGradient id="${uid}_hair_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${hair.mid}"/>
+          <stop offset="100%" stop-color="${hair.base}"/>
+        </linearGradient>
+
+        <!-- Jersey Fabric Gradient with Shoulder Lighting -->
+        <linearGradient id="${uid}_jersey_grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${kitColor}"/>
+          <stop offset="50%" stop-color="${kitColor}"/>
+          <stop offset="100%" stop-color="#0a0f1d"/>
+        </linearGradient>
+
+        <!-- Dynamic Specular Rim Light -->
+        <linearGradient id="${uid}_rim_light" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+          <stop offset="25%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="80%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="100%" stop-color="${accentColor}" stop-opacity="0.6"/>
         </linearGradient>
       </defs>
 
-      <!-- BASE TORSO & JERSEY -->
-      <g id="torso">
-        <!-- Shoulder & Chest Silhouette -->
-        <path d="M 15 170 C 18 135, 42 122, 60 118 L 100 118 C 118 122, 142 135, 145 170 Z" fill="url(#${uid}_jersey)"/>
-        <!-- Jersey Rim Light highlight -->
-        <path d="M 15 170 C 18 135, 42 122, 60 118 L 100 118 C 118 122, 142 135, 145 170 Z" fill="url(#${uid}_rim)"/>
+      <!-- 1. TORSO & JERSEY -->
+      <g id="jersey_layer">
+        <!-- Shoulder & Chest Mesh -->
+        <path d="M 12 170 C 16 132, 42 120, 60 116 L 100 116 C 118 120, 144 132, 148 170 Z" fill="url(#${uid}_jersey_grad)"/>
+        <path d="M 12 170 C 16 132, 42 120, 60 116 L 100 116 C 118 120, 144 132, 148 170 Z" fill="url(#${uid}_rim_light)"/>
 
-        <!-- Jersey Dynamic Accent Pattern (V-neck or center strip) -->
-        <path d="M 70 120 L 80 138 L 90 120 Z" fill="${kitAccentColor}"/>
-        <path d="M 76 138 L 80 170 L 84 170 L 84 138 Z" fill="${kitAccentColor}" opacity="0.6"/>
+        <!-- Athletic Collar & V-Neck Inset -->
+        <path d="M 60 116 Q 80 128 100 116 L 94 132 Q 80 144 66 132 Z" fill="${accentColor}"/>
+        <path d="M 68 120 Q 80 134 92 120 L 80 138 Z" fill="#111827"/>
 
-        <!-- Athletic collar seam -->
-        <path d="M 60 118 Q 80 128 100 118" stroke="${kitAccentColor}" stroke-width="2.5" fill="none"/>
+        <!-- Shoulder Seams -->
+        <path d="M 32 144 L 60 116" stroke="${accentColor}" stroke-width="2" stroke-opacity="0.6" fill="none"/>
+        <path d="M 128 144 L 100 116" stroke="${accentColor}" stroke-width="2" stroke-opacity="0.6" fill="none"/>
       </g>
 
-      <!-- ATHLETIC NECK -->
-      <g id="neck">
-        <path d="M 66 94 L 66 122 Q 80 125 94 122 L 94 94 Z" fill="url(#${uid}_neck_shadow)"/>
-        <!-- Sternal Notch & Traps muscle shadows -->
-        <path d="M 76 114 Q 80 118 84 114" stroke="${skin.shadow}" stroke-width="1.8" fill="none" opacity="0.7"/>
-        <path d="M 72 98 L 74 110" stroke="${skin.shadow}" stroke-width="1.2" opacity="0.4"/>
-        <path d="M 88 98 L 86 110" stroke="${skin.highlight}" stroke-width="1.2" opacity="0.5"/>
+      <!-- 2. ATHLETIC NECK & TRAPS -->
+      <g id="neck_layer">
+        <path d="M 64 92 L 64 122 Q 80 126 96 122 L 96 92 Z" fill="url(#${uid}_neck_grad)"/>
+        <!-- Sternocleidomastoid Muscle Definition -->
+        <path d="M 72 96 L 76 114" stroke="${skin.deepShadow}" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        <path d="M 88 96 L 84 114" stroke="${skin.highlight}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 78 116 Q 80 119 82 116" stroke="${skin.deepShadow}" stroke-width="1.8" fill="none" opacity="0.7"/>
       </g>
 
-      <!-- HEAD & EARS -->
-      <g id="head">
-        <!-- Ears -->
-        <ellipse cx="53" cy="78" rx="4" ry="7" fill="${skin.shadow}"/>
-        <ellipse cx="107" cy="78" rx="4" ry="7" fill="${skin.base}"/>
+      <!-- 3. HEAD & JAW (SCULPTED) -->
+      <g id="head_layer">
+        <!-- Ears with Depth -->
+        <ellipse cx="51" cy="78" rx="4.5" ry="7.5" fill="${skin.shadow}"/>
+        <ellipse cx="52" cy="78" rx="2.5" ry="4.5" fill="${skin.deepShadow}"/>
+        <ellipse cx="109" cy="78" rx="4.5" ry="7.5" fill="${skin.base}"/>
+        <ellipse cx="108" cy="78" rx="2.5" ry="4.5" fill="${skin.shadow}"/>
 
-        <!-- Athletic Head Base / Jawline -->
-        <path d="M 56 64 C 54 44, 106 44, 104 64 C 104 88, 96 112, 80 114 C 64 112, 56 88, 56 64 Z" fill="${skin.base}"/>
+        <!-- Athletic Jawline & Head -->
+        <path d="M 54 64 C 52 40, 108 40, 106 64 C 106 88, 97 114, 80 116 C 63 114, 54 88, 54 64 Z" fill="url(#${uid}_face_grad)"/>
 
-        <!-- Left cheekbone shadow & Right highlight -->
-        <path d="M 57 66 C 56 86, 64 104, 76 112 C 64 104, 58 86, 58 66 Z" fill="${skin.shadow}" opacity="0.35"/>
-        <path d="M 103 66 C 104 86, 96 104, 84 112 C 96 104, 102 86, 102 66 Z" fill="${skin.highlight}" opacity="0.4"/>
+        <!-- Cheekbone & Jaw Shadows -->
+        <path d="M 55 68 C 55 86, 62 105, 75 113 C 63 105, 57 88, 57 68 Z" fill="${skin.deepShadow}" opacity="0.35"/>
+        <path d="M 105 68 C 105 86, 98 105, 85 113 C 97 105, 103 88, 103 68 Z" fill="${skin.highlight}" opacity="0.35"/>
       </g>
 
-      <!-- FACIAL FEATURES -->
-      <g id="face">
-        <!-- Brows (Focused game face) -->
-        <path d="M 63 68 Q 71 66 76 68" stroke="${hairColor.main}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-        <path d="M 84 68 Q 89 66 97 68" stroke="${hairColor.main}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+      <!-- 4. FACIAL FEATURES (HIGH CONTRAST) -->
+      <g id="features_layer">
+        <!-- Brows (Athletic Game Face) -->
+        <path d="M 61 67 Q 70 64 77 67" stroke="${hair.base}" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M 83 67 Q 90 64 99 67" stroke="${hair.base}" stroke-width="3" stroke-linecap="round" fill="none"/>
 
-        <!-- Eyes -->
-        <ellipse cx="69" cy="74" rx="3.2" ry="1.8" fill="#ffffff"/>
-        <circle cx="70" cy="74" r="1.5" fill="${hairColor.main}"/>
-        <circle cx="70.5" cy="73.5" r="0.5" fill="#ffffff"/>
+        <!-- Eyes with Iris & Specular Highlight -->
+        <ellipse cx="69" cy="74" rx="3.5" ry="2" fill="#ffffff"/>
+        <circle cx="70" cy="74" r="1.6" fill="${hair.base}"/>
+        <circle cx="70.6" cy="73.4" r="0.6" fill="#ffffff"/>
 
-        <ellipse cx="91" cy="74" rx="3.2" ry="1.8" fill="#ffffff"/>
-        <circle cx="90" cy="74" r="1.5" fill="${hairColor.main}"/>
-        <circle cx="90.5" cy="73.5" r="0.5" fill="#ffffff"/>
+        <ellipse cx="91" cy="74" rx="3.5" ry="2" fill="#ffffff"/>
+        <circle cx="90" cy="74" r="1.6" fill="${hair.base}"/>
+        <circle cx="90.6" cy="73.4" r="0.6" fill="#ffffff"/>
 
-        <!-- Nose -->
-        <path d="M 80 72 L 78 84 Q 80 86 82 84 Z" fill="${skin.shadow}"/>
-        <ellipse cx="77" cy="85" rx="1.2" ry="0.8" fill="${skin.shadow}"/>
-        <ellipse cx="83" cy="85" rx="1.2" ry="0.8" fill="${skin.shadow}"/>
+        <!-- Nose (Sculpted with Bridge & Shadow) -->
+        <path d="M 79 69 L 77 84 Q 80 87 83 84 L 81 69 Z" fill="${skin.shadow}"/>
+        <circle cx="77" cy="85" r="1.2" fill="${skin.deepShadow}"/>
+        <circle cx="83" cy="85" r="1.2" fill="${skin.deepShadow}"/>
+        <ellipse cx="80" cy="84" rx="1" ry="0.6" fill="${skin.highlight}"/>
 
-        <!-- Mouth (Determined grin) -->
-        <path d="M 74 94 Q 80 97 86 94" stroke="${skin.shadow}" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <path d="M 77 98 Q 80 99 83 98" stroke="${skin.shadow}" stroke-width="1.2" opacity="0.6" fill="none"/>
+        <!-- Mouth -->
+        <path d="M 73 95 Q 80 98 87 95" stroke="${skin.deepShadow}" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        <path d="M 76 99 Q 80 100 84 99" stroke="${skin.shadow}" stroke-width="1.5" stroke-linecap="round" fill="none"/>
 
-        <!-- Facial Hair (if any) -->
-        ${facialHairPath}
+        <!-- Beard / Stubble -->
+        ${beardMarkup}
       </g>
 
-      <!-- HAIR STYLE -->
-      <g id="hair">
-        ${hairPath}
+      <!-- 5. HAIR -->
+      <g id="hair_layer">
+        ${hairMarkup}
       </g>
     </svg>
   `;

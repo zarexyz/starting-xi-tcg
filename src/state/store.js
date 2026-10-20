@@ -204,20 +204,40 @@ class GameStore {
   }
 
   /**
-   * Tauscht Starter und Bankspieler
+   * Ändert die taktische Formation (z.B. 4-3-3, 4-4-2)
    */
-  swapPlayers(starterId, benchId) {
+  setFormation(formationKey) {
     const club = this.getPlayerClub();
-    const s = club.squad.find(p => p.id === starterId);
-    const b = club.squad.find(p => p.id === benchId);
-    if (!s || !b) return;
+    club.formation = formationKey;
+    this.notify();
+  }
 
-    const tempSlot = s.currentSlot;
-    s.isStarter = false;
-    s.currentSlot = b.position;
+  /**
+   * Tauscht zwei Spieler oder weist einen Spieler einem Slot / der Bank zu
+   */
+  swapPlayers(idA, idB, targetSlot = null) {
+    const club = this.getPlayerClub();
+    const pA = club.squad.find(p => p.id === idA);
+    const pB = idB ? club.squad.find(p => p.id === idB) : null;
+    if (!pA) return;
 
-    b.isStarter = true;
-    b.currentSlot = tempSlot;
+    if (pB && pA.id !== pB.id) {
+      const tempSlot = pA.currentSlot;
+      const tempStarter = pA.isStarter;
+
+      pA.currentSlot = pB.currentSlot || targetSlot || pB.position;
+      pA.isStarter = pB.isStarter;
+
+      pB.currentSlot = tempSlot || pA.position;
+      pB.isStarter = tempStarter;
+    } else if (targetSlot) {
+      if (targetSlot === 'bench') {
+        pA.isStarter = false;
+      } else {
+        pA.isStarter = true;
+        pA.currentSlot = targetSlot;
+      }
+    }
 
     this.notify();
   }

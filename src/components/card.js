@@ -4,6 +4,7 @@
 
 import { getEffectiveOVR } from '../engine/ratings.js';
 import { generatePlayerAvatarSVG } from './avatar.js';
+import { getNationFlagSVG } from './flags.js';
 
 /**
  * Renders a premium FUT-style Trading Card
@@ -15,8 +16,10 @@ export function renderFUTCard(player, options = {}) {
     playedPosition = player.position,
     chemistryPips = 3,
     compact = false,
+    medium = false,
     selectable = false,
     selected = false,
+    draggable = true,
     clubColors = { primary: '#00f59b', secondary: '#ffd15c' }
   } = options;
 
@@ -72,9 +75,9 @@ export function renderFUTCard(player, options = {}) {
   for (let i = 0; i < 3; i++) {
     const active = i < chemistryPips;
     pipsHTML += `
-      <span class="w-2 h-2 rounded-full transition-all duration-300 ${
+      <span class="w-1.5 h-1.5 rounded-full transition-all duration-300 ${
         active
-          ? 'bg-pitch-emerald shadow-[0_0_8px_#00f59b] scale-110 border border-emerald-300'
+          ? 'bg-pitch-emerald shadow-[0_0_6px_#00f59b] scale-110 border border-emerald-300'
           : 'bg-slate-800/80 border border-slate-700/50 opacity-40'
       }"></span>
     `;
@@ -86,11 +89,11 @@ export function renderFUTCard(player, options = {}) {
     secondaryColor: clubColors.secondary
   });
 
-  // Short clean name with age in brackets: e.g. "M. MUSTERMANN (29)"
+  const flagSVG = getNationFlagSVG(player.nationality, compact ? 16 : 22, compact ? 11 : 15);
   const displayName = `${player.shortName || player.name} (${age})`;
 
   // =========================================================================
-  // 1. COMPACT PITCH CARD (For 3D Formation board)
+  // 1. COMPACT PITCH CARD (~74x112px for tactical grass field)
   // =========================================================================
   if (compact) {
     return `
@@ -98,7 +101,8 @@ export function renderFUTCard(player, options = {}) {
         selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_20px_#00f59b] scale-105' : ''
       }"
            style="width: 74px; height: 110px; border-radius: 12px;"
-           data-player-id="${player.id}">
+           data-player-id="${player.id}"
+           ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}>
         
         <!-- Rayburst & Holo Sheen -->
         <div class="card-rayburst opacity-40"></div>
@@ -112,12 +116,14 @@ export function renderFUTCard(player, options = {}) {
             </span>
             <span class="font-mono text-[7px] font-extrabold text-slate-300 leading-tight">${player.position}</span>
           </div>
-          <span class="text-[11px] filter drop-shadow">${player.nationFlag}</span>
+          <div class="flex items-center">
+            ${flagSVG}
+          </div>
         </div>
 
         <!-- Center: Vector Avatar Bust -->
         <div class="relative z-10 w-full flex justify-center -my-1 overflow-hidden" style="height: 52px;">
-          <div class="w-14 h-14 transform scale-90 origin-top">
+          <div class="w-14 h-14 transform scale-95 origin-top">
             ${avatarSVG}
           </div>
         </div>
@@ -134,7 +140,66 @@ export function renderFUTCard(player, options = {}) {
   }
 
   // =========================================================================
-  // 2. STANDARD / SHOWCASE CARD (Draft, Booster, Inspect, Arena)
+  // 2. MEDIUM CARD (~108x160px for the expanded Ersatzbank)
+  // =========================================================================
+  if (medium) {
+    return `
+      <div class="fut-card ${currentTier.cssClass} relative flex flex-col justify-between cursor-pointer flex-shrink-0 ${
+        selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_20px_#00f59b] scale-105' : ''
+      }"
+           style="width: 108px; height: 162px; border-radius: 14px;"
+           data-player-id="${player.id}"
+           ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}
+           onmousemove="window.handleCardTilt(event, this)"
+           onmouseleave="window.resetCardTilt(this)">
+        
+        <!-- Rayburst & Holo Sheen -->
+        <div class="card-rayburst opacity-40"></div>
+        ${currentTier.holo ? '<div class="card-holo-sheen"></div>' : ''}
+
+        <!-- Top Row: OVR + Pos + Flag -->
+        <div class="relative z-10 flex items-start justify-between px-2 pt-1.5">
+          <div class="flex flex-col items-center">
+            <span class="font-display font-black text-base leading-none bg-gradient-to-b ${currentTier.textGrad} bg-clip-text text-transparent drop-shadow">
+              ${effectiveOvr}
+            </span>
+            <span class="font-mono text-[8px] font-black uppercase text-slate-300 mt-0.5 px-1 rounded ${currentTier.badgeBg} border">
+              ${player.position}
+            </span>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            ${getNationFlagSVG(player.nationality, 18, 12)}
+            <div class="flex gap-0.5">${pipsHTML}</div>
+          </div>
+        </div>
+
+        <!-- Center: Vector Avatar Bust -->
+        <div class="relative z-10 w-full flex justify-center -my-1 overflow-hidden" style="height: 72px;">
+          <div class="w-20 h-20 transform scale-100 origin-top">
+            ${avatarSVG}
+          </div>
+        </div>
+
+        <!-- Middle Plinth: Name (Age) -->
+        <div class="relative z-20 ${currentTier.namePlateBg} border-t border-white/10 px-1 py-1 text-center shadow">
+          <p class="font-sans font-black text-[9px] text-slate-100 truncate tracking-tight leading-tight">
+            ${player.shortName} <span class="text-slate-400 font-mono font-normal">(${age})</span>
+          </p>
+        </div>
+
+        <!-- Bottom Mini Stats Bar -->
+        <div class="relative z-10 bg-slate-950/80 px-1 py-1 text-[8px] font-mono flex justify-around text-slate-300 border-t border-white/10">
+          <div><b class="text-slate-100">${player.pac}</b> <span class="text-slate-500">P</span></div>
+          <div><b class="text-slate-100">${player.sho}</b> <span class="text-slate-500">S</span></div>
+          <div><b class="text-slate-100">${player.pas}</b> <span class="text-slate-500">A</span></div>
+          <div><b class="text-slate-100">${player.def}</b> <span class="text-slate-500">D</span></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // 3. STANDARD / SHOWCASE CARD (Draft, Booster, Arena, Inspect-Modal)
   // =========================================================================
   const isTW = player.position === 'TW';
 
@@ -143,7 +208,10 @@ export function renderFUTCard(player, options = {}) {
       selected ? 'ring-2 ring-pitch-emerald shadow-[0_0_25px_#00f59b] scale-[1.02]' : ''
     }"
          style="width: 200px; height: 300px; border-radius: 18px;"
-         data-player-id="${player.id}">
+         data-player-id="${player.id}"
+         ${draggable ? `draggable="true" data-draggable-player="${player.id}"` : ''}
+         onmousemove="window.handleCardTilt(event, this)"
+         onmouseleave="window.resetCardTilt(this)">
       
       <!-- Background Texture & Radiant Rayburst -->
       <div class="card-rayburst"></div>
@@ -168,7 +236,9 @@ export function renderFUTCard(player, options = {}) {
           </span>
 
           <!-- Nation Flag -->
-          <span class="text-xl filter drop-shadow mt-0.5">${player.nationFlag}</span>
+          <div class="mt-0.5">
+            ${getNationFlagSVG(player.nationality, 24, 16)}
+          </div>
 
           <!-- Chemie Label & Pips -->
           <div class="flex flex-col items-center mt-1">
@@ -181,7 +251,6 @@ export function renderFUTCard(player, options = {}) {
 
         <!-- Center/Right: Dynamic Athletic Avatar Bust (Pop-Out) -->
         <div class="relative flex-1 flex justify-center items-end" style="height: 140px; margin-right: -4px;">
-          <!-- Subtle glow under the player -->
           <div class="absolute w-24 h-24 rounded-full bg-white/5 blur-xl -z-10"></div>
           <div class="w-28 h-32 transform scale-110 origin-bottom drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
             ${avatarSVG}
@@ -202,7 +271,6 @@ export function renderFUTCard(player, options = {}) {
           ${
             isTW
               ? `
-                <!-- Goalkeeper Stats -->
                 <div class="grid grid-cols-2 gap-x-3 text-[10px] font-mono divide-x divide-white/10">
                   <div class="space-y-0.5 pr-1">
                     <div class="flex justify-between items-center"><span class="font-extrabold text-slate-100">${player.def || 82}</span><span class="text-slate-400 font-bold text-[9px]">DIV</span></div>
@@ -217,9 +285,7 @@ export function renderFUTCard(player, options = {}) {
                 </div>
               `
               : `
-                <!-- Outfield Player Stats Grid -->
                 <div class="grid grid-cols-2 gap-x-2 text-[10px] font-mono divide-x divide-white/10">
-                  <!-- Linke Spalte -->
                   <div class="space-y-0.5 pr-1">
                     <div class="flex justify-between items-center">
                       <span class="font-black text-slate-100">${player.pac}</span>
@@ -235,7 +301,6 @@ export function renderFUTCard(player, options = {}) {
                     </div>
                   </div>
 
-                  <!-- Rechte Spalte -->
                   <div class="space-y-0.5 pl-1.5">
                     <div class="flex justify-between items-center">
                       <span class="font-black text-slate-100">${player.sho}</span>
@@ -261,8 +326,6 @@ export function renderFUTCard(player, options = {}) {
 
 /**
  * Renders a premium TCG Consumable / Item Card (Spell/Artifact style)
- * @param {Object} item Consumable card data
- * @param {Object} options Options like compact or selectable
  */
 export function renderConsumableCard(item, options = {}) {
   const { compact = false, showAction = true } = options;
@@ -319,7 +382,7 @@ export function renderConsumableCard(item, options = {}) {
           <span class="font-mono text-[9px] text-pitch-gold font-bold mt-0.5">${item.title}</span>
         </div>
         ${showAction ? `
-          <button class="w-full py-1.5 rounded-lg bg-pitch-emerald/20 hover:bg-pitch-emerald/30 border border-pitch-emerald text-pitch-emerald font-display font-extrabold text-[9px] uppercase tracking-wider active:scale-95 transition-all">
+          <button data-apply-card="${item.instanceId || item.id}" class="w-full py-1.5 rounded-lg bg-pitch-emerald/20 hover:bg-pitch-emerald/30 border border-pitch-emerald text-pitch-emerald font-display font-extrabold text-[9px] uppercase tracking-wider active:scale-95 transition-all">
             Anwenden ➔
           </button>
         ` : ''}
@@ -371,4 +434,3 @@ export function renderConsumableCard(item, options = {}) {
     </div>
   `;
 }
-

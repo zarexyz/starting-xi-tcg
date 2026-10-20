@@ -16,11 +16,51 @@ import { renderPostfachModal } from './modals/postfach.js';
 import { renderConsumablesModal } from './modals/consumables.js';
 import { renderSettingsModal } from './modals/settings.js';
 import { renderOnboardingModal } from './modals/onboarding.js';
-import { renderCardLabModal } from './modals/card_lab.js';
+import { renderPlayerInspectModal } from './modals/player_inspect.js';
 import { openPack } from './engine/packs.js';
 import { setupMatchSimulation, resolveDuelClash, simulateInstantMatch } from './engine/duel.js';
 
 let activeMatchState = null;
+let draggedPlayerId = null;
+
+// Global HTML5 Drag & Drop handlers
+window.handleCardDragStart = function(e, playerId) {
+  draggedPlayerId = playerId;
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('text/plain', playerId);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+};
+
+window.handleCardDragOver = function(e) {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+};
+
+window.handleCardDrop = function(e, targetSlot) {
+  e.preventDefault();
+  const playerId = draggedPlayerId || (e.dataTransfer ? e.dataTransfer.getData('text/plain') : null);
+  if (!playerId) return;
+
+  const club = store.getPlayerClub();
+  const draggedPlayer = club.squad.find(p => p.id === playerId);
+  if (!draggedPlayer) return;
+
+  if (targetSlot === 'bench') {
+    draggedPlayer.isStarter = false;
+    store.notify();
+  } else {
+    const targetStarter = club.squad.find(p => p.isStarter && (p.currentSlot === targetSlot || p.id === targetSlot));
+    if (targetStarter) {
+      store.swapPlayers(playerId, targetStarter.id, targetSlot);
+    } else {
+      draggedPlayer.isStarter = true;
+      draggedPlayer.currentSlot = targetSlot;
+      store.notify();
+    }
+  }
+  draggedPlayerId = null;
+};
 
 // Global 3D Card Tilt & Holographic tracking
 window.handleCardTilt = function (e, cardEl) {
@@ -132,9 +172,9 @@ function renderModals(state, modalRoot) {
       modalRoot.innerHTML = renderSettingsModal(state);
       setupSettingsEvents();
       break;
-    case 'card_lab':
-      modalRoot.innerHTML = renderCardLabModal();
-      setupCardLabEvents();
+    case 'player_inspect':
+      modalRoot.innerHTML = renderPlayerInspectModal(state.inspectedPlayer, club);
+      setupPlayerInspectEvents();
       break;
     default:
       modalRoot.innerHTML = '';
@@ -150,13 +190,30 @@ function setupGlobalEvents(state) {
     });
   });
 
-  // Header Postfach, Card Lab & Settings
-  document.getElementById('btn-header-lab')?.addEventListener('click', () => {
-    store.openModal('card_lab');
-  });
-
+  // Header Postfach & Settings
   document.getElementById('btn-header-inbox')?.addEventListener('click', () => {
     store.openModal('postfach');
+  });
+
+  document.getElementById('btn-header-settings')?.addEventListener('click', () => {
+    store.openModal('settings');
+  });
+
+  // Formation Dropdown
+  document.getElementById('select-formation')?.addEventListener('change', (e) => {
+    store.setFormation(e.target.value);
+  });
+
+  // Player Card Click -> Full Detail Inspect Modal
+  document.querySelectorAll('[data-inspect-player]').forEach(el => {
+    el.addEventListener('click', () => {
+      const pId = el.dataset.inspectPlayer;
+      const club = store.getPlayerClub();
+      state.inspectedPlayer = club.squad.find(p => p.id === pId);
+      if (state.inspectedPlayer) {
+        store.openModal('player_inspect');
+      }
+    });
   });
 
   document.getElementById('btn-header-settings')?.addEventListener('click', () => {
@@ -360,9 +417,35 @@ function setupConsumablesEvents() {
   });
 }
 
-function setupCardLabEvents() {
-  document.querySelectorAll('#btn-close-modal').forEach(btn => {
-    btn.addEventListener('click', () => store.closeModal());
+function setupPlayerInspectEvents() {
+  const club = store.getPlayerClub();
+  const player = store.getState().inspectedPlayer;
+
+  document.getElementById('btn-close-inspect')?.addEventListener('click', () => {
+    store.closeModal();
+  });
+
+  document.getElementById('btn-inspect-swap')?.addEventListener('click', () => {
+    if (player) {
+      if (player.isStarter) {
+        player.isStarter = false;
+      } else {
+        const openSlot = player.position;
+        const currentStarter = club.squad.find(p => p.isStarter && (p.currentSlot === openSlot || p.position === openSlot));
+        if (currentStarter) {
+          store.swapPlayers(player.id, currentStarter.id);
+        } else {
+          player.isStarter = true;
+          player.currentSlot = openSlot;
+        }
+      }
+      store.notify();
+      store.closeModal();
+    }
+  });
+
+  document.getElementById('btn-inspect-consumable')?.addEventListener('click', () => {
+    store.openModal('consumables');
   });
 }
 

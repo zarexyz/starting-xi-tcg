@@ -31,13 +31,8 @@ export function renderHeader(state) {
         </span>
       </div>
 
-      <!-- Right: Postfach, Card Lab & Settings Actions -->
+      <!-- Right: Postfach & Settings Actions -->
       <div class="flex items-center gap-1.5">
-        <!-- Card Lab Showcase Button -->
-        <button id="btn-header-lab" title="TCG Karten-Labor & Design-Inspektion" class="p-2 rounded-lg bg-pitch-emerald/15 hover:bg-pitch-emerald/25 border border-pitch-emerald/50 text-pitch-emerald transition-transform active:scale-95">
-          <span class="text-sm">🃏</span>
-        </button>
-
         <!-- Postfach Mail Button with Badge -->
         <button id="btn-header-inbox" class="relative p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700 text-slate-200 transition-transform active:scale-95">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
