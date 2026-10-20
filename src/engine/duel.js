@@ -42,9 +42,12 @@ export const TACTIC_CARDS = [
 ];
 
 /**
- * Erzeugt die Duell-Szenen für ein Pflichtspiel
+ * Erzeugt die Duell-Szenen für ein Pflichtspiel (Liga oder K.o.-Pokal)
  */
-export function setupMatchSimulation(homeClub, awayClub) {
+export function setupMatchSimulation(homeClub, awayClub, options = {}) {
+  const isCupMatch = !!options.isCupMatch;
+  const cupRound = options.cupRound || 1;
+
   const homeStarters = homeClub.squad.filter(p => p.isStarter);
   const awayStarters = awayClub.squad.filter(p => p.isStarter);
 
@@ -58,8 +61,8 @@ export function setupMatchSimulation(homeClub, awayClub) {
   const awayMidfielders = awayStarters.filter(p => ['ZM', 'ZDM', 'ZOM', 'LM', 'RM'].includes(p.position));
   const awayGK = awayStarters.find(p => p.position === 'TW') || awayStarters[0];
 
-  // 4 Schlüssel-Duelle über 90 Minuten
-  const minutes = [18, 42, 67, 85];
+  // 4 Schlüssel-Duelle über 90 Minuten (plus optionales 5. Verlängerungsduell im Pokal)
+  const minutes = isCupMatch ? [22, 45, 71, 88, 118] : [18, 42, 67, 85];
   const duels = minutes.map((minute, idx) => {
     const isHomeAttacking = idx % 2 === 0 ? Math.random() < 0.6 : Math.random() < 0.4;
     const attackerClub = isHomeAttacking ? homeClub : awayClub;
@@ -95,6 +98,8 @@ export function setupMatchSimulation(homeClub, awayClub) {
   return {
     homeClub,
     awayClub,
+    isCupMatch,
+    cupRound,
     currentMinute: 0,
     homeScore: 0,
     awayScore: 0,

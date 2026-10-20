@@ -443,3 +443,46 @@ export function renderConsumableCard(item, options = {}) {
     </div>
   `;
 }
+
+/**
+ * Renders the official back design of a Starting XI TCG Card
+ */
+export function renderFUTCardBack(options = {}) {
+  const width = options.width || '190px';
+  const height = options.height || '280px';
+  const compact = options.compact || false;
+
+  return `
+    <div class="card-flip-back w-full h-full p-3 flex flex-col items-center justify-between select-none relative overflow-hidden"
+         style="width: ${width}; height: ${height};">
+      <div class="card-rayburst opacity-30 pointer-events-none"></div>
+      <div class="card-holo-sheen opacity-40"></div>
+
+      <!-- Top Back Header -->
+      <div class="relative z-10 flex items-center justify-between w-full text-[9px] font-mono text-pitch-emerald/70 font-bold uppercase tracking-widest">
+        <span>★ TCG ★</span>
+        <span>EDITION 2027</span>
+      </div>
+
+      <!-- Center Hologram Pitch Emblem -->
+      <div class="relative z-10 flex flex-col items-center justify-center my-auto">
+        <div class="w-20 h-20 rounded-full border-2 border-dashed border-pitch-emerald/40 flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(0,245,155,0.3)] bg-slate-950/80">
+          <div class="w-full h-full rounded-full border-2 border-pitch-gold/70 flex items-center justify-center bg-gradient-to-tr from-emerald-950/60 to-slate-900">
+            <span class="text-3xl filter drop-shadow">⚽</span>
+          </div>
+        </div>
+        <h4 class="font-display font-black text-sm uppercase tracking-widest text-slate-100 mt-2 text-center">
+          STARTING <span class="text-pitch-emerald">XI</span>
+        </h4>
+        <span class="font-mono text-[8px] text-pitch-gold font-bold tracking-wider uppercase">Taktischer Manager</span>
+      </div>
+
+      <!-- Bottom Tap Cue -->
+      <div class="relative z-10 w-full py-1 text-center bg-pitch-emerald/10 border border-pitch-emerald/30 rounded-lg">
+        <span class="text-[9px] font-display font-black text-pitch-emerald uppercase tracking-wider animate-pulse">
+          👆 Tippen zum Aufdecken
+        </span>
+      </div>
+    </div>
+  `;
+}

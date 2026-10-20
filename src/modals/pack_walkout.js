@@ -1,13 +1,19 @@
 // =============================================================================
 // Starting XI TCG — Modal: Pokémon TCG Pocket Style Booster Pack Opening
 // Interactive foil tear swipe gesture + smooth upward card slide extraction
+// + 3D card-flip reveal & Walkout flare for 80+ OVR Star Players
 // =============================================================================
 
-import { renderFUTCard, renderConsumableCard } from '../components/card.js';
+import { renderFUTCard, renderConsumableCard, renderFUTCardBack } from '../components/card.js';
 
 export function renderPackWalkoutModal(packResult) {
   const { pack, isDraft, candidates, cards, isTorn, selectedCandidate } = packResult;
   let selectedId = selectedCandidate?.id || candidates?.[0]?.id;
+
+  // Initialize revealed set
+  if (!packResult.revealedIndices) {
+    packResult.revealedIndices = new Set();
+  }
 
   // Foil pack theme for the large opening foil
   const foilThemes = {
@@ -50,23 +56,45 @@ export function renderPackWalkoutModal(packResult) {
 
   const theme = foilThemes[pack.id] || foilThemes.pack_rookie;
 
+  // Check if any revealed player is a walkout (OVR >= 80)
+  const allCardList = isDraft ? candidates : (cards || []);
+  const hasRevealedWalkout = allCardList.some((c, idx) => {
+    return packResult.revealedIndices.has(idx) && (c.ovr >= 80 || c.tier === 'special' || c.tier === 'gold');
+  });
+
   return `
     <div class="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col p-4 max-w-md mx-auto justify-between animate-fadeIn overflow-hidden select-none">
       
       <!-- Ambient Lighting & Aura -->
       <div class="absolute inset-0 bg-radial-gold pointer-events-none opacity-40"></div>
-      <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none" style="background: ${theme.glow}; opacity: 0.3;"></div>
+      <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none" style="background: ${theme.glow}; opacity: 0.35;"></div>
 
-      <!-- Header: Status Pill -->
-      <div class="relative z-10 text-center mt-2">
+      ${hasRevealedWalkout ? `
+        <!-- High-Tier Walkout Light Burst -->
+        <div class="walkout-burst -top-20 left-1/2 -translate-x-1/2 z-0"></div>
+      ` : ''}
+
+      <!-- Header: Status Pill & Pack Title -->
+      <div class="relative z-10 text-center mt-1">
         <span class="inline-block px-4 py-1.5 rounded-full font-display font-black text-xs uppercase tracking-wider text-pitch-gold bg-yellow-500/15 border border-pitch-gold/50 shadow-[0_0_20px_rgba(255,209,92,0.4)] animate-pulse">
           ⭐ ${pack.name.toUpperCase()} ⭐
         </span>
-        <p class="font-sans text-xs text-slate-300 mt-1">${pack.subtitle}</p>
+        <p class="font-sans text-xs text-slate-300 mt-0.5">${pack.subtitle}</p>
+
+        ${isTorn ? `
+          <div class="flex items-center justify-center gap-2 mt-2">
+            <span class="font-mono text-[10px] text-pitch-emerald font-bold px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-pitch-emerald/40 animate-bounce">
+              👆 Tippe Karten an zum Aufdecken!
+            </span>
+            <button id="btn-reveal-all-cards" class="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[9px] font-bold border border-white/10 active:scale-95">
+              ✨ Alle aufdecken
+            </button>
+          </div>
+        ` : ''}
       </div>
 
       <!-- CENTER STAGE -->
-      <div class="relative z-10 flex-1 flex flex-col justify-center items-center my-3 w-full">
+      <div class="relative z-10 flex-1 flex flex-col justify-center items-center my-2 w-full overflow-hidden">
         ${!isTorn ? `
           <!-- PHASE 1: SEALED 3D FOIL PACK WITH SWIPE-TO-TEAR STRIP (POKÉMON TCG POCKET STYLE) -->
           <div class="relative flex flex-col items-center">
@@ -79,12 +107,12 @@ export function renderPackWalkoutModal(packResult) {
 
             <!-- The Big Physical Foil Pack Container -->
             <div id="sealed-pack-container" class="booster-pack border-2 ${theme.border} ${theme.shadow} flex flex-col justify-between relative overflow-hidden"
-                 style="width: 220px; height: 340px; background: ${theme.bg};">
+                 style="width: 230px; height: 350px; background: ${theme.bg};">
               
               <!-- ✂ TOP FOIL TEAR-STRIP (INTERACTIVE SWIPE TARGET) -->
               <div id="foil-tear-strip"
                    class="relative z-30 cursor-grab active:cursor-grabbing border-b-2 border-dashed border-white/60 bg-white/10 hover:bg-white/20 transition-colors"
-                   style="height: 52px;">
+                   style="height: 56px;">
                 <div class="crimp-seal-top"></div>
                 <div class="flex items-center justify-between px-3 pt-1 text-[9px] font-mono font-black text-white/80">
                   <span>✂ HIER REISSEN</span>
@@ -104,7 +132,7 @@ export function renderPackWalkoutModal(packResult) {
                 <h3 class="font-display font-black text-lg uppercase tracking-tight text-slate-100 leading-tight">
                   ${pack.name}
                 </h3>
-                <span class="font-mono text-[9px] font-extrabold uppercase text-slate-300 mt-1 block px-2 py-0.5 rounded ${theme.badge} border">
+                <span class="font-mono text-[9px] font-extrabold uppercase text-slate-300 mt-1 block px-2.5 py-0.5 rounded ${theme.badge} border">
                   ${pack.rarity} EDITION
                 </span>
               </div>
@@ -115,51 +143,97 @@ export function renderPackWalkoutModal(packResult) {
 
           </div>
         ` : `
-          <!-- PHASE 2: CARDS SLIDED OUT & REVEALED -->
-          <div class="cards-slide-up w-full flex flex-col items-center">
+          <!-- PHASE 2: POKÉMON POCKET STYLE 3D CARD SLIDE-UP & REVEAL -->
+          <div class="cards-slide-up w-full flex flex-col items-center justify-center">
             ${isDraft ? `
-              <!-- Pick 1 of 3 Selection View (Smooth Horizontal Carousel) -->
-              <div class="flex items-center gap-3 w-full overflow-x-auto py-3 px-1 no-scrollbar snap-x snap-mandatory justify-start sm:justify-center">
-                ${candidates.map(candidate => {
+              <!-- Pick 1 of 3 Selection View with 3D Flip -->
+              <div class="flex items-center gap-3 w-full overflow-x-auto py-3 px-2 no-scrollbar snap-x snap-mandatory justify-start sm:justify-center">
+                ${candidates.map((candidate, idx) => {
+                  const isRevealed = packResult.revealedIndices.has(idx);
                   const isSelected = candidate.id === selectedId;
+                  const isWalkout = candidate.ovr >= 80;
+
                   return `
-                    <div class="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 snap-center ${
-                      isSelected ? 'scale-105 z-20' : 'opacity-65 hover:opacity-100 scale-95'
-                    }"
-                         data-pick-candidate="${candidate.id}">
-                      ${renderFUTCard(candidate, { compact: false, selected: isSelected })}
+                    <div class="flex-shrink-0 flex flex-col items-center gap-2 snap-center transition-all duration-300">
+                      
+                      <!-- 3D Card Flip Container -->
+                      <div class="card-flip-container ${isRevealed ? 'card-flipped' : ''} ${isWalkout && isRevealed ? 'drop-shadow-[0_0_20px_rgba(255,209,92,0.8)]' : ''}"
+                           data-flip-card-idx="${idx}"
+                           style="width: 195px; height: 290px;">
+                        
+                        <div class="card-flip-inner">
+                          <!-- Back of Card (Shown before flip) -->
+                          ${renderFUTCardBack({ width: '195px', height: '290px' })}
+
+                          <!-- Front of Card (Revealed after flip) -->
+                          <div class="card-flip-front">
+                            ${renderFUTCard(candidate, { compact: false, selected: isSelected })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Selection Button (Active once revealed) -->
                       <button class="px-4 py-1.5 rounded-xl text-xs font-display font-black uppercase tracking-wider transition-all ${
-                        isSelected
-                          ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_15px_#00f59b]'
-                          : 'bg-slate-800/90 text-slate-400 hover:text-slate-100 border border-slate-700'
-                      }">
-                        ${isSelected ? 'Ausgewählt ✓' : 'Wählen'}
+                        !isRevealed
+                          ? 'opacity-40 pointer-events-none bg-slate-800 text-slate-500'
+                          : (isSelected
+                              ? 'bg-pitch-emerald text-pitch-dark shadow-[0_0_15px_#00f59b] scale-105'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 active:scale-95')
+                      }"
+                              data-pick-candidate="${candidate.id}">
+                        ${!isRevealed ? 'Erst aufdecken' : (isSelected ? 'Ausgewählt ✓' : 'Wählen')}
                       </button>
                     </div>
                   `;
                 }).join('')}
               </div>
             ` : (packResult.isStarterFoundation ? `
-              <!-- 18-Player Foundation Squad Showcase Carousel -->
+              <!-- 18-Player Foundation Squad Showcase Carousel with 3D Flip -->
               <div class="w-full flex flex-col items-center gap-2 my-auto">
                 <div class="px-3 py-1 rounded-full bg-pitch-emerald/15 border border-pitch-emerald/40 text-pitch-emerald font-mono text-[10px] font-black uppercase">
                   18 GRÜNDUNGSSPIELER GEZOGEN! (11 Starter + 7 Bank)
                 </div>
-                <div class="flex items-center gap-2.5 w-full overflow-x-auto py-3 px-2 no-scrollbar snap-x"
+                <div class="flex items-center gap-3 w-full overflow-x-auto py-3 px-2 no-scrollbar snap-x"
                      style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"
                      onwheel="this.scrollLeft += event.deltaY; event.preventDefault();">
-                  ${cards.map(p => `
-                    <div class="flex-shrink-0 snap-center">
-                      ${renderFUTCard(p, { compact: true })}
-                    </div>
-                  `).join('')}
+                  ${cards.map((p, idx) => {
+                    const isRevealed = packResult.revealedIndices.has(idx);
+                    return `
+                      <div class="flex-shrink-0 snap-center">
+                        <div class="card-flip-container ${isRevealed ? 'card-flipped' : ''}"
+                             data-flip-card-idx="${idx}"
+                             style="width: 104px; height: 156px;">
+                          <div class="card-flip-inner">
+                            ${renderFUTCardBack({ width: '104px', height: '156px', compact: true })}
+                            <div class="card-flip-front">
+                              ${renderFUTCard(p, { compact: true })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
                 </div>
-                <span class="text-slate-400 font-sans text-[10px]">Wische seitlich, um alle gezogenen Spieler zu sehen</span>
+                <span class="text-slate-400 font-sans text-[10px]">Tippe auf Karten oder „Alle aufdecken“</span>
               </div>
             ` : `
-              <!-- Consumable Cards Reveal Grid -->
-              <div class="grid grid-cols-2 gap-3 w-full justify-items-center">
-                ${cards.map(card => renderConsumableCard(card, { compact: true, showAction: false })).join('')}
+              <!-- Consumable Cards Reveal Grid with 3D Flip -->
+              <div class="grid grid-cols-2 gap-3 w-full justify-items-center max-h-[380px] overflow-y-auto no-scrollbar py-2">
+                ${cards.map((card, idx) => {
+                  const isRevealed = packResult.revealedIndices.has(idx);
+                  return `
+                    <div class="card-flip-container ${isRevealed ? 'card-flipped' : ''}"
+                         data-flip-card-idx="${idx}"
+                         style="width: 140px; height: 180px;">
+                      <div class="card-flip-inner">
+                        ${renderFUTCardBack({ width: '140px', height: '180px', compact: true })}
+                        <div class="card-flip-front">
+                          ${renderConsumableCard(card, { compact: true, showAction: false })}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
               </div>
             `)}
           </div>
@@ -173,7 +247,7 @@ export function renderPackWalkoutModal(packResult) {
             <span>${
               packResult.isStarterFoundation 
                 ? 'Basiskader übernehmen ➔ Weiter zum Starspieler-Pack' 
-                : (isDraft ? 'Diesen Spieler in Verein einpflegen' : 'Alle 4 Karten ins Inventar übernehmen')
+                : (isDraft ? 'Diesen Spieler in Verein einpflegen' : 'Alle Karten ins Inventar übernehmen')
             }</span>
           </button>
         ` : `
@@ -195,7 +269,7 @@ export function renderPackConfirmModal(pack, userCoins) {
   const canAfford = userCoins >= pack.price;
 
   return `
-    <div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex flex-col items-center justify-center p-4 max-w-md mx-auto animate-fadeIn">
+    <div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex flex-col items-center justify-center p-4 max-w-md mx-auto animate-fadeIn select-none">
       <div class="glass-modal rounded-3xl p-5 border border-pitch-gold/40 shadow-2xl flex flex-col items-center text-center max-w-xs w-full">
         
         <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-4xl shadow-inner mb-3">
