@@ -1,365 +1,164 @@
 // =============================================================================
-// Starting XI TCG — Booster Packs & Draft Engine
+// Packs & Verbrauchsgegenstände
+// Spieler-Packs enthalten nur NEUE Spieler, die gerade in die Welt kommen.
+// Man wählt 1 aus 3 – die anderen beiden betreten die Welt nie.
 // =============================================================================
 
-import { generatePlayer } from './database.js';
+import { createPlayer } from './player.js';
+import { TIERS } from './constants.js';
+import { nextId, LEAGUE_INFO } from './world.js';
+import { clamp } from './rng.js';
 
-export const CONSUMABLE_CARDS = [
-  {
-    id: 'c_gold_contract',
-    type: 'CONTRACT',
-    name: 'Gold-Vertrag',
-    rarity: 'gold',
-    icon: '📜',
-    title: '50% Gehalts-Rabatt',
-    description: 'Senkt das Gehalt eines ausgewählten Spielers um 50% für die nächsten 10 Pflichtspiele.',
-    duration: 10,
-    discountRate: 0.50
+export const CONSUMABLES = {
+  FITNESS: {
+    name: 'Frischzellenkur', icon: 'battery', rarity: 'bronze', target: 'player',
+    desc: '+35 Fitness für einen Spieler.'
   },
-  {
-    id: 'c_fitness_express',
-    type: 'FITNESS',
-    name: 'Fitness-Express',
-    rarity: 'silver',
-    icon: '⚡',
-    title: '100% Sofort-Kondition',
-    description: 'Stellt Ausdauer und Frische eines Spielers sofort auf das Maximum von 100% wieder her.',
-    healsFatigue: true
+  REGEN: {
+    name: 'Regenerationstag', icon: 'spa', rarity: 'silver', target: 'team',
+    desc: '+12 Fitness für den ganzen Kader.'
   },
-  {
-    id: 'c_rapid_heal',
-    type: 'MEDICAL',
-    name: 'Blitzgenesung',
-    rarity: 'cyan',
-    icon: '🩺',
-    title: 'Verletzung sofort kurieren',
-    description: 'Heilt jede akute Blessur oder Zerrung sofort ohne Ausfallzeit.',
-    healsInjury: true
+  MEDICAL: {
+    name: 'Reha-Spezialist', icon: 'medical', rarity: 'silver', target: 'injured',
+    desc: 'Verkürzt eine Verletzung um 4 Spieltage.'
   },
-  {
-    id: 'c_train_tempo',
-    type: 'TRAINING',
-    name: 'Sprint-Drill',
-    rarity: 'silver',
-    icon: '👟',
-    title: '+2 Tempo permanent',
-    description: 'Erhöht das Tempo & den Antritt (PAC) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'pac',
-    trainVal: 2
+  TRAIN: {
+    name: 'Trainingseinheit', icon: 'dumbbell', rarity: 'bronze', target: 'player',
+    desc: 'Kleiner, dauerhafter Stärke-Push für einen Spieler.'
   },
-  {
-    id: 'c_train_shooting',
-    type: 'TRAINING',
-    name: 'Torschuss-Training',
-    rarity: 'gold',
-    icon: '🎯',
-    title: '+2 Schießen permanent',
-    description: 'Steigert Schusskraft und Abschluss (SHO) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'sho',
-    trainVal: 2
+  TRAIN_PLUS: {
+    name: 'Intensivtraining', icon: 'flame', rarity: 'gold', target: 'player',
+    desc: 'Deutlicher, dauerhafter Stärke-Push für einen Spieler.'
   },
-  {
-    id: 'c_train_defense',
-    type: 'TRAINING',
-    name: 'Zweikampf-Masterclass',
-    rarity: 'silver',
-    icon: '🛡️',
-    title: '+2 Defensive permanent',
-    description: 'Verbessert Tackling und Stellungsspiel (DEF) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'def',
-    trainVal: 2
+  MORALE: {
+    name: 'Kabinenansprache', icon: 'megaphone', rarity: 'bronze', target: 'team',
+    desc: '+15 Moral für den ganzen Kader.'
   },
-  {
-    id: 'c_train_pass',
-    type: 'TRAINING',
-    name: 'Passspiel-Präzision',
-    rarity: 'silver',
-    icon: '📐',
-    title: '+2 Passen permanent',
-    description: 'Perfektioniert Kurz- und Langpassspiel (PAS) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'pas',
-    trainVal: 2
+  TACTIC: {
+    name: 'Taktiktafel', icon: 'clipboard', rarity: 'silver', target: 'match',
+    desc: 'Nächstes Spiel: Mittelfeld +3. Perfekt gegen Favoriten.'
   },
-  {
-    id: 'c_train_dribble',
-    type: 'TRAINING',
-    name: 'Dribbel-Parcours',
-    rarity: 'silver',
-    icon: '🌀',
-    title: '+2 Dribbling permanent',
-    description: 'Steigert Ballkontrolle und Wendigkeit (DRI) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'dri',
-    trainVal: 2
-  },
-  {
-    id: 'c_train_physique',
-    type: 'TRAINING',
-    name: 'Athletik-Bootcamp',
-    rarity: 'silver',
-    icon: '🏋️',
-    title: '+2 Physis permanent',
-    description: 'Erhöht Durchsetzungsvermögen und Sprungkraft (PHY) eines Spielers dauerhaft um +2 Punkte.',
-    trainAttr: 'phy',
-    trainVal: 2
-  },
-  {
-    id: 'c_train_master',
-    type: 'TRAINING',
-    name: 'Chef-Trainer Coaching',
-    rarity: 'special',
-    icon: '👑',
-    title: '+1 auf ALLE Attribute',
-    description: 'Umfassendes Coaching: Erhöht jeden der 6 Attribute dauerhaft um +1 Punkt (+1 Gesamt-OVR).',
-    trainMaster: true
-  },
-  {
-    id: 'c_pos_change',
-    type: 'TACTIC',
-    name: 'Umschulung',
-    rarity: 'gold',
-    icon: '🔄',
-    title: 'Position anpassen',
-    description: 'Erlernt eine neue Nebenposition dauerhaft ohne OVR-Abzug.',
-    retrains: true
+  RETRAIN: {
+    name: 'Umschulung', icon: 'swap', rarity: 'gold', target: 'player',
+    desc: 'Spieler lernt eine verwandte Position als Nebenposition.'
   }
-];
+};
 
-export const PACK_TIERS = [
-  {
-    id: 'pack_starter_foundation',
-    name: 'Startkader Basis',
-    series: 'Gründung',
-    price: 0,
-    hiddenFromStore: true,
-    tag: 'GRÜNDUNG',
-    tagColor: 'bg-emerald-500 text-slate-950',
-    borderClass: 'border-emerald-500/80 shadow-[0_10px_25px_rgba(0,245,155,0.3)]',
-    bgGradient: 'from-emerald-950 via-slate-900 to-emerald-900',
-    emblem: '⚽',
-    description: '18 Startspieler für deinen neuen Verein: Vollständige Startelf + 7 Reservespieler.',
-    dropInfo: '18x Spieler (Bronze & Silber)',
-    isDraft: false,
-    isStarterFoundation: true,
-    totalCards: 18
+export const PACKS = {
+  talent: {
+    key: 'talent', name: 'Talent-Pack', price: 900, kind: 'draft',
+    desc: 'Drei junge Talente (16–20). Wenig Stärke, viel Potenzial.',
+    tiers: { bronze: 64, silver: 32, gold: 4, icon: 0 },
+    ages: [16, 20], veteranChance: 0
   },
-  {
-    id: 'pack_starter_star',
-    name: 'Starspieler Pick',
-    series: 'Gründung',
-    price: 0,
-    hiddenFromStore: true,
-    tag: 'DRAFT',
-    tagColor: 'bg-amber-400 text-slate-950',
-    borderClass: 'border-amber-400/80 shadow-[0_10px_25px_rgba(255,209,92,0.3)]',
-    bgGradient: 'from-amber-950 via-stone-900 to-amber-900',
-    emblem: '⭐',
-    description: 'Wähle deinen Schlüsselspieler aus 3 hochkarätigen Silber-Talenten (72-74 OVR).',
-    dropInfo: 'Pick 1 aus 3 Silber-Stars',
-    isDraft: true,
-    isStarterDraft: true,
-    draftCount: 3,
-    candidateOvrMin: 72,
-    candidateOvrMax: 74
+  scout: {
+    key: 'scout', name: 'Scout-Pack', price: 2200, kind: 'draft',
+    desc: 'Drei Spieler aller Altersklassen – sofortige Verstärkung oder Zukunft?',
+    tiers: { bronze: 30, silver: 52, gold: 16, icon: 2 },
+    ages: [18, 26], veteranChance: 0.45
   },
-  {
-    id: 'pack_starter_draft',
-    name: 'Scout Draft Pack',
-    series: 'Serie 1',
-    price: 250,
-    tag: 'BELIEBT',
-    tagColor: 'bg-pitch-emerald text-slate-950',
-    borderClass: 'border-emerald-500/60 shadow-[0_10px_25px_rgba(0,245,155,0.2)]',
-    bgGradient: 'from-slate-900 via-emerald-950 to-slate-900',
-    emblem: '🎯',
-    description: 'Wähle deinen Wunschspieler aus 3 gescouteten Talenten. Ideal zur gezielten Kaderverstärkung.',
-    dropInfo: 'Pick 1 aus 3 Spielern (Bronze bis Silber)',
-    isDraft: true,
-    draftCount: 3,
-    candidateOvrMin: 65,
-    candidateOvrMax: 76
+  elite: {
+    key: 'elite', name: 'Elite-Pack', price: 6500, kind: 'draft',
+    desc: 'Drei Hochkaräter. Gold garantiert, Ikonen möglich.',
+    tiers: { bronze: 0, silver: 0, gold: 92, icon: 8 },
+    ages: [18, 27], veteranChance: 0.35
   },
-  {
-    id: 'pack_bronze_booster',
-    name: 'Bronze Liga-Pack',
-    series: 'Serie 1',
-    price: 150,
-    tag: 'SPAR-TIPP',
-    tagColor: 'bg-orange-500 text-white',
-    borderClass: 'border-orange-500/60 shadow-[0_10px_25px_rgba(205,127,50,0.2)]',
-    bgGradient: 'from-orange-950 via-stone-900 to-slate-900',
-    emblem: '🥉',
-    description: 'Perfekt für den Start in Liga 6. Enthält 3 Karten: Garantiert mindestens 1 Spieler und Verbrauchsgüter.',
-    dropInfo: '3 Karten: 1-2 Spieler + 1-2 Items',
-    isDraft: false,
-    totalCards: 3,
-    minTier: 'bronze',
-    maxTier: 'silver'
-  },
-  {
-    id: 'pack_silver_booster',
-    name: 'Silber Profi-Pack',
-    series: 'Serie 1',
-    price: 400,
-    tag: 'HOT',
-    tagColor: 'bg-slate-300 text-slate-950',
-    borderClass: 'border-slate-300/70 shadow-[0_10px_25px_rgba(203,213,225,0.25)]',
-    bgGradient: 'from-slate-800 via-slate-900 to-blue-950',
-    emblem: '🥈',
-    description: 'Der Schlüssel zum Aufstieg. Garantiert mindestens 2 Silber-Spieler mit 70+ OVR.',
-    dropInfo: '4 Karten: 2 Silber-Spieler garantiert + 2 Bonus-Karten',
-    isDraft: false,
-    totalCards: 4,
-    minTier: 'silver',
-    maxTier: 'gold'
-  },
-  {
-    id: 'pack_gold_elite',
-    name: 'Gold Elite Pack',
-    series: 'Apex Series',
-    price: 850,
-    tag: 'PREMIUM',
-    tagColor: 'bg-amber-400 text-slate-950',
-    borderClass: 'border-amber-400/80 shadow-[0_10px_30px_rgba(255,209,92,0.35)]',
-    bgGradient: 'from-amber-950 via-stone-900 to-yellow-950',
-    emblem: '👑',
-    description: 'Das ultimative Pack. Garantiert 1 Gold-Star (78-86 OVR) sowie seltene Verträge und Power-Ups.',
-    dropInfo: '5 Karten: Mind. 1 Gold-Star (78+) + Chance auf Walkout',
-    isDraft: false,
-    totalCards: 5,
-    minTier: 'silver',
-    maxTier: 'gold'
+  gear: {
+    key: 'gear', name: 'Ausrüstungs-Pack', price: 700, kind: 'items',
+    desc: 'Drei Verbrauchsgegenstände: Fitness, Training, Taktik.',
+    count: 3
   }
-];
+};
 
-/**
- * Öffnet ein Pack basierend auf der Pack-Konfiguration
- */
-export function openPack(packId) {
-  const pack = PACK_TIERS.find(p => p.id === packId);
-  if (!pack) return null;
+const POSITIONS_POOL = ['TW', 'IV', 'IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST', 'ST'];
 
-  // Star-Player Starter Pick (1 of 3 Silver Stars)
-  if (pack.isStarterDraft) {
-    const roles = ['ST', 'ZM', 'IV'];
-    const candidates = roles.map((pos, idx) => generatePlayer({
-      tier: 'silver',
-      position: pos,
-      minOvr: 73,
-      maxOvr: 75,
-      idPrefix: `starter_star_${Date.now()}_${idx}`
-    }));
+/** Restwachstum je nach Alter: Wie weit liegt die aktuelle Stärke unter dem Potenzial? */
+function growthRemaining(rng, age) {
+  if (age <= 16) return rng.int(17, 22);
+  if (age <= 17) return rng.int(14, 19);
+  if (age <= 18) return rng.int(11, 16);
+  if (age <= 19) return rng.int(9, 13);
+  if (age <= 20) return rng.int(7, 11);
+  if (age <= 21) return rng.int(5, 9);
+  if (age <= 23) return rng.int(3, 6);
+  if (age <= 25) return rng.int(1, 3);
+  return rng.int(0, 1);
+}
 
-    return {
-      pack,
-      isDraft: true,
-      isStarterDraft: true,
-      candidates,
-      selectedCandidate: candidates[0]
-    };
+/** Je höher die Liga des Spielers, desto besser fallen die Packs aus */
+function leagueShift(tier) {
+  return (6 - tier) * 2.2;
+}
+
+export function draftCandidate(rng, state, pack, position, forceVeteran = false) {
+  const userTier = state.clubs.user.tier;
+  const tier = rng.weighted(Object.entries(pack.tiers).map(([value, weight]) => ({ value, weight })));
+  const t = TIERS[tier];
+  // Potenzial innerhalb der Klasse, mit leichter Verschiebung nach Liga
+  let potential = Math.round(clamp(rng.float(t.potMin, t.potMax) + leagueShift(userTier) * 0.4, t.potMin, t.potMax));
+
+  let age;
+  let ovr;
+  if (forceVeteran) {
+    age = rng.int(28, 32);
+    potential = Math.round(clamp(LEAGUE_INFO[userTier].baseOvr + rng.int(1, 6) + (TIERS[tier].order - 1) * 3, t.potMin, t.potMax));
+    ovr = potential - Math.max(0, age - 29) * rng.int(1, 2);
+  } else {
+    age = rng.int(pack.ages[0], pack.ages[1]);
+    ovr = potential - growthRemaining(rng, age);
   }
+  ovr = clamp(Math.round(ovr), 38, 94);
+  const player = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier });
+  player.isNew = true;
+  return player;
+}
 
-  // 18-Spieler Starter Foundation Pack
-  if (pack.isStarterFoundation) {
-    const standard18Positions = [
-      // 11 Starters (4-3-3)
-      'TW', 'LV', 'IV', 'IV', 'RV', 'ZM', 'ZDM', 'ZM', 'LF', 'ST', 'RF',
-      // 7 Bench
-      'TW', 'IV', 'LAV', 'ZM', 'RM', 'LM', 'ST'
-    ];
+/** Drei Kandidaten für ein Draft-Pack – unterschiedliche Positionen */
+export function generateDraft(rng, state, packKey) {
+  const pack = PACKS[packKey];
+  const positions = rng.shuffle([...new Set(POSITIONS_POOL)]).slice(0, 3);
+  const veteranSlot = rng.chance(pack.veteranChance) ? rng.int(0, 2) : -1;
+  return positions.map((pos, i) => draftCandidate(rng, state, pack, pos, i === veteranSlot));
+}
 
-    const cards = standard18Positions.map((pos, idx) => {
-      const isStarter = idx < 11;
-      const tier = isStarter ? (idx % 3 === 0 ? 'silver' : 'bronze') : 'bronze';
-      const player = generatePlayer({
-        tier,
-        position: pos,
-        minOvr: tier === 'silver' ? 70 : 64,
-        maxOvr: tier === 'silver' ? 73 : 69,
-        idPrefix: `init_squad_${Date.now()}_${idx}`
-      });
-      player.isStarter = isStarter;
-      player.currentSlot = pos;
-      return player;
+export function generateItems(rng, count) {
+  const weights = { bronze: 6, silver: 3, gold: 1 };
+  const entries = Object.entries(CONSUMABLES).map(([type, c]) => ({ value: type, weight: weights[c.rarity] }));
+  return Array.from({ length: count }, () => rng.weighted(entries));
+}
+
+// -----------------------------------------------------------------------------
+// Starter
+// -----------------------------------------------------------------------------
+
+const STARTER_POSITIONS = ['TW', 'TW', 'LV', 'IV', 'IV', 'IV', 'RV', 'ZDM', 'ZM', 'ZM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST', 'ST'];
+
+/** 18 Spieler für den neu gegründeten Verein: solide Amateure, leicht unter Liga-Schnitt */
+export function generateStarterSquad(rng, state) {
+  const base = LEAGUE_INFO[6].baseOvr;
+  return STARTER_POSITIONS.map((position, i) => {
+    const core = [0, 2, 3, 4, 6, 7, 8, 9, 14, 16, 15].includes(i);
+    const age = rng.int(18, 31);
+    let ovr = base + (core ? 1 : -2) + rng.normal(0, 1.8);
+    if (age <= 20) ovr -= 2;
+    ovr = Math.round(clamp(ovr, 46, 58));
+    const growth = age <= 21 ? rng.int(4, 10) : age <= 25 ? rng.int(1, 5) : rng.int(0, 2);
+    return createPlayer(rng, {
+      id: nextId(state, 'p'), position, age, ovr,
+      potential: clamp(ovr + growth, ovr, 66), tier: 'bronze'
     });
+  });
+}
 
-    return {
-      pack,
-      isDraft: false,
-      isStarterFoundation: true,
-      cards
-    };
-  }
-
-  // Regulärer Scout Draft
-  if (pack.isDraft) {
-    const positions = ['ST', 'ZM', 'IV', 'TW', 'LF', 'RF', 'ZDM', 'LV', 'RV'];
-    const shuffledPositions = [...positions].sort(() => 0.5 - Math.random());
-    const candidates = [];
-
-    for (let i = 0; i < (pack.draftCount || 3); i++) {
-      const tierRoll = Math.random();
-      const tier = tierRoll > 0.7 ? 'gold' : (tierRoll > 0.3 ? 'silver' : 'bronze');
-      const pos = shuffledPositions[i] || 'ST';
-      const player = generatePlayer({
-        tier,
-        position: pos,
-        minOvr: pack.candidateOvrMin || 66,
-        maxOvr: pack.candidateOvrMax || 78,
-        idPrefix: `draft_candidate_${Date.now()}_${i}`
-      });
-      candidates.push(player);
-    }
-
-    return {
-      pack,
-      isDraft: true,
-      candidates,
-      selectedCandidate: candidates[0]
-    };
-  }
-
-  // Reguläres Booster-Pack mit gezogenen Spielern und Verbrauchsgegenständen
-  const cards = [];
-  const totalCards = pack.totalCards || 3;
-
-  for (let i = 0; i < totalCards; i++) {
-    // 65% Chance auf Spieler, 35% Chance auf Verbrauchsgegenstand
-    const isPlayer = Math.random() < 0.65 || i === 0;
-
-    if (isPlayer) {
-      let tier = 'bronze';
-      const roll = Math.random();
-
-      if (pack.id === 'pack_gold_elite') {
-        tier = (i === 0 || roll > 0.5) ? 'gold' : 'silver';
-      } else if (pack.id === 'pack_silver_booster') {
-        tier = (i < 2 || roll > 0.4) ? 'silver' : (roll > 0.95 ? 'gold' : 'bronze');
-      } else {
-        tier = roll > 0.85 ? 'silver' : 'bronze';
-      }
-
-      const player = generatePlayer({
-        tier,
-        minOvr: tier === 'gold' ? 78 : (tier === 'silver' ? 70 : 64),
-        maxOvr: tier === 'gold' ? 86 : (tier === 'silver' ? 76 : 69),
-        idPrefix: `booster_card_${Date.now()}_${i}`
-      });
-
-      cards.push(player);
-    } else {
-      // Verbrauchsgegenstand aus CONSUMABLE_CARDS ziehen
-      const itemTemplate = CONSUMABLE_CARDS[Math.floor(Math.random() * CONSUMABLE_CARDS.length)];
-      const itemInstance = {
-        ...itemTemplate,
-        instanceId: `item_${Date.now()}_${i}`
-      };
-      cards.push(itemInstance);
-    }
-  }
-
-  return {
-    pack,
-    isDraft: false,
-    cards
-  };
+/** Starspieler-Wahl: drei Silber-Talente mit echter Perspektive */
+export function generateStarDraft(rng, state) {
+  const positions = [rng.pick(['ST', 'LF', 'RF']), rng.pick(['ZOM', 'ZM']), rng.pick(['IV', 'TW', 'ZDM'])];
+  return positions.map(position => {
+    const age = rng.int(19, 23);
+    const potential = rng.int(70, 76);
+    const ovr = clamp(Math.round(LEAGUE_INFO[6].baseOvr + rng.int(5, 8)), 54, 64);
+    const p = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier: 'silver' });
+    p.isNew = true;
+    return p;
+  });
 }

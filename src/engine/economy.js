@@ -1,58 +1,36 @@
 // =============================================================================
-// Starting XI TCG — Economy, Salaries & Sponsor Engine
+// Finanzen: Einnahmen, Gehälter, Soft-Cap, Prämien
 // =============================================================================
 
-/**
- * Berechnet das Spieltagsgehalt eines Spielers basierend auf seinem OVR
- */
-export function calculatePlayerSalary(ovr) {
-  const safeOvr = Math.max(50, Math.min(95, ovr || 60));
-  // Exponentielle Gehaltskurve
-  return Math.round(25 * Math.pow(1.075, safeOvr - 55));
+import { salaryFor } from './player.js';
+import { clubPlayers } from './world.js';
+
+/** Grundeinnahme pro Heimspiel je Liga */
+export const TIER_INCOME = { 6: 420, 5: 650, 4: 950, 3: 1400, 2: 2050, 1: 3000 };
+
+/** Empfohlene Gehaltsgrenze pro Spieltag (Soft-Cap) – darüber sinkt die Kabinenstimmung */
+export function wageCap(tier) {
+  return Math.round(TIER_INCOME[tier] * 0.8);
 }
 
-/**
- * Berechnet die wöchentliche Finanzbilanz des Vereins
- */
-export function calculateMatchdayFinances(club, matchResult = null, isHome = false) {
-  const squad = club.squad || [];
-  
-  // Gehälter berechnen (unter Berücksichtigung von aktiven Gehaltssubventionen)
-  let totalSalaries = 0;
-  squad.forEach(player => {
-    let sal = calculatePlayerSalary(player.ovr);
-    if (player.contractDiscountUntilMatch && player.contractDiscountUntilMatch >= club.currentMatchday) {
-      sal = Math.round(sal * 0.5); // 50% Rabatt durch Gold-Vertrag
-    }
-    totalSalaries += sal;
-  });
-
-  // Einnahmen
-  let sponsorBase = 500;
-  let sponsorBonus = 0;
-  let ticketRevenue = isHome ? Math.floor(800 + Math.random() * 350) : 0;
-  let matchPrize = 0;
-
-  if (matchResult === 'WIN') {
-    sponsorBonus = 250;
-    matchPrize = 300;
-  } else if (matchResult === 'DRAW') {
-    sponsorBonus = 50;
-    matchPrize = 100;
-  } else if (matchResult === 'LOSS') {
-    matchPrize = 25;
-  }
-
-  const totalIncome = sponsorBase + sponsorBonus + ticketRevenue + matchPrize;
-  const netProfit = totalIncome - totalSalaries;
-
-  return {
-    totalSalaries,
-    sponsorBase,
-    sponsorBonus,
-    ticketRevenue,
-    matchPrize,
-    totalIncome,
-    netProfit
-  };
+export function weeklyWages(state, clubId) {
+  return clubPlayers(state, clubId).reduce((s, p) => s + salaryFor(p.ovr), 0);
 }
+
+export function matchIncome(tier, isHome, outcome) {
+  const base = TIER_INCOME[tier];
+  let income = isHome ? base : Math.round(base * 0.45);
+  if (outcome === 'W') income += Math.round(base * 0.35);
+  if (outcome === 'D') income += Math.round(base * 0.12);
+  return income;
+}
+
+/** Saisonprämie nach Tabellenplatz */
+export function seasonPrize(tier, pos) {
+  const base = TIER_INCOME[tier] * 4;
+  const factor = [3, 2.4, 2, 1.7, 1.4, 1.2, 1, 0.9, 0.8, 0.7][pos - 1] ?? 0.7;
+  return Math.round(base * factor);
+}
+
+export const CUP_PRIZES = { 1: 300, 2: 600, 3: 1200, 4: 2500, 5: 5000, 6: 12000 };
+export const FINAL_FOUR_PRIZES = { semi: 1500, final: 4000 };

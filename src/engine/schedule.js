@@ -1,115 +1,147 @@
 // =============================================================================
-// Starting XI TCG — Schedule & Final Four Tournament Engine
+// Spielplan: Liga (Hin- und Rückrunde), Saisonkalender, Pokal, Final Four, Tabelle
 // =============================================================================
 
-/**
- * Erzeugt einen fairen Round-Robin Spielplan (10 Teams = 9 Spieltage Hinrunde + 9 Spieltage Rückrunde)
- */
-export function generateLeagueSchedule(clubs) {
-  const n = clubs.length;
-  if (n % 2 !== 0) throw new Error('League requires even number of clubs');
+import { MATCHDAYS } from './constants.js';
 
+/** Doppelrunde nach Kreismethode: 10 Teams → 18 Spieltage à 5 Spiele */
+export function roundRobin(rng, clubIds) {
+  const teams = rng.shuffle(clubIds);
+  const n = teams.length;
+  const half = n / 2;
   const rounds = [];
-  const teamList = [...clubs];
-
-  // Berger-Tables / Polygon-Methode für 9 Spieltage
+  const rot = teams.slice(1);
   for (let r = 0; r < n - 1; r++) {
-    const matchdayMatches = [];
-    for (let i = 0; i < n / 2; i++) {
-      const home = teamList[i];
-      const away = teamList[n - 1 - i];
+    const order = [teams[0], ...rot];
+    const matches = [];
+    for (let i = 0; i < half; i++) {
+      const a = order[i];
+      const b = order[n - 1 - i];
+      const swap = (r + i) % 2 === 1;
+      matches.push(swap ? { home: b, away: a } : { home: a, away: b });
+    }
+    rounds.push(matches);
+    rot.unshift(rot.pop());
+  }
+  const second = rounds.map(ms => ms.map(m => ({ home: m.away, away: m.home })));
+  return [...rounds, ...second];
+}
 
-      // Heimrecht abwechseln
-      if (r % 2 === 1) {
-        matchdayMatches.push({ homeId: away.id, awayId: home.id, homeScore: null, awayScore: null, played: false });
+/**
+ * Saisonkalender. Jeder Eintrag ist ein Spieltag, an dem der Spieler höchstens ein Spiel hat.
+ */
+export function buildCalendar() {
+  const days = [];
+  const cupAfter = { 3: 1, 6: 2, 9: 3, 12: 4, 15: 5 };
+  for (let md = 1; md <= MATCHDAYS; md++) {
+    days.push({ type: 'league', md });
+    if (cupAfter[md]) days.push({ type: 'cup', round: cupAfter[md] });
+  }
+  days.push({ type: 'ff_semi' });
+  days.push({ type: 'cup', round: 6 });
+  days.push({ type: 'ff_final' });
+  return days;
+}
+
+export const CUP_ROUND_NAMES = {
+  1: '1. Runde',
+  2: 'Sechzehntelfinale',
+  3: 'Achtelfinale',
+  4: 'Viertelfinale',
+  5: 'Halbfinale',
+  6: 'Finale'
+};
+
+/**
+ * Pokal-Auslosung. Runde 1: 4 Freilose für die besten Erstligisten, 56 Teams spielen.
+ * Der klassentiefere Verein hat Heimrecht.
+ */
+export function drawCupRound(rng, state, clubIds) {
+  const shuffled = rng.shuffle(clubIds);
+  const matches = [];
+  for (let i = 0; i + 1 < shuffled.length; i += 2) {
+    const a = shuffled[i];
+    const b = shuffled[i + 1];
+    const ta = state.clubs[a].tier;
+    const tb = state.clubs[b].tier;
+    // höhere Zahl = tiefere Liga = Heimrecht
+    matches.push(ta >= tb ? { home: a, away: b } : { home: b, away: a });
+  }
+  return matches;
+}
+
+export function createCup(rng, state, byeIds) {
+  const all = Object.keys(state.clubs);
+  const playing = all.filter(id => !byeIds.includes(id));
+  return {
+    round: 1,
+    byes: byeIds,
+    rounds: { 1: drawCupRound(rng, state, playing) },
+    winner: null
+  };
+}
+
+export function matchWinner(m) {
+  if (m.hg == null) return null;
+  if (m.hg > m.ag) return m.home;
+  if (m.ag > m.hg) return m.away;
+  if (m.pens) return m.pens.h > m.pens.a ? m.home : m.away;
+  return null;
+}
+
+export function matchLoser(m) {
+  const w = matchWinner(m);
+  if (!w) return null;
+  return w === m.home ? m.away : m.home;
+}
+
+// -----------------------------------------------------------------------------
+// Tabelle
+// -----------------------------------------------------------------------------
+
+export function computeTable(state, tier) {
+  const league = state.leagues[tier];
+  const rows = {};
+  for (const id of league.clubIds) {
+    rows[id] = { clubId: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] };
+  }
+  for (const round of league.fixtures) {
+    for (const m of round) {
+      if (m.hg == null) continue;
+      const h = rows[m.home];
+      const a = rows[m.away];
+      if (!h || !a) continue;
+      h.p++; a.p++;
+      h.gf += m.hg; h.ga += m.ag;
+      a.gf += m.ag; a.ga += m.hg;
+      if (m.hg > m.ag) {
+        h.w++; a.l++; h.pts += 3; h.form.push('S'); a.form.push('N');
+      } else if (m.hg < m.ag) {
+        a.w++; h.l++; a.pts += 3; a.form.push('S'); h.form.push('N');
       } else {
-        matchdayMatches.push({ homeId: home.id, awayId: away.id, homeScore: null, awayScore: null, played: false });
+        h.d++; a.d++; h.pts++; a.pts++; h.form.push('U'); a.form.push('U');
       }
     }
-    rounds.push(matchdayMatches);
-
-    // Rotation (Team 0 bleibt fest, Rest rotiert im Uhrzeigersinn)
-    const fixed = teamList[0];
-    const rotating = teamList.slice(1);
-    rotating.unshift(rotating.pop());
-    teamList.splice(0, teamList.length, fixed, ...rotating);
   }
-
-  // Rückrunde (gespiegelte Heim-/Auswärtsrechte)
-  const fullSeason = [];
-  rounds.forEach((mDay, idx) => {
-    fullSeason.push({
-      matchday: idx + 1,
-      matches: mDay
-    });
-  });
-
-  rounds.forEach((mDay, idx) => {
-    const reversed = mDay.map(m => ({
-      homeId: m.awayId,
-      awayId: m.homeId,
-      homeScore: null,
-      awayScore: null,
-      played: false
-    }));
-    fullSeason.push({
-      matchday: idx + 10,
-      matches: reversed
-    });
-  });
-
-  return fullSeason;
+  const list = Object.values(rows);
+  list.forEach(r => { r.form = r.form.slice(-5); r.gd = r.gf - r.ga; });
+  list.sort((x, y) =>
+    y.pts - x.pts || y.gd - x.gd || y.gf - x.gf ||
+    state.clubs[x.clubId].name.localeCompare(state.clubs[y.clubId].name));
+  list.forEach((r, i) => { r.pos = i + 1; });
+  return list;
 }
 
-/**
- * Sortiert die Liga-Tabelle nach Punkten, Tordifferenz, erzielten Toren
- */
-export function computeLeagueTable(clubs) {
-  return [...clubs].sort((a, b) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points;
-    const diffA = a.stats.gf - a.stats.ga;
-    const diffB = b.stats.gf - b.stats.ga;
-    if (diffB !== diffA) return diffB - diffA;
-    return b.stats.gf - a.stats.gf;
-  });
-}
-
-/**
- * Erzeugt das Final-Four Playoff-Bracket aus den Plätzen 1 bis 4 der Tabelle
- */
-export function generateFinalFourBracket(sortedClubs, leagueTier) {
-  const c1 = sortedClubs[0];
-  const c2 = sortedClubs[1];
-  const c3 = sortedClubs[2];
-  const c4 = sortedClubs[3];
-
+/** Final Four aus der Tabelle: 1 gegen 4, 2 gegen 3 (besser Platzierter hat Heimrecht) */
+export function createFinalFour(state, tier) {
+  const table = computeTable(state, tier);
+  const [a, b, c, d] = table.slice(0, 4).map(r => r.clubId);
   return {
-    leagueTier,
-    status: 'SEMIFINALS', // 'SEMIFINALS' | 'FINAL' | 'COMPLETED'
-    semiA: {
-      team1: c1,
-      team2: c4,
-      score1: null,
-      score2: null,
-      winner: null,
-      penalties: false
-    },
-    semiB: {
-      team1: c2,
-      team2: c3,
-      score1: null,
-      score2: null,
-      winner: null,
-      penalties: false
-    },
-    final: {
-      team1: null,
-      team2: null,
-      score1: null,
-      score2: null,
-      winner: null,
-      penalties: false
-    },
-    promotedTeams: [] // Beide Halbfinalsieger steigen auf (in Ligen 6–2)
+    tier,
+    seeds: [a, b, c, d],
+    semis: [{ home: a, away: d }, { home: b, away: c }],
+    final: null,
+    champion: null,
+    promoted: []
   };
 }
