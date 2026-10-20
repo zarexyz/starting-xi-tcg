@@ -84,22 +84,8 @@ class GameStore {
     playerClub.primaryColor = primaryColor || '#00f59b';
     playerClub.secondaryColor = secondaryColor || '#ffd15c';
     playerClub.crestForm = crestForm || 'shield';
-    playerClub.coins = 3450;
-
-    // Erzeuge 1 Gold-Star-Kapitän
-    let starPos = captainRole === 'ST' ? 'ST' : (captainRole === 'MF' ? 'ZM' : 'IV');
-    const starCaptain = generatePlayer(starPos, 78, null, `${clubName.split(' ')[0]} Star`);
-    starCaptain.isStarter = true;
-    starCaptain.currentSlot = starPos;
-    starCaptain.isCaptain = true;
-    
-    // Tausche Starter mit dem Kapitän
-    const oldStarterIdx = playerClub.squad.findIndex(p => p.currentSlot === starPos);
-    if (oldStarterIdx !== -1) {
-      playerClub.squad[oldStarterIdx] = starCaptain;
-    } else {
-      playerClub.squad.unshift(starCaptain);
-    }
+    playerClub.coins = 1500;
+    playerClub.squad = []; // Wird direkt durch das 18er Starter-Pack befüllt
 
     // Anfangs-Inventar
     const inventory = [
@@ -154,7 +140,8 @@ class GameStore {
         simSpeed: 'blitz'
       },
       finalFour: null, // Wird nach Spieltag 18 befüllt
-      activePackResult: null
+      activePackResult: null,
+      starterPacksPending: ['pack_starter_foundation', 'pack_starter_star']
     };
 
     saveSlot(targetSlot, this.state);

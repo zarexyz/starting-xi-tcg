@@ -50,6 +50,28 @@ export const CONSUMABLE_CARDS = [
 
 export const PACK_TIERS = [
   {
+    id: 'pack_starter_foundation',
+    name: 'Starter-Basiskader',
+    subtitle: '18 Gründungs-Spielerkarten',
+    price: 0,
+    rarity: 'silver',
+    color: '#00f59b',
+    icon: '⚽',
+    description: 'Das komplette 18-Mann Grundgerüst für deinen neuen Verein.',
+    type: 'STARTER_FOUNDATION'
+  },
+  {
+    id: 'pack_starter_star',
+    name: 'Starspieler-Draft',
+    subtitle: 'Pick 1 of 3 Silber-Stars',
+    price: 0,
+    rarity: 'special',
+    color: '#ffd15c',
+    icon: '⭐',
+    description: 'Wähle deinen Leitwolf (74–77 OVR) zur Verstärkung deines Teams.',
+    type: 'PLAYER_DRAFT'
+  },
+  {
     id: 'pack_rookie',
     name: 'Rookie-Draft',
     subtitle: 'Pick 1 of 3 junge Talente',
@@ -101,6 +123,33 @@ export const PACK_TIERS = [
 export function openPack(packTierId) {
   const pack = PACK_TIERS.find(p => p.id === packTierId) || PACK_TIERS[0];
 
+  if (pack.type === 'STARTER_FOUNDATION' || pack.id === 'pack_starter_foundation') {
+    // 18-Spieler Gründungs-Set
+    const starterPositions = ['TW', 'LV', 'IV', 'IV', 'RV', 'ZDM', 'ZM', 'ZM', 'LF', 'ST', 'RF'];
+    const benchPositions = ['TW', 'IV', 'ZM', 'ST', 'LV', 'RV', 'ZOM'];
+    const cards = [];
+
+    starterPositions.forEach((pos, idx) => {
+      const p = generatePlayer(pos, Math.floor(58 + Math.random() * 8));
+      p.isStarter = true;
+      p.currentSlot = pos;
+      cards.push(p);
+    });
+
+    benchPositions.forEach((pos) => {
+      const p = generatePlayer(pos, Math.floor(55 + Math.random() * 8));
+      p.isStarter = false;
+      cards.push(p);
+    });
+
+    return {
+      pack,
+      isStarterFoundation: true,
+      isDraft: false,
+      cards
+    };
+  }
+
   if (pack.type === 'CONSUMABLE_BUNDLE') {
     // Liefert 4 zufällige Verbrauchskarten
     const cards = [];
@@ -117,7 +166,9 @@ export function openPack(packTierId) {
 
   // Player Draft ("Pick 1 of 3")
   let targetMin = 60, targetMax = 72;
-  if (pack.id === 'pack_veteran') {
+  if (pack.id === 'pack_starter_star') {
+    targetMin = 74; targetMax = 77;
+  } else if (pack.id === 'pack_veteran') {
     targetMin = 72; targetMax = 78;
   } else if (pack.id === 'pack_prestige_gold') {
     targetMin = 77; targetMax = 84;

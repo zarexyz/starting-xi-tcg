@@ -1,14 +1,16 @@
 // =============================================================================
 // Starting XI TCG — Screen 4: Markt & 3D Booster-Pack Kiosk (Foil Shelf)
+// With Smooth Touch-Swipe, Drag Scrolling & Manual Shelf Arrows
 // =============================================================================
 
 import { PACK_TIERS } from '../engine/packs.js';
 
 export function renderMarktScreen(state) {
   const club = state.leagues.find(l => l.tier === 6)?.clubs.find(c => c.id === state.playerClubId);
+  const buyablePacks = PACK_TIERS.filter(p => p.price > 0);
 
   return `
-    <div class="flex-1 flex flex-col p-3 gap-3.5 pb-24 overflow-y-auto no-scrollbar">
+    <div class="flex-1 flex flex-col p-3 gap-3.5 pb-24 overflow-y-auto no-scrollbar select-none">
       
       <!-- Market Header Banner -->
       <div class="glass-panel rounded-2xl p-4 border border-pitch-gold/30 flex items-center justify-between shadow-xl">
@@ -23,18 +25,33 @@ export function renderMarktScreen(state) {
       </div>
 
       <!-- Kiosk Shelf Carousel (Horizontal Swipe with 3D Foil Packs) -->
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2.5">
         <div class="flex items-center justify-between px-1">
           <span class="font-display font-bold text-xs text-slate-200 uppercase tracking-wider">
-            🏪 Booster-Regal (Antippen zum Kaufen)
+            🏪 Booster-Regal (Wischen oder Pfeile nutzen)
           </span>
-          <span class="font-mono text-[9px] text-pitch-emerald font-bold">4 PACKS VERFÜGBAR</span>
+          <div class="flex items-center gap-1.5">
+            <button id="btn-shelf-scroll-left" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-xs active:scale-95 transition-all" title="Nach links">
+              ◀
+            </button>
+            <button id="btn-shelf-scroll-right" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-xs active:scale-95 transition-all" title="Nach rechts">
+              ▶
+            </button>
+          </div>
         </div>
 
-        <div class="flex gap-4 overflow-x-auto py-3 px-1 no-scrollbar snap-x snap-mandatory"
-             style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"
+        <!-- Shelf Container (Horizontal Touch-Swipe & Mouse Drag) -->
+        <div id="booster-shelf-container"
+             class="flex gap-4 overflow-x-auto py-3 px-1 no-scrollbar select-none cursor-grab active:cursor-grabbing"
+             style="-webkit-overflow-scrolling: touch; touch-action: pan-x; scroll-behavior: smooth;"
              onwheel="this.scrollLeft += event.deltaY; event.preventDefault();">
-          ${PACK_TIERS.map(pack => renderPhysicalBoosterPack(pack, club?.coins || 0)).join('')}
+          ${buyablePacks.map(pack => renderPhysicalBoosterPack(pack, club?.coins || 0)).join('')}
+        </div>
+
+        <div class="flex items-center justify-center gap-1.5 py-1">
+          ${buyablePacks.map((_, idx) => `
+            <span class="w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-pitch-emerald' : 'bg-slate-700'}"></span>
+          `).join('')}
         </div>
       </div>
 
@@ -44,7 +61,7 @@ export function renderMarktScreen(state) {
         <div class="flex flex-col gap-0.5">
           <b class="font-display text-xs text-slate-100 uppercase tracking-wide">100% Unikats-Garantie</b>
           <p class="font-sans leading-snug text-[11px] text-slate-400">
-            Jeder gezogene Spieler existiert in der gesamten Spielwelt nur ein einziges Mal. Beim Aufreißen wischst du das Pack auf wie in Pokémon TCG Pocket!
+            Jeder gezogene Spieler existiert in der gesamten Spielwelt nur ein einziges Mal. Beim Aufreißen wischst du das Pack oben auf wie in Pokémon TCG Pocket!
           </p>
         </div>
       </div>
@@ -59,7 +76,6 @@ export function renderMarktScreen(state) {
 export function renderPhysicalBoosterPack(pack, userCoins) {
   const canAfford = userCoins >= pack.price;
 
-  // Foil pack specific themes
   const foilThemes = {
     pack_rookie: {
       bg: 'linear-gradient(145deg, #064e3b 0%, #022c22 45%, #0f172a 100%)',
@@ -101,7 +117,7 @@ export function renderPhysicalBoosterPack(pack, userCoins) {
   const theme = foilThemes[pack.id] || foilThemes.pack_rookie;
 
   return `
-    <div class="booster-pack flex-shrink-0 cursor-pointer snap-center border-2 ${theme.border} ${theme.shadow} flex flex-col justify-between"
+    <div class="booster-pack flex-shrink-0 cursor-pointer border-2 ${theme.border} ${theme.shadow} flex flex-col justify-between"
          style="width: 145px; height: 230px; background: ${theme.bg};"
          data-prompt-pack="${pack.id}">
       
@@ -117,33 +133,29 @@ export function renderPhysicalBoosterPack(pack, userCoins) {
         <span class="font-mono text-[7px] font-black uppercase tracking-widest text-slate-300 block">
           STARTING XI • SERIE 1
         </span>
-        <span class="font-mono text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${theme.badge} border inline-block mt-0.5">
+        <span class="inline-block mt-0.5 px-2 py-0.5 rounded text-[8px] font-mono font-black uppercase border ${theme.badge}">
           ${pack.rarity}
         </span>
       </div>
 
-      <!-- Center Pack Artwork Emblem -->
-      <div class="relative z-10 flex flex-col items-center justify-center my-1 px-2 text-center">
-        <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center text-3xl shadow-inner mb-1">
+      <!-- Pack Center Artwork -->
+      <div class="relative z-10 flex flex-col items-center justify-center px-2 text-center my-auto">
+        <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl shadow-inner mb-1.5">
           ${pack.icon}
         </div>
-        <h4 class="font-display font-black text-xs uppercase tracking-tight text-slate-100 leading-tight">
+        <h3 class="font-display font-black text-xs uppercase tracking-tight text-slate-100 leading-snug">
           ${pack.name}
-        </h4>
-        <p class="font-sans text-[8px] text-slate-300 leading-tight mt-1 line-clamp-2">
+        </h3>
+        <p class="font-sans text-[8px] text-slate-300 leading-tight mt-0.5 px-1 line-clamp-2">
           ${pack.description}
         </p>
       </div>
 
-      <!-- Price CTA Badge -->
-      <div class="relative z-10 px-2 pb-1.5 flex justify-center">
-        <button class="w-full py-1.5 rounded-xl font-mono font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 shadow-lg ${
-          canAfford
-            ? 'bg-pitch-emerald hover:bg-emerald-400 text-pitch-dark active:scale-95'
-            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-        }">
+      <!-- Pack Footer: Price Button -->
+      <div class="relative z-10 px-2 pb-1.5">
+        <button class="w-full py-2 rounded-xl bg-pitch-emerald text-pitch-dark font-display font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1">
           <span>🪙</span>
-          <span>${pack.price}</span>
+          <span>${pack.price.toLocaleString()}</span>
         </button>
       </div>
 

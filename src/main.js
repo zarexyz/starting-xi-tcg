@@ -444,26 +444,88 @@ function setupGlobalEvents(state) {
     });
   });
 
-  // Tausch von Starter und Bankspieler
-  let selectedStarterId = null;
-  document.querySelectorAll('[data-starter-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      playCardFlipSound();
-      selectedStarterId = el.dataset.starterId;
-      document.querySelectorAll('[data-starter-id]').forEach(x => x.classList.remove('ring-2', 'ring-pitch-emerald'));
-      el.classList.add('ring-2', 'ring-pitch-emerald');
+  // Home Quick Tab Shortcuts
+  document.querySelectorAll('[data-quick-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.quickTab;
+      if (tab) {
+        playClickSound();
+        store.setActiveTab(tab);
+      }
     });
   });
 
-  document.querySelectorAll('[data-player-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const benchId = el.dataset.playerId;
-      if (selectedStarterId && benchId && selectedStarterId !== benchId) {
+  document.getElementById('btn-quick-inbox')?.addEventListener('click', () => {
+    playClickSound();
+    activeDetailMessage = null;
+    store.openModal('postfach');
+  });
+
+  document.getElementById('btn-quick-formation')?.addEventListener('click', () => {
+    playClickSound();
+    store.setActiveTab('kader');
+  });
+
+  // Shelf Left/Right Buttons on Markt
+  const shelf = document.getElementById('booster-shelf-container');
+  document.getElementById('btn-shelf-scroll-left')?.addEventListener('click', () => {
+    playClickSound();
+    shelf?.scrollBy({ left: -180, behavior: 'smooth' });
+  });
+
+  document.getElementById('btn-shelf-scroll-right')?.addEventListener('click', () => {
+    playClickSound();
+    shelf?.scrollBy({ left: 180, behavior: 'smooth' });
+  });
+
+  // Kader: Tap-to-Swap Handler
+  document.querySelectorAll('[data-card-swap-trigger]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      // Don't trigger if inspect button was clicked
+      if (e.target.closest('[data-inspect-player]')) return;
+
+      const clickedPlayerId = el.dataset.cardSwapTrigger;
+      const currentSelected = store.getState().selectedPlayerIdForSwap;
+
+      if (!currentSelected) {
+        // Select card A
+        store.getState().selectedPlayerIdForSwap = clickedPlayerId;
         playCardFlipSound();
-        store.swapPlayers(selectedStarterId, benchId);
-        selectedStarterId = null;
+        renderApp();
+      } else if (currentSelected === clickedPlayerId) {
+        // Deselect card A
+        store.getState().selectedPlayerIdForSwap = null;
+        playClickSound();
+        renderApp();
+      } else {
+        // Swap card A with card B
+        store.swapPlayers(currentSelected, clickedPlayerId);
+        store.getState().selectedPlayerIdForSwap = null;
+        playGoalChime();
+        renderApp();
       }
     });
+  });
+
+  // Kader: Empty Slot Trigger
+  document.querySelectorAll('[data-empty-slot-trigger]').forEach(el => {
+    el.addEventListener('click', () => {
+      const slotName = el.dataset.emptySlotTrigger;
+      const currentSelected = store.getState().selectedPlayerIdForSwap;
+      if (currentSelected) {
+        store.swapPlayers(currentSelected, null, slotName);
+        store.getState().selectedPlayerIdForSwap = null;
+        playGoalChime();
+        renderApp();
+      }
+    });
+  });
+
+  // Kader: Cancel Swap Button
+  document.getElementById('btn-cancel-swap-mode')?.addEventListener('click', () => {
+    playClickSound();
+    store.getState().selectedPlayerIdForSwap = null;
+    renderApp();
   });
 }
 
@@ -656,8 +718,24 @@ function setupPackWalkoutEvents() {
 
   document.getElementById('btn-confirm-pack-rewards')?.addEventListener('click', () => {
     playClickSound();
-    if (packResult.isDraft && packResult.selectedCandidate) {
+    const club = store.getPlayerClub();
+    const state = store.getState();
+
+    if (packResult.isStarterFoundation && packResult.cards) {
+      club.squad = packResult.cards;
+      playGoalChime();
+      // Check for next starter pack (the star player draft!)
+      const nextPackId = state.starterPacksPending?.shift();
+      if (nextPackId) {
+        const nextResult = openPack(nextPackId);
+        nextResult.isTorn = false;
+        state.activePackResult = nextResult;
+        store.openModal('pack_walkout');
+        return;
+      }
+    } else if (packResult.isDraft && packResult.selectedCandidate) {
       store.addDraftedPlayer(packResult.selectedCandidate);
+      playGoalChime();
     } else if (!packResult.isDraft && packResult.cards) {
       store.getState().inventory.push(...packResult.cards);
     }
@@ -678,35 +756,38 @@ function setupPostfachEvents() {
     btn.addEventListener('click', () => {
       playClickSound();
       activeInboxFilter = btn.dataset.filterInbox;
-      store.notify();
+      renderApp();
     });
   });
 
   // Einzelne Nachricht öffnen -> Detail Pop-Up Box
   document.querySelectorAll('[data-open-message]').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
       const msgId = card.dataset.openMessage;
       const msg = store.getState().inbox.find(m => m.id === msgId);
       if (msg) {
         playClickSound();
-        store.markMessageRead(msg.id);
+        msg.unread = false;
         activeDetailMessage = msg;
-        store.notify();
+        renderApp();
       }
     });
   });
 
   // Detail Pop-Up Box Buttons
-  document.getElementById('btn-close-message-detail')?.addEventListener('click', () => {
+  document.getElementById('btn-close-message-detail')?.addEventListener('click', (e) => {
+    e.stopPropagation();
     playClickSound();
     activeDetailMessage = null;
-    store.notify();
+    renderApp();
   });
 
-  document.getElementById('btn-confirm-message-read')?.addEventListener('click', () => {
+  document.getElementById('btn-confirm-message-read')?.addEventListener('click', (e) => {
+    e.stopPropagation();
     playClickSound();
     activeDetailMessage = null;
-    store.notify();
+    renderApp();
   });
 
   document.querySelectorAll('[data-renew-contract]').forEach(btn => {
@@ -925,18 +1006,6 @@ function setupOnboardingEvents() {
     });
   });
 
-  // Captain Selection
-  document.querySelectorAll('input[name="captainRole"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      onboardingFormState.captainRole = e.target.value;
-      playClickSound();
-      document.querySelectorAll('.captain-choice').forEach(label => {
-        label.className = label.className.replace('bg-pitch-emerald/20 border-pitch-emerald ring-2 ring-pitch-emerald/50', 'bg-slate-900/80 border-slate-800');
-      });
-      radio.closest('label').className = radio.closest('label').className.replace('bg-slate-900/80 border-slate-800', 'bg-pitch-emerald/20 border-pitch-emerald ring-2 ring-pitch-emerald/50');
-    });
-  });
-
   // Submit Club Creation
   document.getElementById('btn-submit-onboarding')?.addEventListener('click', () => {
     playGoalChime();
@@ -945,11 +1014,17 @@ function setupOnboardingEvents() {
       crestForm: onboardingFormState.crestForm || 'shield',
       primaryColor: onboardingFormState.primaryColor || '#00f59b',
       secondaryColor: onboardingFormState.secondaryColor || '#ffd15c',
-      captainRole: onboardingFormState.captainRole || 'ST',
       targetSlot: onboardingTargetSlot
     });
     isMainMenuActive = false;
-    store.closeModal();
+
+    // Trigger Pack 1 (Starter Foundation 18-Spieler Pack)
+    const state = store.getState();
+    const firstPackId = state.starterPacksPending?.shift() || 'pack_starter_foundation';
+    const firstResult = openPack(firstPackId);
+    firstResult.isTorn = false;
+    state.activePackResult = firstResult;
+    store.openModal('pack_walkout');
   });
 }
 

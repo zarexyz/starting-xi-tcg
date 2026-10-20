@@ -139,12 +139,29 @@ export function renderPackWalkoutModal(packResult) {
                   `;
                 }).join('')}
               </div>
+            ` : (packResult.isStarterFoundation ? `
+              <!-- 18-Player Foundation Squad Showcase Carousel -->
+              <div class="w-full flex flex-col items-center gap-2 my-auto">
+                <div class="px-3 py-1 rounded-full bg-pitch-emerald/15 border border-pitch-emerald/40 text-pitch-emerald font-mono text-[10px] font-black uppercase">
+                  18 GRÜNDUNGSSPIELER GEZOGEN! (11 Starter + 7 Bank)
+                </div>
+                <div class="flex items-center gap-2.5 w-full overflow-x-auto py-3 px-2 no-scrollbar snap-x"
+                     style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"
+                     onwheel="this.scrollLeft += event.deltaY; event.preventDefault();">
+                  ${cards.map(p => `
+                    <div class="flex-shrink-0 snap-center">
+                      ${renderFUTCard(p, { compact: true })}
+                    </div>
+                  `).join('')}
+                </div>
+                <span class="text-slate-400 font-sans text-[10px]">Wische seitlich, um alle gezogenen Spieler zu sehen</span>
+              </div>
             ` : `
               <!-- Consumable Cards Reveal Grid -->
               <div class="grid grid-cols-2 gap-3 w-full justify-items-center">
                 ${cards.map(card => renderConsumableCard(card, { compact: true, showAction: false })).join('')}
               </div>
-            `}
+            `)}
           </div>
         `}
       </div>
@@ -153,7 +170,11 @@ export function renderPackWalkoutModal(packResult) {
       <div class="relative z-10 flex flex-col gap-2">
         ${isTorn ? `
           <button id="btn-confirm-pack-rewards" class="w-full py-3.5 rounded-xl bg-pitch-emerald hover:bg-emerald-400 text-pitch-dark font-display font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(0,245,155,0.5)] active:scale-98 transition-all flex items-center justify-center gap-2">
-            <span>${isDraft ? 'Diesen Spieler in Verein einpflegen' : 'Alle 4 Karten ins Inventar übernehmen'}</span>
+            <span>${
+              packResult.isStarterFoundation 
+                ? 'Basiskader übernehmen ➔ Weiter zum Starspieler-Pack' 
+                : (isDraft ? 'Diesen Spieler in Verein einpflegen' : 'Alle 4 Karten ins Inventar übernehmen')
+            }</span>
           </button>
         ` : `
           <!-- Fallback button if touch swipe is not used -->
