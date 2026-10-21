@@ -16,6 +16,7 @@ import { tabbar, sheet } from './ui/shell.js';
 import { titleScreen, foundScreen } from './ui/screens/title.js';
 import { homeScreen } from './ui/screens/home.js';
 import { squadScreen, playerSheet } from './ui/screens/squad.js';
+import { clubSheet } from './ui/screens/clubpage.js';
 import { leagueScreen } from './ui/screens/league.js';
 import { marketScreen } from './ui/screens/market.js';
 import { clubScreen } from './ui/screens/club.js';
@@ -64,7 +65,8 @@ function sheetHtml(game, ui) {
   if (!s) return '';
   if (s.type === 'confirm') return confirmSheet(s);
   if (!game) return '';
-  if (s.type === 'player') return playerSheet(game, s.id);
+  if (s.type === 'player') return playerSheet(game, s.id, { back: !!s.prev });
+  if (s.type === 'club') return clubSheet(game, s.id, { back: !!s.prev });
   if (s.type === 'inbox') return inboxSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
@@ -145,6 +147,22 @@ subscribe(render);
 
 function openPackFlow() {
   setUi({ flow: { type: 'pack' }, pack: { stage: 'sealed', flipped: [] }, sheet: null });
+}
+
+/** Heimatland-Vorschlag bei der Gründung, nach Gerätesprache */
+function defaultCountry() {
+  const lang = (navigator.language || 'de').toLowerCase();
+  const map = { 'de-at': 'AUT', 'de': 'GER', 'en-us': 'USA', 'en': 'ENG', 'es-mx': 'MEX', 'es-ar': 'ARG', 'es-co': 'COL', 'es': 'ESP', 'it': 'ITA', 'fr-be': 'BEL', 'nl-be': 'BEL', 'fr': 'FRA', 'nl': 'NED', 'pt-br': 'BRA', 'pt': 'POR', 'tr': 'TUR', 'pl': 'POL', 'hr': 'CRO', 'sr': 'SRB', 'el': 'GRE', 'da': 'DEN', 'sv': 'SWE', 'ja': 'JPN' };
+  return map[lang] || map[lang.slice(0, 2)] || 'GER';
+}
+
+/** Spieler- oder Vereinsseite öffnen; aus einer anderen Detailseite heraus mit Zurück-Knopf */
+function openDetail(type, id) {
+  const cur = store.ui.sheet;
+  if (cur && cur.type === type && cur.id === id) return;
+  const prev = cur && ['player', 'club', 'news'].includes(cur.type) ? cur : null;
+  if (type === 'player' && !store.game?.players[id]) { toast('Dieser Spieler hat seine Karriere beendet.'); return; }
+  setUi({ sheet: { type, id, prev } });
 }
 
 function snapshotPlayers(game, clubIds) {
@@ -248,7 +266,7 @@ const handlers = {
   },
   'load-slot': d => { if (resumeGame(Number(d.slot))) setUi({ screen: 'app', tab: 'home', slotPicker: false }); },
   'delete-slot': d => askConfirm('Spielstand löschen?', `Spielstand ${d.slot} wird endgültig gelöscht.`, 'Löschen', () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
-  'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0 } }),
+  'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0, country: defaultCountry() } }),
   'back-title': () => setUi({ screen: 'title' }),
   'found-set': d => {
     const v = d.key === 'pattern' ? Number(d.value) : d.value;
@@ -258,7 +276,7 @@ const handlers = {
   'found-club': () => {
     const f = store.ui.found;
     const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    const game = createGame({ seed, clubName: f.name.trim(), primary: f.primary, secondary: f.secondary, crest: f.shape, pattern: f.pattern });
+    const game = createGame({ seed, clubName: f.name.trim(), primary: f.primary, secondary: f.secondary, crest: f.shape, pattern: f.pattern, country: f.country || 'GER' });
     startGame(f.slot, game);
     store.ui.screen = 'app';
     store.ui.tab = 'home';
@@ -284,7 +302,12 @@ const handlers = {
   'open-inbox': () => setUi({ sheet: { type: 'inbox' } }),
   'open-news': d => { act(markRead, d.id); setUi({ sheet: { type: 'news', id: d.id } }); },
   'read-all': () => act(markAllRead),
-  'open-player': d => setUi({ sheet: { type: 'player', id: d.id } }),
+  'open-player': d => openDetail('player', d.id),
+  'open-club': d => openDetail('club', d.id),
+  'sheet-back': () => setUi({ sheet: store.ui.sheet?.prev || null }),
+  'stats-scope': d => setUi({ statsScope: d.value }),
+  'stats-pcat': d => setUi({ statsPlayerCat: d.value }),
+  'stats-ccat': d => setUi({ statsClubCat: d.value }),
   'open-items': d => setUi({ sheet: { type: 'items', playerId: d.player || null } }),
   'use-item': d => useItemAction(d.id),
   'use-item-on': d => useItemAction(store.ui.sheet.itemId, d.id),
@@ -429,6 +452,7 @@ document.addEventListener('input', ev => {
 
 document.addEventListener('change', ev => {
   const el = ev.target;
+  if (el.dataset?.input === 'found-country') { store.ui.found.country = el.value; notify(); return; }
   if (el.dataset?.input === 'formation') act(setUserSetup, { formation: el.value });
   if (el.dataset?.input === 'mkt-sort') setUi({ market: { ...(store.ui.market || {}), sort: el.value, page: 0 } });
 });

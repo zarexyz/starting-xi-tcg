@@ -36,6 +36,7 @@ export function newsSheet(game, id) {
   return sheet(n.title, `
     <p class="news-text">${esc(n.text)}</p>
     ${n.playerId && game.players[n.playerId] ? `<button class="btn btn--secondary btn--block" data-action="open-player" data-id="${n.playerId}">${icon('user')}Spieler ansehen</button>` : ''}
+    ${n.clubId && game.clubs[n.clubId] ? `<button class="btn btn--secondary btn--block" data-action="open-club" data-id="${n.clubId}">${icon('shield')}Verein ansehen</button>` : ''}
     <button class="btn btn--ghost btn--block" data-action="open-inbox">${icon('chevronLeft')}Zum Postfach</button>
   `);
 }

@@ -8,13 +8,14 @@ import { icon } from '../icons.js';
 import { esc } from '../html.js';
 import { computeTable, CUP_ROUND_NAMES, matchWinner } from '../../engine/schedule.js';
 import { LEAGUE_INFO } from '../../engine/world.js';
+import { statsView } from './stats.js';
 
 function tableView(game, tier) {
   const table = computeTable(game, tier);
   const rows = table.map(r => {
     const c = game.clubs[r.clubId];
     const zone = r.pos <= 4 ? 'zone-ff' : r.pos >= 9 && tier < 6 ? 'zone-down' : '';
-    return `<tr class="${r.clubId === 'user' ? 'is-me' : ''} ${zone}">
+    return `<tr class="${r.clubId === 'user' ? 'is-me' : ''} ${zone}" data-action="open-club" data-id="${r.clubId}">
       <td class="t-pos">${r.pos}</td>
       <td class="t-club">${crestSvg(c, 22)}<span>${esc(c.name)}</span></td>
       <td class="num">${r.p}</td>
@@ -49,9 +50,9 @@ function fixtureRow(game, m, label) {
   const done = m.hg != null;
   return `<li class="row fixture ${m.home === 'user' || m.away === 'user' ? 'fixture--me' : ''}">
     <span class="fixture__label xsmall muted">${esc(label)}</span>
-    <span class="fixture__team fixture__team--h">${esc(home.short)} ${crestSvg(home, 22)}</span>
+    <button class="fixture__team fixture__team--h" data-action="open-club" data-id="${home.id}">${esc(home.short)} ${crestSvg(home, 22)}</button>
     <span class="fixture__score display ${resultClass(m, 'user')}">${done ? `${m.hg}:${m.ag}${m.pens ? `<small>${m.pens.h}:${m.pens.a} i.E.</small>` : ''}` : '–:–'}</span>
-    <span class="fixture__team">${crestSvg(away, 22)} ${esc(away.short)}</span>
+    <button class="fixture__team" data-action="open-club" data-id="${away.id}">${crestSvg(away, 22)} ${esc(away.short)}</button>
   </li>`;
 }
 
@@ -78,7 +79,7 @@ function cupView(game) {
         <ul class="list panel panel--flush">${shown.map(m => fixtureRow(game, m, '')).join('')}</ul>
       </section>`;
     }).join('')}
-    ${cup.winner ? `<p class="h3">Pokalsieger: ${esc(game.clubs[cup.winner].name)}</p>` : ''}
+    ${cup.winner ? `<p class="h3">Pokalsieger: <button class="link-club" data-action="open-club" data-id="${cup.winner}">${crestSvg(game.clubs[cup.winner], 22)}<span>${esc(game.clubs[cup.winner].name)}</span></button></p>` : ''}
   `;
 }
 
@@ -94,19 +95,20 @@ function finalFourView(game) {
       ${ff.semis.map((m, i) => fixtureRow(game, m, `HF ${i + 1}`)).join('')}
       ${ff.final ? fixtureRow(game, ff.final, 'Finale') : ''}
     </ul>
-    ${ff.tier > 1 && ff.promoted.length ? `<p class="xsmall muted">Aufsteiger: ${ff.promoted.map(id => esc(game.clubs[id].name)).join(', ')}</p>` : ''}
+    ${ff.tier > 1 && ff.promoted.length ? `<p class="xsmall muted">Aufsteiger: ${ff.promoted.map(id => `<button class="link-club" data-action="open-club" data-id="${id}"><span>${esc(game.clubs[id].name)}</span></button>`).join(', ')}</p>` : ''}
   </section>`).join('');
 }
 
 export function leagueScreen(game, ui) {
   const view = ui.view.league || 'table';
   const tier = ui.leagueTier || game.clubs.user.tier;
-  const items = [['table', 'Tabelle'], ['schedule', 'Spielplan'], ['cup', 'Pokal'], ['ff', 'Final Four']];
+  const items = [['table', 'Tabelle'], ['schedule', 'Spiele'], ['cup', 'Pokal'], ['ff', 'Final 4'], ['stats', 'Statistik']];
   let body = '';
   if (view === 'table') body = tableView(game, tier);
   if (view === 'schedule') body = scheduleView(game);
   if (view === 'cup') body = cupView(game);
   if (view === 'ff') body = finalFourView(game);
+  if (view === 'stats') body = statsView(game, ui);
   return `<main class="screen">
     ${topbar(game)}
     ${segmented(items, view, 'league-view')}

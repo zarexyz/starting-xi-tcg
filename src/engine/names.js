@@ -6,7 +6,7 @@
 
 export const NATIONS = {
   GER: {
-    name: 'Deutschland', weight: 34,
+    name: 'Deutschland', weight: 7,
     first: ['Lukas', 'Jonas', 'Felix', 'Tim', 'Jan', 'Nico', 'Marco', 'Florian', 'Tobias', 'Dennis', 'Sven', 'Malte',
       'Hannes', 'Lennart', 'Philipp', 'Robin', 'Fabian', 'Niklas', 'Moritz', 'Julian', 'Benedikt', 'Konstantin', 'Till', 'Ole', 'Jannik', 'Mats', 'Leon', 'Paul'],
     pre: ['Brand', 'Hol', 'Kess', 'Wend', 'Rau', 'Stein', 'Mark', 'Lind', 'Feld', 'Hart', 'Kramm', 'Vog', 'Zell', 'Ober', 'Brun', 'Esch', 'Hag', 'Kling', 'Lau', 'Nord', 'Roth', 'Schill', 'Thal', 'Wies', 'Falk', 'Gräf', 'Dreh', 'Morg'],
@@ -49,10 +49,11 @@ export const NATIONS = {
     suf: ['bosa', 'pos', 'undes', 'aes', 'cimento', 'eiro', 'za', 'xeira', 'ente', 'a']
   },
   ENG: {
-    name: 'England', weight: 5,
-    first: ['Harvey', 'Callum', 'Ollie', 'Josh', 'Reece', 'Jack', 'Lewis', 'Ryan', 'Connor', 'Tyler', 'Mason', 'Freddie'],
-    pre: ['Ash', 'Brad', 'Craw', 'Fair', 'Hal', 'Kings', 'Mor', 'Pen', 'Rad', 'Whit', 'Thorn', 'Hart'],
-    suf: ['ford', 'ley', 'ton', 'well', 'by', 'wood', 'field', 'ridge', 'ham', 'son', 'croft', 'man']
+    name: 'England', weight: 7,
+    first: ['Harvey', 'Callum', 'Ollie', 'Josh', 'Reece', 'Jack', 'Lewis', 'Ryan', 'Connor', 'Tyler', 'Mason', 'Freddie', 'Alfie', 'Kieran', 'Jamal', 'Charlie'],
+    pre: ['Ash', 'Brad', 'Craw', 'Fair', 'Hal', 'Kings', 'Mor', 'Pen', 'Rad', 'Whit', 'Thorn', 'Hart', 'Black', 'Sand', 'Stan'],
+    suf: ['ford', 'ley', 'ton', 'well', 'by', 'wood', 'field', 'ridge', 'ham', 'son', 'croft', 'man', 'worth', 'ington'],
+    full: ['Turner', 'Walker', 'Bennett', 'Hughes', 'Foster', 'Cole', 'Barker', 'Lloyd', 'Grant', 'Fletcher', 'Mills', 'Ward']
   },
   SWE: {
     name: 'Schweden', weight: 3,
@@ -104,10 +105,80 @@ export const NATIONS = {
   }
 };
 
+Object.assign(NATIONS, {
+  SCO: {
+    name: 'Schottland', weight: 3,
+    first: ['Callum', 'Fraser', 'Ewan', 'Lewis', 'Kieran', 'Scott', 'Ross', 'Euan', 'Jamie', 'Craig', 'Lachlan', 'Rory'],
+    pre: ['Mc', 'Mac', 'Mc'],
+    suf: ['Leod', 'Kenna', 'Donald', 'Gregor', 'Allister', 'Intyre', 'Lean', 'Cann', 'Kay', 'Bride', 'Arthur', 'Lennan'],
+    full: ['Robertson', 'Fraser', 'Campbell', 'Stewart', 'Murray', 'Reid', 'Henderson', 'Paterson', 'Gillespie', 'Kerr', 'Douglas', 'Morrison'],
+    keepCase: true
+  },
+  TUR: {
+    name: 'Türkei', weight: 4,
+    first: ['Emre', 'Burak', 'Arda', 'Kerem', 'Mert', 'Can', 'Oğuz', 'Yusuf', 'Hakan', 'Barış', 'Efe', 'Kaan'],
+    pre: ['Yıl', 'Kara', 'Ak', 'Öz', 'Demir', 'Çelik', 'Kor', 'Şa', 'Er', 'Ay', 'Tun', 'Gül'],
+    suf: ['maz', 'han', 'kaya', 'türk', 'soy', 'doğan', 'can', 'oğlu', 'dağ', 'taş']
+  },
+  BEL: {
+    name: 'Belgien', weight: 3,
+    first: ['Arthur', 'Lucas', 'Wout', 'Jules', 'Senne', 'Thibaut', 'Maxime', 'Arne', 'Victor', 'Lander', 'Mathéo', 'Robbe'],
+    pre: ['Ver', 'Jans', 'Peet', 'Mert', 'Claes', 'Goos', 'Lamb', 'Hend', 'Wout', 'Dries'],
+    suf: ['ens', 'sens', 'ermans', 'aert', 'haeghe', 'mans', 'eels', 'rickx']
+  },
+  SRB: {
+    name: 'Serbien', weight: 3,
+    first: ['Nikola', 'Stefan', 'Lazar', 'Dušan', 'Marko', 'Filip', 'Aleksandar', 'Uroš', 'Nemanja', 'Vuk', 'Miloš', 'Strahinja'],
+    pre: ['Jov', 'Petr', 'Nik', 'Mil', 'Stan', 'Đor', 'Pav', 'Mark', 'Ran', 'Živ'],
+    suf: ['anović', 'ović', 'olić', 'ić', 'ković', 'ević', 'ašević', 'inić']
+  },
+  GRE: {
+    name: 'Griechenland', weight: 3,
+    first: ['Giorgos', 'Kostas', 'Dimitris', 'Nikos', 'Giannis', 'Vasilis', 'Christos', 'Petros', 'Thanasis', 'Panagiotis', 'Stelios', 'Manolis'],
+    pre: ['Papa', 'Kara', 'Georgi', 'Nikol', 'Konst', 'Vlach', 'Dimitr', 'Christ', 'Andre', 'Spyr'],
+    suf: ['dopoulos', 'giannis', 'ou', 'aidis', 'antinou', 'os', 'akis', 'idis', 'opoulos', 'atos']
+  },
+  MAR: {
+    name: 'Marokko', weight: 3,
+    first: ['Youssef', 'Hamza', 'Amine', 'Ayoub', 'Bilal', 'Zakaria', 'Ilias', 'Soufiane', 'Mehdi', 'Anass', 'Reda', 'Othmane'],
+    pre: ['Benn', 'Bou', 'Azz', 'Hari', 'Amr', 'Lahl', 'Ziy', 'Ouah', 'Tal', 'Elk'],
+    suf: ['idi', 'ali', 'fal', 'ouz', 'abi', 'ani', 'iri', 'ech', 'bi', 'ssi']
+  },
+  USA: {
+    name: 'USA', weight: 4,
+    first: ['Tyler', 'Brandon', 'Chase', 'Logan', 'Cody', 'Austin', 'Hunter', 'Bryce', 'Jordan', 'Gavin', 'Caleb', 'Miles'],
+    pre: ['Wash', 'Mill', 'Hol', 'Car', 'Brook', 'Stan', 'Craw', 'Bell', 'Win', 'Spen'],
+    suf: ['ington', 'er', 'oway', 'ter', 'ston', 'ford', 'amy', 'cer'],
+    full: ['Turner', 'Brooks', 'Carter', 'Hayes', 'Coleman', 'Bennett', 'Reed', 'Foster', 'Griffin', 'Hughes', 'Wallace', 'Porter']
+  },
+  MEX: {
+    name: 'Mexiko', weight: 4,
+    first: ['Santiago', 'Diego', 'Emiliano', 'Rodrigo', 'Alejandro', 'Uriel', 'Jesús', 'Héctor', 'Edson', 'Raúl', 'Érick', 'César'],
+    pre: ['Hern', 'Gonz', 'Ram', 'Guzm', 'Cort', 'Salc', 'Mor', 'Esqu', 'Alv', 'Medr'],
+    suf: ['ández', 'ález', 'írez', 'án', 'és', 'edo', 'ales', 'ivel', 'arado', 'ano']
+  },
+  COL: {
+    name: 'Kolumbien', weight: 3,
+    first: ['Juan', 'Andrés', 'Camilo', 'Sebastián', 'Jhon', 'Duván', 'Wílmar', 'Brayan', 'Kevin', 'Mateo', 'Cristian', 'Daniel'],
+    pre: ['Ospi', 'Cuad', 'Arbo', 'Muri', 'Cast', 'Var', 'Quint', 'Rest', 'Ceba', 'Zap'],
+    suf: ['na', 'rado', 'leda', 'rillo', 'año', 'gas', 'ero', 'repo', 'illos', 'ata']
+  },
+  JPN: {
+    name: 'Japan', weight: 3,
+    first: ['Haruto', 'Sota', 'Yuto', 'Riku', 'Kaito', 'Daiki', 'Takumi', 'Ren', 'Kenta', 'Shota', 'Ryo', 'Hiroki'],
+    pre: ['Taka', 'Naka', 'Yama', 'Ishi', 'Mori', 'Kawa', 'Fuji', 'Matsu', 'Hashi', 'Kita'],
+    suf: ['hashi', 'mura', 'moto', 'da', 'gawa', 'no', 'zaki', 'ta', 'shita', 'oka']
+  }
+});
+
 export const NATION_CODES = Object.keys(NATIONS);
 
-export function pickNation(rng, homeBias = 0.55) {
-  if (rng.chance(homeBias)) return 'GER';
+/**
+ * Nationalität würfeln. Mit Heimatland kommt ein Teil der Spieler von dort,
+ * der Rest stammt aus der ganzen Welt.
+ */
+export function pickNation(rng, home = null, homeBias = 0.55) {
+  if (home && NATIONS[home] && rng.chance(homeBias)) return home;
   return rng.weighted(NATION_CODES.map(code => ({ value: code, weight: NATIONS[code].weight })));
 }
 
@@ -119,7 +190,9 @@ export function generateName(rng, nation) {
   const n = NATIONS[nation] || NATIONS.GER;
   const first = rng.pick(n.first);
   let last;
-  if (nation === 'NED') {
+  if (n.full && rng.chance(0.4)) {
+    last = rng.pick(n.full);
+  } else if (nation === 'NED' || n.keepCase) {
     last = rng.pick(n.pre) + rng.pick(n.suf);
   } else {
     last = capitalize(rng.pick(n.pre) + rng.pick(n.suf));

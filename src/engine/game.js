@@ -7,7 +7,7 @@
 
 import { createRng, withRng } from './rng.js';
 import { FORMATIONS, MATCHDAYS, MAX_SQUAD, AI_SQUAD_SIZE, STYLE_KEYS, POSITION_GROUP, TIERS } from './constants.js';
-import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength } from './world.js';
+import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength, rivalry } from './world.js';
 import { roundRobin, buildCalendar, createCup, drawCupRound, computeTable, createFinalFour, matchWinner, matchLoser, CUP_ROUND_NAMES } from './schedule.js';
 import { buildTeam, simulateMatch, analyzeMatch } from './match.js';
 import { aiSetup, bestLineup, repairLineup } from './ai.js';
@@ -25,7 +25,7 @@ export const SAVE_VERSION = 2;
 // Neues Spiel
 // -----------------------------------------------------------------------------
 
-export function createGame({ seed, clubName, primary, secondary, crest, pattern }) {
+export function createGame({ seed, clubName, primary, secondary, crest, pattern, country, city }) {
   const state = {
     version: SAVE_VERSION,
     seed: seed >>> 0,
@@ -58,7 +58,7 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern 
     createdAt: Date.now()
   };
   withRng(state, rng => {
-    createWorld(rng, state, { name: clubName, primary, secondary, crest, pattern });
+    createWorld(rng, state, { name: clubName, primary, secondary, crest, pattern, country, city });
     startSeason(rng, state, null);
   });
   state.user.inventory = [
@@ -82,11 +82,16 @@ function startSeason(rng, state, cupByes) {
   state.dayIndex = 0;
   state.calendar = buildCalendar();
   for (const p of Object.values(state.players)) {
-    p.stats = { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0, yellows: 0, reds: 0 };
+    p.stats = { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0, yellows: 0, reds: 0, cleanSheets: 0 };
     p.half = { apps: 0, ratingSum: 0 };
     p.yellowCount = 0;
   }
-  for (const c of Object.values(state.clubs)) c.halfGames = 0;
+  for (const c of Object.values(state.clubs)) { c.halfGames = 0; c.seasonStats = newClubStats(); }
+}
+
+/** Saisonstatistik eines Vereins über alle Wettbewerbe */
+export function newClubStats() {
+  return { games: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, poss: 0, xg: 0, xga: 0, shots: 0, cleanSheets: 0, yellows: 0, reds: 0 };
 }
 
 // -----------------------------------------------------------------------------
@@ -538,6 +543,49 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     }
   }
 
+  // Vereinsstatistik
+  const club = state.clubs[clubId];
+  if (club) {
+    const i = side === 'home' ? 0 : 1;
+    const cs = club.seasonStats || (club.seasonStats = newClubStats());
+    cs.games++;
+    cs[outcome === 'W' ? 'w' : outcome === 'L' ? 'l' : 'd']++;
+    cs.gf += gf; cs.ga += ga;
+    cs.poss += result.possession[i];
+    cs.xg += result.stats.xg[i]; cs.xga += result.stats.xg[1 - i];
+    cs.shots += result.stats.shots[i];
+    if (ga === 0) cs.cleanSheets++;
+    const myCards = (result.cards || []).filter(c => c.side === side);
+    cs.yellows += myCards.filter(c => c.type === 'Y').length;
+    cs.reds += myCards.filter(c => c.type !== 'Y').length;
+  }
+  // Zu-null für den Torwart der Startelf
+  if (ga === 0) {
+    const gkId = result.lineups[side].find(l => l.pos === 'TW')?.playerId;
+    const gk = state.players[gkId];
+    if (gk) {
+      gk.stats.cleanSheets = (gk.stats.cleanSheets || 0) + 1;
+      gk.careerStats.cleanSheets = (gk.careerStats.cleanSheets || 0) + 1;
+    }
+  }
+  // Ewige Vereinsliste des eigenen Vereins (bleibt, auch wenn Spieler gehen)
+  if (clubId === 'user') {
+    const rec = state.clubRecords || (state.clubRecords = { players: {}, bestWin: null, worstLoss: null });
+    for (const id of [...starters, ...subsIn]) {
+      const p = state.players[id];
+      if (!p) continue;
+      const r = rec.players[id] || (rec.players[id] = { name: `${p.first} ${p.last}`, pos: p.position, apps: 0, goals: 0, assists: 0 });
+      r.apps++;
+      r.goals += result.goals.filter(g => g.scorerId === id).length;
+      r.assists += result.goals.filter(g => g.assistId === id).length;
+    }
+    const margin = gf - ga;
+    const score = `${gf}:${ga}`;
+    const oppId = side === 'home' ? result.awayId : result.homeId;
+    if (margin > 0 && (!rec.bestWin || margin > rec.bestWin.margin || (margin === rec.bestWin.margin && gf > rec.bestWin.gf))) rec.bestWin = { margin, gf, score, oppId, oppName: state.clubs[oppId]?.name, season: state.season };
+    if (margin < 0 && (!rec.worstLoss || margin < rec.worstLoss.margin)) rec.worstLoss = { margin, score, oppId, oppName: state.clubs[oppId]?.name, season: state.season };
+  }
+
   // Temporäre Karten gelten genau ein Spiel
   for (const id of state.clubs[clubId]?.playerIds || []) {
     if (state.players[id]?.tempBoost) state.players[id].tempBoost = null;
@@ -583,7 +631,9 @@ export function playDay(state) {
       const as = setupFor(rng, state, m.away);
       const home = buildTeam(state, m.home, hs);
       const away = buildTeam(state, m.away, as);
-      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout });
+      const rival = rivalry(state.clubs[m.home], state.clubs[m.away]);
+      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout || rival === 'derby' });
+      result.rivalry = rival;
       m.hg = result.hg;
       m.ag = result.ag;
       if (result.pens) m.pens = result.pens;
@@ -596,8 +646,14 @@ export function playDay(state) {
         const side = m.home === 'user' ? 'home' : 'away';
         const outcome = side === 'home' ? oh : oa;
         const opponentId = side === 'home' ? m.away : m.home;
+        if (rival === 'derby') {
+          const oppName = state.clubs[opponentId].name;
+          if (outcome === 'W') addNews(state, 'derby', `Derbysieg gegen ${oppName}!`, `Die Stadt gehört uns! ${state.clubs.user.name} gewinnt das Derby gegen ${oppName} ${side === 'home' ? `${result.hg}:${result.ag}` : `${result.ag}:${result.hg}`}.`, { clubId: opponentId });
+          else if (outcome === 'L') addNews(state, 'derby', `Derbyniederlage gegen ${oppName}`, `Bitterer Abend: Das Derby gegen ${oppName} geht verloren. Die Fans erwarten eine Reaktion.`, { clubId: opponentId });
+        }
         userResult = {
           result,
+          rivalry: rival,
           side,
           outcome,
           opponentId,
@@ -638,7 +694,8 @@ export function playDay(state) {
     // Finanzen des Spielers
     if (userResult) {
       const tier = state.clubs.user.tier;
-      const income = matchIncome(tier, userResult.side === 'home' && !(day.type === 'ff_final'), userResult.outcome);
+      let income = matchIncome(tier, userResult.side === 'home' && !(day.type === 'ff_final'), userResult.outcome);
+      if (userResult.rivalry === 'derby') income = Math.round(income * 1.25);
       ledger(state, `Einnahmen ${userResult.label}`, income);
       userResult.finance.push({ label: 'Zuschauer & Sponsoren', amount: income });
       if (day.type === 'cup' && userResult.outcome === 'W') {
@@ -838,6 +895,33 @@ function endSeason(rng, state) {
   ledger(state, `Saisonprämie Platz ${row.pos}`, prize);
   userSummary.prize = prize;
 
+  // Chronik aller Vereine und Karriere-Stationen aller Spieler (vor Auf- und Abstieg)
+  const cupStage = clubId => {
+    if (state.cup.winner === clubId) return 'W';
+    let reached = 0;
+    for (const [r, ms] of Object.entries(state.cup.rounds)) if (ms.some(m => m.home === clubId || m.away === clubId)) reached = Math.max(reached, Number(r));
+    return reached;
+  };
+  for (let tier = 1; tier <= 6; tier++) {
+    const ffT = state.finalFours[tier];
+    for (const r of tables[tier]) {
+      const club = state.clubs[r.clubId];
+      club.history = [{
+        s: state.season, tier, pos: r.pos, pts: r.pts, gf: r.gf, ga: r.ga,
+        champ: ffT?.champion === r.clubId, up: promoted[tier].includes(r.clubId), down: relegated[tier].includes(r.clubId),
+        cup: cupStage(r.clubId)
+      }, ...(club.history || [])].slice(0, 30);
+    }
+  }
+  for (const p of Object.values(state.players)) {
+    const club = state.clubs[p.clubId];
+    if (!club || !p.stats.apps) continue;
+    p.career = [...(p.career || []), {
+      s: state.season, c: club.id, n: club.name, t: club.tier,
+      apps: p.stats.apps, goals: p.stats.goals, assists: p.stats.assists, rs: Math.round(p.stats.ratingSum * 10) / 10
+    }].slice(-25);
+  }
+
   // Auf- und Abstieg
   for (let tier = 1; tier <= 6; tier++) {
     for (const id of promoted[tier]) {
@@ -891,7 +975,7 @@ function endSeason(rng, state) {
     const age = rng.int(16, 17);
     const potential = rng.int(TIERS[tierRoll].potMin, TIERS[tierRoll].potMax);
     const ovr = Math.max(38, potential - rng.int(15, 21));
-    const p = createPlayer(rng, { id: `p${(++state.nextId).toString(36)}`, position: pos, age, ovr, potential, tier: tierRoll });
+    const p = createPlayer(rng, { id: `p${(++state.nextId).toString(36)}`, position: pos, age, ovr, potential, tier: tierRoll, home: userClub.country || 'GER', homeBias: 0.7 });
     p.clubId = 'user';
     p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
     state.players[p.id] = p;
@@ -933,7 +1017,7 @@ function endSeason(rng, state) {
     const chance = down ? 0.65 : pos >= 8 ? 0.35 : pos <= 2 ? 0.03 : 0.1;
     if (rng.chance(chance)) {
       const prev = club.coach;
-      club.coach = newCoach(rng, club.preferredStyle);
+      club.coach = newCoach(rng, club.preferredStyle, club.country);
       club.preferredStyle = club.coach.style;
       if (prev && (club.tier === state.clubs.user.tier)) {
         addNews(state, 'coach', `Trainerwechsel bei ${club.name}`,

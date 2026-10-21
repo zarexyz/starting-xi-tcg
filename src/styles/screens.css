@@ -307,7 +307,7 @@ body.has-overlay { overflow: hidden; }
 
 .fixture { display: grid; grid-template-columns: 34px 1fr auto 1fr; gap: 8px; min-height: 48px; }
 .fixture--me { background: #f6faf8; }
-.fixture__team { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--t-sm); }
+.fixture__team { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--t-sm); background: none; border: 0; padding: 0; font-family: inherit; color: inherit; cursor: pointer; }
 .fixture__team--h { justify-content: flex-end; }
 .fixture__score { font-size: var(--t-xl); min-width: 58px; text-align: center; line-height: 1; }
 .fixture__score small { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 600; color: var(--ink-3); }
@@ -806,3 +806,50 @@ button.item-card { cursor: pointer; }
 .goals__item .yellowcard, .goals__item .redcard { margin: 0 3px; }
 
 .scoreboard__pens { display: block; font-size: var(--t-md); color: var(--floodlight); line-height: 1.2; }
+.country-select { display: flex; align-items: center; gap: var(--s-2); }
+.country-select .flag { flex: none; border-radius: 3px; box-shadow: 0 0 0 1px var(--line); }
+.country-select select { flex: 1; }
+.chip--derby { background: #fff1e6; color: #c2410c; border-color: #fed7aa; }
+.chip--derby svg { color: #ea580c; }
+.prep__head .chip--derby { margin-left: auto; }
+
+/* Vereinsseite und Links */
+.link-club { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; min-width: 0; }
+.link-club span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-club:hover span, .link-player:hover { text-decoration: underline; text-underline-offset: 2px; }
+.link-player { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.clubpage__head { display: flex; gap: var(--s-4); align-items: center; padding: var(--s-3) var(--s-3); margin-bottom: var(--s-3); border-radius: var(--r-lg); background: linear-gradient(135deg, color-mix(in srgb, var(--club) 14%, var(--paper)), var(--paper)); border: 1px solid var(--line); }
+.clubpage__meta { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 2px; }
+.clubpage__meta .flag { border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+.facts--3 { grid-template-columns: repeat(3, 1fr); }
+.rival-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.rival-list .chip { cursor: pointer; }
+.group-label { margin: var(--s-3) 0 var(--s-1); font-weight: 700; }
+.coach { gap: var(--s-3); }
+.sheet__back { margin-right: var(--s-2); }
+.sheet__head .h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip--link { cursor: pointer; }
+.chip--link svg { flex: none; }
+.stations { margin-top: var(--s-3); }
+.station .row__main { display: grid; gap: 2px; }
+
+/* Statistik */
+.cat-picker { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 var(--s-3); scrollbar-width: none; }
+.cat-picker::-webkit-scrollbar { display: none; }
+.cat-picker .chip { flex: none; cursor: pointer; }
+.stats-body { margin-top: var(--s-3); }
+.statrow { display: flex; align-items: center; gap: var(--s-2); width: 100%; background: none; border: 0; font: inherit; color: inherit; text-align: left; }
+.statrow.is-me { background: var(--floodlight-soft); }
+.statrow__rank { width: 22px; flex: none; text-align: center; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.statrow__player { display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0; background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.statrow__club { background: none; border: 0; padding: 4px; cursor: pointer; flex: none; }
+.statrow__val { font-size: var(--t-xl); min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.statrow--club { cursor: pointer; }
+.statrow .row__main { min-width: 0; flex: 1; display: grid; gap: 4px; }
+.statbar { display: block; height: 6px; border-radius: 3px; background: var(--chalk); overflow: hidden; }
+.statbar span { display: block; height: 100%; border-radius: 3px; }
+tr[data-action] { cursor: pointer; }
+[role='button'][data-action] { cursor: pointer; }
+.scout .row__chev { margin-left: auto; color: var(--ink-3); width: 20px; height: 20px; }
+.goals__item[data-action] { cursor: pointer; }
+.facts dd.num { white-space: nowrap; font-size: var(--t-md); font-weight: 700; }

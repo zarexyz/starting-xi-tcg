@@ -9,7 +9,7 @@ import { esc } from '../html.js';
 import { currentDay, dayLabel, userMatch, nextUserMatch } from '../../engine/game.js';
 import { computeTable, CUP_ROUND_NAMES } from '../../engine/schedule.js';
 import { STYLES } from '../../engine/constants.js';
-import { clubStrength, clubPlayers, LEAGUE_INFO } from '../../engine/world.js';
+import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { packArt } from '../flows/pack.js';
 
 function tableRowsAround(game) {
@@ -51,16 +51,17 @@ function matchTicket(game) {
     <div class="ticket__head">
       <span class="ticket__day">${esc(dayLabel(game, day))}</span>
       <span class="chip">${esc(compLabel(game, today))}</span>
+      ${rivalry(home, away) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}Derby</span>` : ''}
     </div>
     <div class="ticket__match">
-      <div class="ticket__team">
+      <div class="ticket__team" data-action="open-club" data-id="${home.id}" role="button">
         ${crestSvg(home, 64)}
         <b>${esc(home.name)}</b>
         <span class="num">Stärke ${clubStrength(game, home.id)}</span>
         ${formHtml(formOf(home.id))}
       </div>
       <div class="ticket__vs display">${isHome ? 'Heim' : 'Ausw.'}</div>
-      <div class="ticket__team">
+      <div class="ticket__team" data-action="open-club" data-id="${away.id}" role="button">
         ${crestSvg(away, 64)}
         <b>${esc(away.name)}</b>
         <span class="num">Stärke ${clubStrength(game, away.id)}</span>

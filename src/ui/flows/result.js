@@ -44,14 +44,14 @@ export function resultFlow(game, flow) {
     <p class="report__label small muted">${esc(label)}</p>
     <h1 class="h1 report__title report__title--${outcome}">${title}</h1>
     <section class="final" style="--home:${home.colors.primary};--away:${away.colors.primary}">
-      <div class="final__team">${crestSvg(home, 56)}<b>${esc(home.name)}</b></div>
+      <div class="final__team" data-action="open-club" data-id="${home.id}" role="button">${crestSvg(home, 56)}<b>${esc(home.name)}</b></div>
       <div class="final__score display">${r.hg}:${r.ag}${r.pens ? `<small>${r.pens.h}:${r.pens.a} i.E.</small>` : ''}</div>
-      <div class="final__team">${crestSvg(away, 56)}<b>${esc(away.name)}</b></div>
+      <div class="final__team" data-action="open-club" data-id="${away.id}" role="button">${crestSvg(away, 56)}<b>${esc(away.name)}</b></div>
     </section>
-    ${r.goals.length ? `<ul class="goals">${r.goals.map(g => `<li class="goals__item goals__item--${g.side}">
+    ${r.goals.length ? `<ul class="goals">${r.goals.map(g => `<li class="goals__item goals__item--${g.side}" data-action="open-player" data-id="${g.scorerId}">
       <span class="num">${g.minute > 90 ? '90+' : g.minute}'</span>${icon('ball')}<span>${esc(pname(game, snapshot, g.scorerId))}${g.assistId ? ` <small class="muted">(${esc(pname(game, snapshot, g.assistId))})</small>` : ''}</span>
     </li>`).join('')}</ul>` : '<p class="small muted report__center">Keine Tore.</p>'}
-    ${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).length ? `<ul class="goals goals--cards">${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).map(c => `<li class="goals__item goals__item--${c.side}">
+    ${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).length ? `<ul class="goals goals--cards">${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).map(c => `<li class="goals__item goals__item--${c.side}" data-action="open-player" data-id="${c.playerId}">
       <span class="num">${c.minute}'</span><i class="${c.type === 'Y' ? 'yellowcard' : 'redcard'}"></i><span>${esc(pname(game, snapshot, c.playerId))}${c.type === 'YR' ? ' <small class="muted">(Gelb-Rot)</small>' : ''}${c.type !== 'Y' && c.side === side ? ' <small class="neg">gesperrt</small>' : ''}</span>
     </li>`).join('')}</ul>` : ''}
 
@@ -79,7 +79,7 @@ export function resultFlow(game, flow) {
         const p = game.players[x.id] || snapshot?.[x.id];
         if (!p) return '';
         const motm = r.motm === x.id;
-        return `<li class="row">
+        return `<li class="row row--button" data-action="open-player" data-id="${x.id}">
           <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
           <div class="row__main"><div class="row__title">${esc(p.first[0])}. ${esc(p.last)}${cardMark(r, side, x.id)}</div><div class="row__sub">${p.position}${mySubs.includes(x.id) ? ', eingewechselt' : ''}</div></div>
           ${motm ? `<span class="chip chip--warn">${icon('star')}Bester</span>` : ''}

@@ -6,6 +6,7 @@ import { topbar, segmented, sheet, autoToggle } from '../shell.js';
 import { cardHtml, starsHtml, potentialStars } from '../components/card.js';
 import { portraitSvg } from '../components/portrait.js';
 import { flagSvg } from '../components/flag.js';
+import { crestSvg } from '../components/crest.js';
 import { icon } from '../icons.js';
 import { esc, fmt } from '../html.js';
 import { FORMATIONS, FORMATION_KEYS, POSITION_GROUP, POSITION_NAMES, TIERS, ATTR_NAMES, ATTR_HINTS, CARD_ATTRS, STYLES, MAX_SQUAD } from '../../engine/constants.js';
@@ -183,7 +184,7 @@ export function squadScreen(game, ui) {
 // Spielerdetails
 // -----------------------------------------------------------------------------
 
-export function playerSheet(game, id) {
+export function playerSheet(game, id, opts = {}) {
   const p = game.players[id];
   if (!p) return '';
   const club = game.clubs[p.clubId];
@@ -207,7 +208,7 @@ export function playerSheet(game, id) {
         ${p.injury ? `<span class="chip chip--loss">${icon('medical')}${esc(p.injury.label)}, noch ${p.injury.days} Sp.</span>` : ''}
         ${p.suspension ? `<span class="chip chip--loss"><i class="redcard"></i>Gesperrt (${esc(p.suspension.reason)}), noch ${p.suspension.games} Sp.</span>` : ''}
         ${!p.suspension && p.yellowCount >= 3 ? `<span class="chip chip--warn"><i class="yellowcard"></i>${p.yellowCount} Gelbe, bei 5 gesperrt</span>` : ''}
-        ${own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? 'Startelf' : onBench ? 'Bank' : 'Nicht im Kader'}</span>` : `<span class="chip">${esc(club.name)}</span>`}
+        ${own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? 'Startelf' : onBench ? 'Bank' : 'Nicht im Kader'}</span>` : `<button class="chip chip--link" data-action="open-club" data-id="${club.id}">${crestSvg(club, 16)}${esc(club.name)}</button>`}
         <span class="chip">${flagSvg(p.nation, 16)}${esc(NATIONS[p.nation]?.name || p.nation)}</span>
       </div>
 
@@ -250,6 +251,14 @@ export function playerSheet(game, id) {
           <div><dt>Vorlagen</dt><dd class="display">${p.careerStats.assists}</dd></div>
           <div><dt>Ø Note</dt><dd class="display">${careerAvg}</dd></div>
         </dl>
+        ${p.position === 'TW' ? `<p class="small muted">${p.careerStats.cleanSheets || 0} Spiele zu null, davon ${p.stats.cleanSheets || 0} in dieser Saison.</p>` : ''}
+        ${(p.career || []).length ? `<ul class="list panel panel--flush stations">${[...p.career].reverse().map(c => `<li class="row station">
+          <span class="season-badge display">S${c.s}</span>
+          <div class="row__main">
+            ${game.clubs[c.c] ? `<button class="link-club" data-action="open-club" data-id="${c.c}">${crestSvg(game.clubs[c.c], 18)}<span>${esc(c.n)}</span></button>` : `<span>${esc(c.n)}</span>`}
+            <div class="row__sub">${c.apps} Spiele, ${c.goals} Tore, ${c.assists} Vorlagen${c.apps ? `, Ø ${(c.rs / c.apps).toFixed(1).replace('.', ',')}` : ''}</div>
+          </div>
+        </li>`).join('')}</ul>` : ''}
       </section>
 
       <section class="section section--tight">
@@ -266,7 +275,7 @@ export function playerSheet(game, id) {
         <button class="btn btn--danger" data-action="release" data-id="${p.id}">${icon('trash')}Entlassen</button>
       </div>` : foreignActions(game, p)}
     </div>`;
-  return sheet(`${p.first} ${p.last}`, body);
+  return sheet(`${p.first} ${p.last}`, body, opts);
 }
 
 // Platzhalter, werden in Phase 3 (Transfermarkt) befüllt

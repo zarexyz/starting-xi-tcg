@@ -112,7 +112,7 @@ export function draftCandidate(rng, state, pack, position, forceVeteran = false)
     ovr = potential - growthRemaining(rng, age);
   }
   ovr = clamp(Math.round(ovr), 38, 94);
-  const player = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier });
+  const player = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier, home: state.clubs.user.country, homeBias: 0.25 });
   player.isNew = true;
   return player;
 }
@@ -175,7 +175,7 @@ export function generateStarterSquad(rng, state) {
     ovr = Math.round(clamp(ovr, 46, 58));
     const growth = age <= 21 ? rng.int(4, 10) : age <= 25 ? rng.int(1, 5) : rng.int(0, 2);
     return createPlayer(rng, {
-      id: nextId(state, 'p'), position, age, ovr,
+      id: nextId(state, 'p'), position, age, ovr, home: state.clubs.user.country, homeBias: 0.55,
       potential: clamp(ovr + growth, ovr, 66), tier: 'bronze'
     });
   });
@@ -188,7 +188,7 @@ export function generateStarDraft(rng, state) {
     const age = rng.int(19, 23);
     const potential = rng.int(70, 76);
     const ovr = clamp(Math.round(LEAGUE_INFO[6].baseOvr + rng.int(5, 8)), 54, 64);
-    const p = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier: 'silver' });
+    const p = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, potential, tier: 'silver', home: state.clubs.user.country, homeBias: 0.3 });
     p.isNew = true;
     return p;
   });

@@ -7,7 +7,9 @@ import { createPlayer } from '../../engine/player.js';
 import { cardHtml } from '../components/card.js';
 import { crestSvg, CREST_SHAPES } from '../components/crest.js';
 import { shortCode } from '../../engine/world.js';
-import { LEAGUE_INFO } from '../../engine/world.js';
+import { LEAGUE_INFO, FOUNDING_COUNTRIES } from '../../engine/world.js';
+import { NATIONS } from '../../engine/names.js';
+import { flagSvg } from '../components/flag.js';
 import { SLOTS, slotInfo } from '../../state/storage.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
@@ -93,6 +95,17 @@ export function foundScreen(store) {
     <div class="field">
       <label for="club-name">Vereinsname</label>
       <input class="input" id="club-name" data-input="found-name" maxlength="24" value="${esc(f.name)}" placeholder="z. B. FC Hafenstadt" autocomplete="off">
+    </div>
+
+    <div class="field found__group">
+      <label for="club-country">Heimatland</label>
+      <div class="country-select">
+        ${flagSvg(f.country || 'GER', 24)}
+        <select id="club-country" class="input" data-input="found-country">
+          ${FOUNDING_COUNTRIES.map(c => [c, NATIONS[c]?.name || c]).sort((a, b) => a[1].localeCompare(b[1])).map(([c, n]) => `<option value="${c}" ${c === (f.country || 'GER') ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+        </select>
+      </div>
+      <p class="xsmall muted">Prägt die Herkunft deiner Spieler und deiner Jugend. Vereine aus deinem Land sind deine Rivalen.</p>
     </div>
 
     <div class="field found__group">

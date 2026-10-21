@@ -132,9 +132,12 @@ export function normalizeTo(attrs, pos, targetOvr) {
 /** Aussehen für den Porträt-Generator – einmal festgelegt, ein Leben lang gleich */
 function buildLook(rng, nation) {
   const darkSkinNations = ['SEN', 'NGA'];
-  const mixedNations = ['BRA', 'FRA', 'ENG', 'NED', 'POR'];
+  const mixedNations = ['BRA', 'FRA', 'ENG', 'NED', 'POR', 'USA', 'COL', 'BEL'];
+  const warmNations = ['TUR', 'MAR', 'MEX', 'GRE'];
   let skin;
   if (darkSkinNations.includes(nation)) skin = rng.int(4, 6);
+  else if (nation === 'JPN') skin = rng.int(1, 2);
+  else if (warmNations.includes(nation)) skin = rng.weighted([{ value: 1, weight: 2 }, { value: 2, weight: 4 }, { value: 3, weight: 3 }, { value: 4, weight: 0.6 }]);
   else if (mixedNations.includes(nation)) skin = rng.weighted([
     { value: 0, weight: 2 }, { value: 1, weight: 3 }, { value: 2, weight: 3 },
     { value: 3, weight: 2 }, { value: 4, weight: 2 }, { value: 5, weight: 1 }
@@ -142,7 +145,7 @@ function buildLook(rng, nation) {
   else skin = rng.weighted([
     { value: 0, weight: 4 }, { value: 1, weight: 4 }, { value: 2, weight: 2 }, { value: 3, weight: 1 }, { value: 4, weight: 0.6 }
   ]);
-  const darkHair = skin >= 3 || ['ESP', 'ITA', 'POR', 'BRA', 'ARG', 'CRO'].includes(nation);
+  const darkHair = skin >= 3 || ['ESP', 'ITA', 'POR', 'BRA', 'ARG', 'CRO', 'SRB', 'TUR', 'GRE', 'MAR', 'MEX', 'COL', 'JPN'].includes(nation);
   return {
     skin,
     face: rng.int(0, 3),
@@ -168,7 +171,7 @@ export function rollPotential(rng, tier) {
  * opts: { id, position, age, ovr, potential?, tier?, nation?, look? }
  */
 export function createPlayer(rng, opts) {
-  const nation = opts.nation || pickNation(rng);
+  const nation = opts.nation || pickNation(rng, opts.home || null, opts.homeBias ?? 0.55);
   const { first, last } = generateName(rng, nation);
   let potential = opts.potential;
   if (potential == null) {

@@ -27,7 +27,7 @@ export function devFlow(game) {
     </section>` : ''}
     <section class="section">
       <div class="section__head"><h2 class="section__title">Alle Spieler</h2><span class="small muted">${changes.length}</span></div>
-      <ul class="list panel panel--flush">${changes.map(c => `<li class="row">
+      <ul class="list panel panel--flush">${changes.map(c => `<li class="row row--button" data-action="open-player" data-id="${c.id}">
         <span class="prow__face tier-${c.p.tier}" style="--club:${colors.primary}">${portraitSvg(c.p, { colors })}</span>
         <div class="row__main"><div class="row__title">${esc(c.p.first[0])}. ${esc(c.p.last)}</div><div class="row__sub">${c.p.position}, ${c.p.age} J., ${c.apps} Einsätze${c.avg != null ? `, Ø ${c.avg.toFixed(1).replace('.', ',')}` : ''}${devReason(c) ? ` · ${devReason(c)}` : ''}</div></div>
         <span class="num devrow__from">${c.before}</span>${icon('arrowRight', 'devrow__arrow')}<b class="num">${c.after}</b>

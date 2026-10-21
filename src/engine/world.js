@@ -7,8 +7,8 @@ import { STYLE_KEYS, FORMATION_KEYS, AI_SQUAD_SIZE } from './constants.js';
 import { generateName, pickNation } from './names.js';
 
 /** Trainer mit fester Philosophie. Ein neuer Trainer bringt meist einen anderen Stil mit. */
-export function newCoach(rng, avoidStyle = null) {
-  const nation = pickNation(rng);
+export function newCoach(rng, avoidStyle = null, home = null) {
+  const nation = pickNation(rng, home, 0.6);
   const { first, last } = generateName(rng, nation);
   const options = STYLE_KEYS.filter(k => k !== avoidStyle);
   const style = rng.pick(options);
@@ -19,55 +19,115 @@ export const LEAGUE_INFO = {
   1: { name: 'Apex Premier', short: 'Liga 1', baseOvr: 74 },
   2: { name: 'Pro Division', short: 'Liga 2', baseOvr: 69 },
   3: { name: 'Championship', short: 'Liga 3', baseOvr: 65 },
-  4: { name: 'Oberliga', short: 'Liga 4', baseOvr: 61 },
-  5: { name: 'Landesklasse', short: 'Liga 5', baseOvr: 57 },
-  6: { name: 'Amateurliga', short: 'Liga 6', baseOvr: 53 }
+  4: { name: 'Contender League', short: 'Liga 4', baseOvr: 61 },
+  5: { name: 'Regional League', short: 'Liga 5', baseOvr: 57 },
+  6: { name: 'Amateur League', short: 'Liga 6', baseOvr: 53 }
 };
 
+/**
+ * Fiktive Welt-Superliga: Vereine aus vielen Ländern, frei erfunden.
+ * Die Namen spielen auf Städte und Regionen an, nie auf echte Vereine.
+ * [Name, Kürzel, Land, Stadt, Primärfarbe, Sekundärfarbe]
+ */
 const CLUB_DATA = {
   1: [
-    ['Apex Zenith', '#0f766e', '#facc15'], ['Real Metropol', '#1d4ed8', '#f8fafc'],
-    ['FC Alpenkrone', '#b91c1c', '#facc15'], ['Dynamo Hauptstadt', '#7e22ce', '#f8fafc'],
-    ['Borussia Titan', '#eab308', '#111827'], ['Imperial Milano', '#1e3a8a', '#111827'],
-    ['Athletic Küste', '#047857', '#f8fafc'], ['Olympique Nord', '#0891b2', '#f8fafc'],
-    ['Sporting Royal', '#15803d', '#f8fafc'], ['United Prestige', '#ea580c', '#111827']
+    ['Real Meseta Madrid', 'RMM', 'ESP', 'Madrid', '#f8fafc', '#7c3aed'],
+    ['Atlètic Barceloneta', 'ATB', 'ESP', 'Barcelona', '#b91c1c', '#facc15'],
+    ['Westminster Royals', 'WMR', 'ENG', 'London', '#1e40af', '#facc15'],
+    ['Irwell United', 'IRW', 'ENG', 'Manchester', '#dc2626', '#111827'],
+    ['Inter Navigli', 'INV', 'ITA', 'Milano', '#0f766e', '#111827'],
+    ['SV Isar München', 'ISA', 'GER', 'München', '#b91c1c', '#0ea5e9'],
+    ['Paris Lumière', 'PLU', 'FRA', 'Paris', '#1d4ed8', '#dc2626'],
+    ['Lisboa Atlântico', 'LIS', 'POR', 'Lisboa', '#047857', '#facc15'],
+    ['AFC Grachten', 'AFG', 'NED', 'Amsterdam', '#ea580c', '#f8fafc'],
+    ['Boğaziçi SK', 'BOĞ', 'TUR', 'İstanbul', '#eab308', '#1e3a8a']
   ],
   2: [
-    ['SV Nordhafen', '#0369a1', '#f8fafc'], ['Kickers Westend', '#16a34a', '#111827'],
-    ['VfL Bergstadt', '#dc2626', '#f8fafc'], ['Union Adler', '#6d28d9', '#facc15'],
-    ['SpVgg Sonnenburg', '#ca8a04', '#111827'], ['FC Rheinstrom', '#0d9488', '#f8fafc'],
-    ['SC Waldheim', '#166534', '#f8fafc'], ['Fortuna Stern', '#b91c1c', '#f8fafc'],
-    ['FSV Eisenbahner', '#475569', '#38bdf8'], ['TuS Kronberg', '#6b21a8', '#f8fafc']
+    ['Unión Manzanares', 'MAN', 'ESP', 'Madrid', '#dc2626', '#f8fafc'],
+    ['Thames Athletic', 'THA', 'ENG', 'London', '#7e22ce', '#f8fafc'],
+    ['AC Duomo', 'DUO', 'ITA', 'Milano', '#be123c', '#f8fafc'],
+    ['FC Sabauda Torino', 'SAB', 'ITA', 'Torino', '#1e293b', '#fbbf24'],
+    ['Westfalia Kohle', 'WEK', 'GER', 'Dortmund', '#facc15', '#1d4ed8'],
+    ['Belém FC', 'BLM', 'POR', 'Lisboa', '#9f1239', '#f8fafc'],
+    ['Kadıköy Spor', 'KAD', 'TUR', 'İstanbul', '#0369a1', '#facc15'],
+    ['CA Riachuelo', 'RIA', 'ARG', 'Buenos Aires', '#0891b2', '#facc15'],
+    ['Copacabana FC', 'COP', 'BRA', 'Rio de Janeiro', '#16a34a', '#facc15'],
+    ['Mersey Rovers', 'MER', 'ENG', 'Liverpool', '#b91c1c', '#f8fafc']
   ],
   3: [
-    ['Rot-Weiß Hafen', '#dc2626', '#f8fafc'], ['Blau-Gelb Ost', '#2563eb', '#facc15'],
-    ['SV Moorweide', '#059669', '#f8fafc'], ['FC Stahlwerk', '#64748b', '#f97316'],
-    ['Concordia Süd', '#0891b2', '#f8fafc'], ['Teutonia Berg', '#4338ca', '#f8fafc'],
-    ['VfB Flussdelta', '#047857', '#f8fafc'], ['SG Heideblick', '#d97706', '#111827'],
-    ['Eintracht Tal', '#be185d', '#f8fafc'], ['Alemannia Forst', '#1e293b', '#34d399']
+    ['Real Guadalquivir', 'GUA', 'ESP', 'Sevilla', '#f8fafc', '#dc2626'],
+    ['Olympique Vieux-Port', 'OVP', 'FRA', 'Marseille', '#38bdf8', '#f8fafc'],
+    ['FC Ribeira Porto', 'RIB', 'POR', 'Porto', '#1d4ed8', '#f8fafc'],
+    ['Maasstad Rotterdam', 'MAA', 'NED', 'Rotterdam', '#dc2626', '#111827'],
+    ['Clydeside FC', 'CLY', 'SCO', 'Glasgow', '#1e3a8a', '#dc2626'],
+    ['NK Sava Zagreb', 'SAV', 'CRO', 'Zagreb', '#2563eb', '#f8fafc'],
+    ['FK Danubius Beograd', 'DAN', 'SRB', 'Beograd', '#dc2626', '#f8fafc'],
+    ['Sportivo Palermo', 'SPA', 'ARG', 'Buenos Aires', '#f8fafc', '#dc2626'],
+    ['Paulistano FC', 'PAU', 'BRA', 'São Paulo', '#111827', '#f8fafc'],
+    ['Hanseatic Hamburg', 'HAN', 'GER', 'Hamburg', '#1d4ed8', '#f8fafc']
   ],
   4: [
-    ['FC Vorwärts 1912', '#e11d48', '#f8fafc'], ['TSV Wackerbrück', '#1d4ed8', '#f8fafc'],
-    ['SV Falkenlust', '#15803d', '#facc15'], ['DJK Rheinufer', '#0284c7', '#f8fafc'],
-    ['SC Schwarz-Gold', '#111827', '#f59e0b'], ['SpVgg Zeche', '#334155', '#e2e8f0'],
-    ['FC Grenzland', '#4338ca', '#f8fafc'], ['VfR Eichengrund', '#166534', '#f8fafc'],
-    ['FV Donautal', '#0369a1', '#f8fafc'], ['TuS Bergbaustolz', '#b45309', '#111827']
+    ['Turia CF', 'TRI', 'ESP', 'Valencia', '#f97316', '#111827'],
+    ['Lyon Confluence', 'LYC', 'FRA', 'Lyon', '#7c3aed', '#f8fafc'],
+    ['Partenope Napoli', 'PAR', 'ITA', 'Napoli', '#0284c7', '#facc15'],
+    ['Govan Thistle', 'GOV', 'SCO', 'Glasgow', '#16a34a', '#f8fafc'],
+    ['HNK Jadran Split', 'JAD', 'CRO', 'Split', '#f8fafc', '#2563eb'],
+    ['Akropolis FC', 'AKR', 'GRE', 'Athína', '#1d4ed8', '#f8fafc'],
+    ['Royal Sablon Bruxelles', 'RSB', 'BEL', 'Bruxelles', '#7c3aed', '#f8fafc'],
+    ['Øresund BK', 'ØRE', 'DEN', 'København', '#0ea5e9', '#f8fafc'],
+    ['SK Prater Wien', 'PRA', 'AUT', 'Wien', '#16a34a', '#f8fafc'],
+    ['FC Spree Berlin', 'SPR', 'GER', 'Berlin', '#dc2626', '#f8fafc']
   ],
   5: [
-    ['SV Grün-Weiß Aue', '#16a34a', '#f8fafc'], ['FC Hansa Bucht', '#0284c7', '#f8fafc'],
-    ['Kickers Steinbruch', '#b91c1c', '#f8fafc'], ['SpVgg Sandhügel', '#d97706', '#111827'],
-    ['FC Viktoria Moor', '#7c3aed', '#f8fafc'], ['TSG Waldrand', '#059669', '#f8fafc'],
-    ['SV Rothenburg', '#dc2626', '#f8fafc'], ['Union Industrie', '#475569', '#f8fafc'],
-    ['FSV Birkenhain', '#0d9488', '#f8fafc'], ['SC Blau-Weiß 08', '#2563eb', '#f8fafc']
+    ['Club Ría Bilbao', 'RÍA', 'ESP', 'Bilbao', '#dc2626', '#f8fafc'],
+    ['Aire Valley Town', 'AIR', 'ENG', 'Leeds', '#f8fafc', '#1d4ed8'],
+    ['SpVgg Zeche Ruhr', 'ZEC', 'GER', 'Gelsenkirchen', '#1d4ed8', '#f8fafc'],
+    ['Mälaren IF', 'MÄL', 'SWE', 'Stockholm', '#facc15', '#1d4ed8'],
+    ['Mazovia Warszawa', 'MAZ', 'POL', 'Warszawa', '#dc2626', '#f8fafc'],
+    ['Club Azteca Capital', 'AZT', 'MEX', 'Ciudad de México', '#16a34a', '#dc2626'],
+    ['Pacific Coast SC', 'PAC', 'USA', 'Los Angeles', '#111827', '#facc15'],
+    ['Sumida FC', 'SUM', 'JPN', 'Tōkyō', '#1d4ed8', '#f8fafc'],
+    ['Atlético Antioquia', 'ANT', 'COL', 'Medellín', '#16a34a', '#f8fafc'],
+    ['AS Corniche Dakar', 'COR', 'SEN', 'Dakar', '#16a34a', '#facc15']
   ],
   6: [
-    ['SV Eisenstadt', '#0284c7', '#f8fafc'], ['Kickers West', '#ea580c', '#f8fafc'],
-    ['SpVgg Nordstern', '#4f46e5', '#f8fafc'], ['FC Vorwärts Mühle', '#10b981', '#f8fafc'],
-    ['TSV Eintracht Au', '#dc2626', '#f8fafc'], ['Dynamo Süd', '#eab308', '#111827'],
-    ['SC Fortuna Heide', '#0d9488', '#f8fafc'], ['SV Blau-Weiß Ried', '#2563eb', '#f8fafc'],
-    ['FC Union Kies', '#b91c1c', '#f8fafc']
+    ['SV Förde Kiel', 'FÖR', 'GER', 'Kiel', '#1d4ed8', '#f8fafc'],
+    ['Avon Harbour FC', 'AVO', 'ENG', 'Bristol', '#dc2626', '#f8fafc'],
+    ['Lanterna Genova', 'LAN', 'ITA', 'Genova', '#1e3a8a', '#dc2626'],
+    ['Garonne FC', 'GAR', 'FRA', 'Bordeaux', '#1e3a8a', '#f8fafc'],
+    ['Lagoon Stars Lagos', 'LAG', 'NGA', 'Lagos', '#16a34a', '#f8fafc'],
+    ['Atlas Casablanca', 'ATL', 'MAR', 'Casablanca', '#dc2626', '#16a34a'],
+    ['Schelde Antwerpen', 'SCH', 'BEL', 'Antwerpen', '#dc2626', '#f8fafc'],
+    ['Wawel Kraków', 'WAW', 'POL', 'Kraków', '#1d4ed8', '#f8fafc'],
+    ['Cascadia FC Seattle', 'CAS', 'USA', 'Seattle', '#16a34a', '#1d4ed8']
   ]
 };
+
+/** Länder, aus denen ein eigener Verein gegründet werden kann */
+export const FOUNDING_COUNTRIES = ['GER', 'ENG', 'ESP', 'ITA', 'FRA', 'NED', 'POR', 'AUT', 'BEL', 'SCO', 'TUR', 'POL', 'CRO', 'SRB', 'GRE', 'DEN', 'SWE', 'USA', 'MEX', 'BRA', 'ARG', 'COL', 'JPN', 'MAR', 'SEN', 'NGA'];
+
+/** Wie stark das Heimatland den Kader prägt: oben internationaler, unten heimischer */
+export function homeBiasFor(tier) {
+  return [0, 0.5, 0.55, 0.6, 0.62, 0.65, 0.7][tier] ?? 0.6;
+}
+
+/** Rivalität zweier Vereine: 'derby' (gleiche Stadt), 'national' (gleiches Land) oder null */
+export function rivalry(a, b) {
+  if (!a || !b || a.id === b.id) return null;
+  if (a.city && b.city && a.city === b.city) return 'derby';
+  // Der eigene Verein hat keine Stadt: Vereine aus dem Heimatland sind seine Derby-Gegner
+  if (a.country && b.country && a.country === b.country) return (a.isUser || b.isUser) ? 'derby' : 'national';
+  return null;
+}
+
+/** Alle Rivalen eines Vereins, Derby-Gegner zuerst */
+export function rivalsOf(state, clubId) {
+  const me = state.clubs[clubId];
+  return Object.values(state.clubs)
+    .map(c => ({ club: c, type: rivalry(me, c) }))
+    .filter(x => x.type)
+    .sort((x, y) => (x.type === 'derby' ? 0 : 1) - (y.type === 'derby' ? 0 : 1));
+}
 
 const CREST_SHAPES = ['shield', 'round', 'hexagon', 'diamond', 'crown'];
 
@@ -79,10 +139,10 @@ const SQUAD_TEMPLATE = [
 
 export function shortCode(name) {
   const words = name.replace(/[0-9]/g, '').split(/[\s-]+/).filter(Boolean);
-  const prefixes = ['FC', 'SV', 'SC', 'TSV', 'VfL', 'VfB', 'VfR', 'FSV', 'TuS', 'SG', 'DJK', 'SpVgg', 'FV', 'TSG'];
+  const prefixes = ['FC', 'SV', 'SC', 'TSV', 'VfL', 'VfB', 'VfR', 'FSV', 'TuS', 'SG', 'DJK', 'SpVgg', 'FV', 'TSG', 'AFC', 'AC', 'AS', 'CA', 'CF', 'SK', 'FK', 'NK', 'HNK', 'BK', 'IF', 'Club', 'Real', 'United', 'City', 'Athletic', 'Atlético', 'Sporting', 'Olympique', 'Royal', 'Inter', 'Deportivo', 'Spor'];
   const core = words.filter(w => !prefixes.includes(w));
   const word = (core[core.length > 1 && core[0].length <= 4 ? 1 : 0] || words[0] || 'XXX');
-  return word.replace(/[^A-Za-zÄÖÜäöüß]/g, '').slice(0, 3).toUpperCase();
+  return word.replace(/[^\p{L}]/gu, '').slice(0, 3).toUpperCase();
 }
 
 export function nextId(state, prefix) {
@@ -107,19 +167,21 @@ export function createClubPlayer(rng, state, club, position, isCore, opts = {}) 
   if (age <= 20) ovr -= (21 - age) * 2.2;
   if (age >= 32) ovr -= (age - 31) * 0.8;
   ovr = Math.round(Math.max(40, Math.min(92, ovr)));
-  const player = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr });
+  const player = createPlayer(rng, { id: nextId(state, 'p'), position, age, ovr, home: club.country, homeBias: homeBiasFor(club.tier) });
   player.clubId = club.id;
   state.players[player.id] = player;
   club.playerIds.push(player.id);
   return player;
 }
 
-function createClub(rng, state, tier, idx, [name, primary, secondary]) {
+function createClub(rng, state, tier, idx, [name, short, country, city, primary, secondary]) {
   const id = `c${tier}_${idx}`;
   const club = {
     id,
     name,
-    short: shortCode(name),
+    short: short || shortCode(name),
+    country,
+    city,
     tier,
     colors: { primary, secondary },
     crest: { shape: rng.pick(CREST_SHAPES), pattern: rng.int(0, 3) },
@@ -131,7 +193,7 @@ function createClub(rng, state, tier, idx, [name, primary, secondary]) {
     coins: 4000 + (7 - tier) * 3000,
     reputation: (7 - tier) * 15
   };
-  club.coach = newCoach(rng);
+  club.coach = newCoach(rng, null, club.country);
   club.preferredStyle = club.coach.style;
   state.clubs[id] = club;
   SQUAD_TEMPLATE.slice(0, AI_SQUAD_SIZE).forEach((pos, i) => createClubPlayer(rng, state, club, pos, i < 11));
@@ -158,6 +220,8 @@ export function createWorld(rng, state, userClubConfig) {
     id: 'user',
     name: userClubConfig.name,
     short: shortCode(userClubConfig.name),
+    country: userClubConfig.country || 'GER',
+    city: userClubConfig.city || null,
     tier: 6,
     colors: { primary: userClubConfig.primary, secondary: userClubConfig.secondary },
     crest: { shape: userClubConfig.crest || 'shield', pattern: userClubConfig.pattern ?? 0 },

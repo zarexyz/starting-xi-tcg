@@ -11,7 +11,7 @@ import { computeTable } from '../engine/schedule.js';
 export const TABS = [
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'squad', label: 'Kader', icon: 'squad' },
-  { key: 'league', label: 'Liga', icon: 'trophy' },
+  { key: 'league', label: 'Saison', icon: 'trophy' },
   { key: 'market', label: 'Markt', icon: 'store' },
   { key: 'club', label: 'Verein', icon: 'club' }
 ];
@@ -57,6 +57,7 @@ export function sheet(title, body, opts = {}) {
     <section class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
       <div class="sheet__grip"></div>
       <div class="sheet__head">
+        ${opts.back ? `<button class="icon-btn sheet__back" data-action="sheet-back" aria-label="Zurück">${icon('chevronLeft')}</button>` : ''}
         <h2 class="h2">${esc(title)}</h2>
         ${opts.noClose ? '' : `<button class="icon-btn" data-action="close-sheet" aria-label="Schließen">${icon('close')}</button>`}
       </div>

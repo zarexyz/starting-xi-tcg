@@ -13,7 +13,7 @@ import { STYLES, STYLE_KEYS, FORMATION_KEYS } from '../../engine/constants.js';
 import { buildTeam, predictMatch } from '../../engine/match.js';
 import { bestLineup } from '../../engine/ai.js';
 import { createRng } from '../../engine/rng.js';
-import { clubStrength, clubPlayers, LEAGUE_INFO } from '../../engine/world.js';
+import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { computeTable } from '../../engine/schedule.js';
 import { familiarity } from '../../engine/player.js';
 
@@ -89,19 +89,21 @@ export function prepFlow(game, ui) {
     <header class="prep__head">
       <button class="icon-btn" data-action="close-flow" aria-label="Zurück">${icon('chevronLeft')}</button>
       <div><div class="h3">Spielvorbereitung</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? 'Heimspiel' : 'Auswärtsspiel'}</div></div>
+      ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}Derby</span>` : ''}
     </header>
 
-    <section class="scout">
+    <section class="scout" data-action="open-club" data-id="${opp.id}" role="button">
       ${crestSvg(opp, 56)}
       <div class="scout__body">
         <div class="h3">${esc(opp.name)}</div>
         <div class="small muted">${LEAGUE_INFO[opp.tier].short}${oppRow ? `, Platz ${oppRow.pos}` : ''}, Stärke ${clubStrength(game, oppId)}</div>
         ${oppRow ? formHtml(oppRow.form) : ''}
       </div>
+      ${icon('chevronRight', 'row__chev')}
     </section>
     <div class="scout__report">
       <div class="scout__line">${icon('strategy')}<span>${opp.coach ? `Trainer <b>${esc(opp.coach.name)}</b> setzt fast immer auf <b>${oppStyle.name}</b>` : `Spielt fast immer <b>${oppStyle.name}</b>`}, meist im <b>${opp.preferredFormation}</b>.</span></div>
-      ${star ? `<div class="scout__star">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>Gefährlichster Spieler:</b> ${esc(star.first)} ${esc(star.last)}, ${star.position}, Stärke ${star.ovr}.</p></div>` : ''}
+      ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>Gefährlichster Spieler:</b> ${esc(star.first)} ${esc(star.last)}, ${star.position}, Stärke ${star.ovr}.</p></div>` : ''}
     </div>
 
     <section class="section">
