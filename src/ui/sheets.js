@@ -15,7 +15,9 @@ import { newsTitle, newsText } from './text.js';
 
 const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
-  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', derby: 'flame', coach: 'user'
+  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', derby: 'flame', coach: 'user',
+  streak: 'up', upset: 'sparkles', comeback: 'heart', result: 'ball', player: 'star', youth: 'sparkles',
+  table: 'list', award: 'trophy', rumor: 'megaphone'
 };
 
 export function inboxSheet(game) {
@@ -24,7 +26,7 @@ export function inboxSheet(game) {
     <div class="sheet-actions"><button class="link" data-action="read-all">${t('inbox.readAll')}</button></div>
     <ul class="list panel panel--flush">
       ${game.inbox.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
-        <span class="alert-dot ${n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' ? 'alert-dot--reward' : ''}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
+        <span class="alert-dot ${n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' || n.type === 'award' ? 'alert-dot--reward' : ''}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
         <div class="row__main"><div class="row__title ${n.read ? '' : 'is-unread'}">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
         <span class="xsmall muted">S${n.season}</span>
       </li>`).join('')}

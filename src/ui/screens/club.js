@@ -98,7 +98,7 @@ function settings(store) {
         <button class="btn btn--sm btn--secondary" data-action="export-save">${t('set.backupBtn')}</button>
       </li>
     </ul>
-    <p class="xsmall muted settings-note">${t('set.note', { v: '1.3' })}</p>
+    <p class="xsmall muted settings-note">${t('set.note', { v: '1.4' })}</p>
   `;
 }
 

@@ -38,12 +38,16 @@ function lookup(key) {
 export function t(key, params) {
   let s;
   // Platzhalter mit Endung K sind selbst Schlüssel: { posK: 'pos.ST' } → {pos}
+  // Platzhalter mit Endung D sind Dezimalzahlen: { ratingD: 7.4 } → {rating} = „7,4“ bzw. „7.4“
   if (params) {
     let resolved = null;
     for (const k in params) {
       if (k.length > 1 && k.endsWith('K') && typeof params[k] === 'string') {
         resolved = resolved || { ...params };
         resolved[k.slice(0, -1)] = t(params[k]);
+      } else if (k.length > 1 && k.endsWith('D') && typeof params[k] === 'number') {
+        resolved = resolved || { ...params };
+        resolved[k.slice(0, -1)] = fmtDec(params[k], 1);
       }
     }
     if (resolved) params = resolved;

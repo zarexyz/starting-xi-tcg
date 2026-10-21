@@ -122,6 +122,24 @@ export function resultFlow(game, flow, ui = {}) {
 // Saisonbilanz
 // -----------------------------------------------------------------------------
 
+function awardsHtml(game, aw) {
+  if (!aw || (!aw.scorer && !aw.pots)) return '';
+  const row = (e, label, value) => e ? `<li class="row row--button ${e.clubId === 'user' ? 'is-me' : ''}" data-action="open-player" data-id="${e.id}">
+    <span class="alert-dot alert-dot--reward">${icon('trophy')}</span>
+    <div class="row__main"><div class="row__title">${esc(e.name)}</div><div class="row__sub">${label} · ${esc(e.club)}</div></div>
+    <b class="num">${value}</b>
+  </li>` : '';
+  const xi = (aw.xi || []).map(e => `<button class="xi-chip ${e.clubId === 'user' ? 'is-me' : ''}" data-action="open-player" data-id="${e.id}"><small>${POS_LABEL[e.pos] || ''}</small>${esc(e.name.split(' ').slice(-1)[0])}<span class="num">${nf1(e.rating)}</span></button>`).join('');
+  return `<section class="section awards">
+    <div class="section__head"><h2 class="section__title">${t('aw.title')}</h2><span class="small muted">${esc(LEAGUE_INFO[aw.tier].name)}</span></div>
+    <ul class="list panel panel--flush">
+      ${row(aw.scorer, t('aw.scorer'), aw.scorer ? t('aw.goals', { n: aw.scorer.goals }) : '')}
+      ${row(aw.pots, t('aw.pots'), aw.pots ? nf1(aw.pots.rating) : '')}
+    </ul>
+    ${xi ? `<h3 class="h3 awards__xi">${t('aw.xi')}</h3><div class="xi-grid">${xi}</div>` : ''}
+  </section>`;
+}
+
 export function seasonFlow(game) {
   const s = game.seasonSummary;
   const u = s.user;
@@ -149,6 +167,7 @@ export function seasonFlow(game) {
       ${s.retired.length ? `<li class="row"><span class="alert-dot">${icon('user')}</span><div class="row__main"><div class="row__title">${t('se.retired')}</div><div class="row__sub">${s.retired.map(r => `${esc(r.name)} (${r.age})`).join(', ')}</div></div></li>` : ''}
       ${youth.length ? `<li class="row"><span class="alert-dot alert-dot--reward">${icon('sparkles')}</span><div class="row__main"><div class="row__title">${t('se.youth')}</div><div class="row__sub">${youth.map(p => `${esc(p.first)} ${esc(p.last)} (${POS_LABEL[p.position]})`).join(', ')}</div></div></li>` : ''}
     </ul>
+    ${awardsHtml(game, s.awards)}
     <p class="small muted">${t('se.older')}</p>
     <button class="btn btn--primary btn--block" data-action="season-continue">${t('se.start', { season: game.season })}</button>
   </main></div>`;

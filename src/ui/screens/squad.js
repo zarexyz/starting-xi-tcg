@@ -255,6 +255,7 @@ export function playerSheet(game, id, opts = {}) {
           <div><dt>${t('st.rating')}</dt><dd class="display">${careerAvg}</dd></div>
         </dl>
         ${p.position === 'TW' ? `<p class="small muted">${t('ps.clean', { n: p.careerStats.cleanSheets || 0, season: p.stats.cleanSheets || 0 })}</p>` : ''}
+        ${(p.awards || []).length ? `<div class="award-chips">${[...p.awards].reverse().map(a => `<span class="chip chip--warn">${icon(a.k === 'xi' ? 'star' : 'trophy')}${t(`aw.${a.k}`)} S${a.s}</span>`).join('')}</div>` : ''}
         ${(p.career || []).length ? `<ul class="list panel panel--flush stations">${[...p.career].reverse().map(c => `<li class="row station">
           <span class="season-badge display">S${c.s}</span>
           <div class="row__main">

@@ -18,6 +18,7 @@ import { ATTR_NAMES, STYLES, POS_LABEL } from './constants.js';
 import { t } from '../i18n/index.js';
 import { newCoach } from './world.js';
 import { aiTransferWindow } from './market.js';
+import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 2;
 
@@ -86,6 +87,7 @@ function startSeason(rng, state, cupByes) {
     p.yellowCount = 0;
   }
   for (const c of Object.values(state.clubs)) { c.halfGames = 0; c.seasonStats = newClubStats(); }
+  takeAwardSnapshot(state);
 }
 
 /** Saisonstatistik eines Vereins über alle Wettbewerbe */
@@ -107,7 +109,7 @@ export function addNews(state, type, key, params = {}, extra = {}) {
     read: false,
     ...extra
   });
-  if (state.inbox.length > 80) state.inbox.length = 80;
+  if (state.inbox.length > 120) state.inbox.length = 120;
 }
 
 /** Kassenbuch: label ist ein Übersetzungsschlüssel, lp seine Platzhalter */
@@ -511,6 +513,7 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     const goals = result.goals.filter(g => g.scorerId === id).length;
     const assists = result.goals.filter(g => g.assistId === id).length;
     p.stats.goals += goals; p.careerStats.goals += goals;
+    trackGoalStreak(p, goals);
     p.stats.assists += assists; p.careerStats.assists += assists;
     if (result.motm === id) p.stats.motm++;
   }
@@ -632,6 +635,8 @@ export function playDay(state) {
       const home = buildTeam(state, m.home, hs);
       const away = buildTeam(state, m.away, as);
       const rival = rivalry(state.clubs[m.home], state.clubs[m.away]);
+      const isUser = m.home === 'user' || m.away === 'user';
+      const strengths = isUser ? { home: clubStrength(state, m.home), away: clubStrength(state, m.away) } : null;
       const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout || rival === 'derby' });
       result.rivalry = rival;
       m.hg = result.hg;
@@ -652,6 +657,10 @@ export function playDay(state) {
           if (outcome === 'W') addNews(state, 'derby', 'news.derbyWin', { opp: oppName, club: state.clubs.user.name, score }, { clubId: opponentId });
           else if (outcome === 'L') addNews(state, 'derby', 'news.derbyLoss', { opp: oppName, score }, { clubId: opponentId });
         }
+        matchStories(state, {
+          result, side, outcome, opponentId, rival, comp: entry.comp,
+          strengths: { mine: strengths[side], opp: strengths[side === 'home' ? 'away' : 'home'] }
+        });
         userResult = {
           result,
           rivalry: rival,
@@ -720,7 +729,9 @@ export function playDay(state) {
       handleWages(state);
     }
 
+    matchdayStories(rng, state, day);
     afterDay(rng, state, day);
+    previewStories(state);
   });
 
   if (userResult) {
@@ -895,6 +906,7 @@ function endSeason(rng, state) {
   const prize = seasonPrize(userTier, row.pos);
   ledger(state, 'ledger.seasonPrize', prize, { pos: row.pos });
   userSummary.prize = prize;
+  summary.awards = seasonAwards(state, userTier);
 
   // Chronik aller Vereine und Karriere-Stationen aller Spieler (vor Auf- und Abstieg)
   const cupStage = clubId => {

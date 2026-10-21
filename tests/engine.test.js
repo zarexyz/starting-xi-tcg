@@ -523,3 +523,23 @@ test('Prognose: der gewählte Spielstil verändert die Siegprognose nicht', asyn
   const results = STYLE_KEYS.map(style => JSON.stringify(forecastMatch(s, entry, { ...setup, style })));
   assert.equal(new Set(results).size, 1, results.join(' | '));
 });
+
+test('Geschichten: eine Saison erzeugt Schlagzeilen und Auszeichnungen, alle Texte vorhanden', async () => {
+  const { newsTitle, newsText } = await import('../src/ui/text.js');
+  const { setLang } = await import('../src/i18n/index.js');
+  const s = newStartedGame(5);
+  playSeason(s);
+  const aw = s.seasonSummary.awards;
+  assert.ok(aw.scorer && aw.pots, 'Torschützenkönig und Spieler der Saison');
+  assert.equal(aw.xi.length, 11, 'Elf der Saison hat 11 Spieler');
+  const keys = new Set(s.inbox.map(n => n.k));
+  assert.ok(['news.potm', 'news.potmMine'].some(k => keys.has(k)), 'Spieler des Monats');
+  for (const lang of ['de', 'en']) {
+    setLang(lang);
+    for (const n of s.inbox) {
+      const txt = newsTitle(n) + ' ' + newsText(n);
+      assert.ok(!/\bnews\.|\{\w+\}/.test(txt), `${lang}: ${n.k} → ${txt}`);
+    }
+  }
+  setLang('de');
+});

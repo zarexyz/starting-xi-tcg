@@ -883,3 +883,14 @@ tr[data-action] { cursor: pointer; }
 .md-move svg { width: 14px; height: 14px; }
 .md-move--up { color: var(--pitch); }
 .md-move--down { color: var(--loss); }
+
+/* ---- v1.4: Auszeichnungen ---- */
+.award-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-2); }
+.awards { text-align: left; width: 100%; }
+.awards .row.is-me { background: var(--pitch-soft); }
+.awards__xi { margin: var(--s-4) 0 var(--s-2); }
+.xi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.xi-chip { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: #fff; font: inherit; font-size: var(--t-sm); font-weight: 700; color: inherit; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xi-chip small { font-size: 10px; color: var(--ink-3); font-weight: 800; letter-spacing: .04em; }
+.xi-chip .num { font-size: var(--t-xs); color: var(--ink-2); font-weight: 600; }
+.xi-chip.is-me { border-color: var(--pitch); background: var(--pitch-soft); }

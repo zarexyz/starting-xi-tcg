@@ -9,6 +9,8 @@ Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wähls
 - **Welt:** 60 fiktive Vereine aus 24 Ländern in 6 Ligen, Derbys und Rivalitäten, jeder Spieler existiert genau einmal
 - **Sprachen:** Deutsch und Englisch (umschaltbar in den Optionen)
 - **Statistik:** Torjäger, Vorlagen, Noten, Zu-null-Spiele, Heim-/Auswärts-/Formtabelle, Vereinschronik und Rekorde
+- **Geschichten:** Schlagzeilen zu Serien, Comebacks, Favoritenstürzen, Derbys, ersten Toren und Meilensteinen, Gerüchte, Spieler des Monats, Torschützenkönig, Spieler und Elf der Saison
+- **Spieltagsübersicht:** nach jedem Spiel alle Ergebnisse und die Tabelle mit Auf- und Abwärtspfeilen, Noten für beide Teams nach Positionen
 - **Alles anklickbar:** jeder Verein und jeder Spieler öffnet seine Seite, mit Karrierestationen und Direktvergleich
 - **Spieltag:** Vorbereitung mit Gegneranalyse, Spielstil (Konter-Kreislauf) und Formation, Siegprognose
 - **Live-Spiel:** Ticker, Schlüsselszenen in Stufen (Durchbruch, Abschluss), Elfmeterschießen Schuss für Schuss, Gelbe und Rote Karten mit Sperren, Spielbericht mit Erklärung
