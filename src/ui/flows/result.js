@@ -9,7 +9,8 @@ import { esc, fmt } from '../html.js';
 import { LEAGUE_INFO } from '../../engine/world.js';
 import { STYLES } from '../../engine/constants.js';
 import { t } from '../../i18n/index.js';
-import { POS_LABEL } from '../../engine/constants.js';
+import { POS_LABEL, POSITION_GROUP } from '../../engine/constants.js';
+import { segmented } from '../shell.js';
 import { txt, nf1, ledgerLabel, ffStageText, cupText } from '../text.js';
 
 function cardMark(r, side, id) {
@@ -24,15 +25,41 @@ function pname(game, snapshot, id) {
   return p ? `${p.first[0]}. ${p.last}` : 'Unbekannt';
 }
 
-export function resultFlow(game, flow) {
+const GROUP_ORDER = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+
+/** Noten eines Teams: Startelf nach Positionen (Tor → Sturm), dann Einwechslungen */
+function ratingRows(game, r, side, snapshot, colors) {
+  const starters = r.lineups[side]
+    .map((l, i) => ({ id: l.playerId, pos: l.pos, i }))
+    .filter(x => x.id && r.ratings[x.id] != null)
+    .sort((a, b) => (GROUP_ORDER[POSITION_GROUP[a.pos]] - GROUP_ORDER[POSITION_GROUP[b.pos]]) || a.i - b.i);
+  const subs = r.subs.filter(s => s.side === side && r.ratings[s.inId] != null);
+  const row = (id, posLabel, sub) => {
+    const p = game.players[id] || snapshot?.[id];
+    if (!p) return '';
+    const val = r.ratings[id];
+    const motm = r.motm === id;
+    const outP = sub ? (game.players[sub.outId] || snapshot?.[sub.outId]) : null;
+    return `<li class="row row--button" data-action="open-player" data-id="${id}">
+      <span class="rate-pos xsmall">${posLabel}</span>
+      <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
+      <div class="row__main"><div class="row__title">${esc(p.first[0])}. ${esc(p.last)}${cardMark(r, side, id)}</div><div class="row__sub">${sub ? `${t('rep.subIn')}${outP ? ` ${t('rep.subFor', { name: `${outP.first[0]}. ${outP.last}` })}` : ''}` : POS_LABEL[p.position]}</div></div>
+      ${motm ? `<span class="chip chip--warn">${icon('star')}${t('rep.best')}</span>` : ''}
+      <span class="grade ${val >= 7.5 ? 'grade--top' : val < 5.8 ? 'grade--low' : ''}">${nf1(val)}</span>
+    </li>`;
+  };
+  return starters.map(x => row(x.id, POS_LABEL[x.pos], null)).join('') +
+    subs.map(s => row(s.inId, '↗', s)).join('');
+}
+
+export function resultFlow(game, flow, ui = {}) {
   const { result: r, side, outcome, label, analysis, finance, snapshot } = flow.data;
   const home = game.clubs[r.homeId];
   const away = game.clubs[r.awayId];
   const title = outcome === 'W' ? t('rep.win') : outcome === 'L' ? t('rep.loss') : t('rep.draw');
-  const myLineup = r.lineups[side].map(l => l.playerId).filter(Boolean);
-  const mySubs = r.subs.filter(s => s.side === side).map(s => s.inId);
-  const ratings = [...myLineup, ...mySubs].map(id => ({ id, r: r.ratings[id] })).filter(x => x.r).sort((a, b) => b.r - a.r);
-  const colors = game.clubs.user.colors;
+  const oppSide = side === 'home' ? 'away' : 'home';
+  const showSide = ui.repSide === 'opp' ? oppSide : side;
+  const ratingClub = game.clubs[showSide === 'home' ? r.homeId : r.awayId];
 
   const stat = (labelTxt, a, b, fmtFn = v => v) => {
     const total = a + b || 1;
@@ -78,17 +105,8 @@ export function resultFlow(game, flow) {
 
     <section class="section">
       <div class="section__head"><h2 class="section__title">${t('rep.ratings')}</h2></div>
-      <ul class="list panel panel--flush">${ratings.map(x => {
-        const p = game.players[x.id] || snapshot?.[x.id];
-        if (!p) return '';
-        const motm = r.motm === x.id;
-        return `<li class="row row--button" data-action="open-player" data-id="${x.id}">
-          <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
-          <div class="row__main"><div class="row__title">${esc(p.first[0])}. ${esc(p.last)}${cardMark(r, side, x.id)}</div><div class="row__sub">${POS_LABEL[p.position]}${mySubs.includes(x.id) ? `, ${t('rep.subIn')}` : ''}</div></div>
-          ${motm ? `<span class="chip chip--warn">${icon('star')}${t('rep.best')}</span>` : ''}
-          <span class="grade ${x.r >= 7.5 ? 'grade--top' : x.r < 5.8 ? 'grade--low' : ''}">${nf1(x.r)}</span>
-        </li>`;
-      }).join('')}</ul>
+      ${segmented([['mine', t('rep.mine')], ['opp', t('rep.opp')]], ui.repSide === 'opp' ? 'opp' : 'mine', 'rep-side')}
+      <ul class="list panel panel--flush rate-list">${ratingRows(game, r, showSide, snapshot, ratingClub.colors)}</ul>
     </section>
 
     ${finance?.length ? `<section class="section">
@@ -96,7 +114,7 @@ export function resultFlow(game, flow) {
       <ul class="list panel panel--flush">${finance.map(f => `<li class="row"><span class="row__main">${esc(ledgerLabel(f))}</span><b class="num ${f.amount >= 0 ? 'pos' : 'neg'}">${f.amount >= 0 ? '+' : '−'}${fmt(Math.abs(f.amount))}</b></li>`).join('')}</ul>
     </section>` : ''}
 
-    <div class="report__cta"><button class="btn btn--primary btn--block" data-action="close-flow">${t('w.continue')}</button></div>
+    <div class="report__cta"><button class="btn btn--primary btn--block" data-action="result-continue">${t('w.continue')}</button></div>
   </main></div>`;
 }
 

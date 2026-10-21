@@ -10,34 +10,14 @@ import { formHtml, autoToggle } from '../shell.js';
 import { lineupEditor, selectionBar } from '../screens/squad.js';
 import { currentDay, dayLabel, userMatch, ensureUserSetup } from '../../engine/game.js';
 import { STYLES, STYLE_KEYS, FORMATION_KEYS } from '../../engine/constants.js';
-import { buildTeam, predictMatch } from '../../engine/match.js';
-import { bestLineup } from '../../engine/ai.js';
-import { createRng } from '../../engine/rng.js';
+import { buildTeam } from '../../engine/match.js';
+import { forecastMatch } from '../../engine/forecast.js';
 import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { computeTable } from '../../engine/schedule.js';
 import { familiarity } from '../../engine/player.js';
 import { t } from '../../i18n/index.js';
 import { POS_LABEL } from '../../engine/constants.js';
 import { banReason } from '../text.js';
-
-export function expectedOpponentSetup(game, oppId) {
-  const opp = game.clubs[oppId];
-  const formation = opp.preferredFormation;
-  const { lineup, bench } = bestLineup(game, oppId, formation, { minCondition: 70 });
-  return { formation, style: opp.preferredStyle, lineup, bench, boosts: {} };
-}
-
-function prediction(game, entry, setup) {
-  const m = entry.m;
-  const isHome = m.home === 'user';
-  const oppId = isHome ? m.away : m.home;
-  const mine = buildTeam(game, 'user', { ...setup, boosts: game.user.matchBoost || {} });
-  const theirs = buildTeam(game, oppId, expectedOpponentSetup(game, oppId));
-  const rng = createRng(game.seed + game.dayIndex * 7919);
-  const neutral = entry.comp === 'ff' && entry.stage === 'final';
-  const r = isHome ? predictMatch(rng, mine, theirs, { neutral }, 160) : predictMatch(rng, theirs, mine, { neutral }, 160);
-  return isHome ? r : { win: r.loss, draw: r.draw, loss: r.win };
-}
 
 function warnings(game, setup) {
   const list = [];
@@ -75,7 +55,7 @@ export function prepFlow(game, ui) {
   const table = computeTable(game, opp.tier);
   const oppRow = table.find(r => r.clubId === oppId);
   const star = clubPlayers(game, oppId).filter(p => !p.injury && !p.suspension).sort((a, b) => b.ovr - a.ovr)[0];
-  const pred = prediction(game, entry, setup);
+  const pred = forecastMatch(game, entry, setup);
   const warn = warnings(game, setup);
   const tactic = game.user.inventory.find(i => i.type === 'TACTIC');
   const fitness = game.user.inventory.filter(i => i.type === 'FITNESS' || i.type === 'REGEN').length;

@@ -24,6 +24,7 @@ import { inboxSheet, newsSheet, itemsSheet } from './ui/sheets.js';
 import { packFlow } from './ui/flows/pack.js';
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
+import { buildMatchday, matchdayFlow } from './ui/flows/matchday.js';
 import { resultFlow, seasonFlow } from './ui/flows/result.js';
 import { devFlow } from './ui/flows/develop.js';
 import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers, offersSheetBody } from './ui/screens/transfers.js';
@@ -79,7 +80,8 @@ function flowHtml(game, ui) {
   const f = ui.flow;
   if (f?.type === 'prep') return prepFlow(game, ui);
   if (f?.type === 'match') return matchFlow(game, f);
-  if (f?.type === 'result') return resultFlow(game, f);
+  if (f?.type === 'result') return resultFlow(game, f, ui);
+  if (f?.type === 'matchday') return matchdayFlow(game, f);
   if (f?.type === 'pack' && game.pending) return packFlow(game, ui);
   if (!f && game.seasonSummary) return seasonFlow(game);
   if (!f && game.devReport) return devFlow(game);
@@ -180,9 +182,11 @@ function kickoff(instant) {
   const snapshot = snapshotPlayers(pre, [entry.m.home, entry.m.away]);
   const res = act(playDay);
   if (!res || res.error) return;
-  const data = { ...res, snapshot };
+  let matchday = null;
+  try { matchday = buildMatchday(pre, store.game); } catch (e) { console.warn(e); }
+  const data = { ...res, snapshot, matchday };
   if (instant) {
-    setUi({ flow: { type: 'result', data } });
+    setUi({ flow: { type: 'result', data }, repSide: 'mine' });
     window.scrollTo(0, 0);
     return;
   }
@@ -386,7 +390,14 @@ const handlers = {
   'match-speed': () => matchControl('speed'),
   'match-skip': () => matchControl('skip'),
   'scene-continue': () => matchControl('continue'),
-  'match-report': () => { stopMatch(); const data = store.ui.flow.data; setUi({ flow: { type: 'result', data } }); },
+  'match-report': () => { stopMatch(); const data = store.ui.flow.data; setUi({ flow: { type: 'result', data }, repSide: 'mine' }); },
+  'rep-side': d => setUi({ repSide: d.value }),
+  'result-continue': () => {
+    const md = store.ui.flow?.data?.matchday;
+    if (md) { setUi({ flow: { type: 'matchday', data: md } }); window.scrollTo(0, 0); document.querySelector('.fullscreen > .screen')?.scrollTo(0, 0); return; }
+    setUi({ flow: null, selected: null });
+    window.scrollTo(0, 0);
+  },
   'dismiss-tips': () => act(dismissTips),
   'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
   'season-continue': () => { act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },

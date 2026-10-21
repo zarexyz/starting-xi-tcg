@@ -853,3 +853,33 @@ tr[data-action] { cursor: pointer; }
 .scout .row__chev { margin-left: auto; color: var(--ink-3); width: 20px; height: 20px; }
 .goals__item[data-action] { cursor: pointer; }
 .facts dd.num { white-space: nowrap; font-size: var(--t-md); font-weight: 700; }
+
+/* ---- v1.4: Noten nach Position, Spieltagsübersicht ---- */
+.rate-list .row { gap: 10px; }
+.rate-pos { width: 30px; flex: none; text-align: center; font-weight: 800; color: var(--ink-3); letter-spacing: .02em; }
+.report .segmented { margin-bottom: var(--s-3); }
+
+.matchday .h1 { text-align: center; margin: var(--s-2) 0 var(--s-4); }
+.md-group { margin: var(--s-4) 0 var(--s-2); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.md-list { list-style: none; margin: 0; padding: 0; }
+.md-match { padding: 10px 12px; border-bottom: 1px solid var(--line-2); }
+.md-match:last-child { border-bottom: 0; }
+.md-match--me { background: var(--pitch-soft); }
+.md-match__line { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.md-team { display: flex; align-items: center; gap: 6px; min-width: 0; background: none; border: 0; padding: 4px 0; font: inherit; font-weight: 600; font-size: var(--t-sm); color: inherit; cursor: pointer; text-align: left; }
+.md-team span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-team svg { flex: none; }
+.md-team--h { justify-content: flex-end; text-align: right; }
+.md-match--me .md-team { font-weight: 800; }
+.md-score { font-size: var(--t-xl); min-width: 56px; text-align: center; line-height: 1; }
+.md-score small { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 600; color: var(--ink-3); }
+.md-scorers { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr); align-items: start; gap: 8px; margin-top: 2px; }
+.md-scorers__h { grid-column: 1; display: flex; flex-direction: column; align-items: flex-end; }
+.md-scorers__a { grid-column: 3; display: flex; flex-direction: column; align-items: flex-start; }
+.md-scorer { background: none; border: 0; padding: 1px 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font: inherit; font-size: var(--t-xs, 12px); color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.md-scorer:hover { color: var(--pitch); }
+.t-move { width: 18px; padding-left: 0 !important; padding-right: 0 !important; text-align: center; }
+.md-move { display: inline-flex; color: var(--ink-3); font-size: 11px; }
+.md-move svg { width: 14px; height: 14px; }
+.md-move--up { color: var(--pitch); }
+.md-move--down { color: var(--loss); }

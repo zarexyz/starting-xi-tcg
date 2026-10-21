@@ -52,7 +52,7 @@ function fixtureRow(game, m, label) {
   return `<li class="row fixture ${m.home === 'user' || m.away === 'user' ? 'fixture--me' : ''}">
     <span class="fixture__label xsmall muted">${esc(label)}</span>
     <button class="fixture__team fixture__team--h" data-action="open-club" data-id="${home.id}">${esc(home.short)} ${crestSvg(home, 22)}</button>
-    <span class="fixture__score display ${resultClass(m, 'user')}">${done ? `${m.hg}:${m.ag}${m.pens ? `<small>${m.pens.h}:${m.pens.a} i.E.</small>` : ''}` : '–:–'}</span>
+    <span class="fixture__score display ${resultClass(m, 'user')}">${done ? `${m.hg}:${m.ag}${m.pens ? `<small>${m.pens.h}:${m.pens.a} ${t('w.pens')}</small>` : ''}` : '–:–'}</span>
     <button class="fixture__team" data-action="open-club" data-id="${away.id}">${crestSvg(away, 22)} ${esc(away.short)}</button>
   </li>`;
 }

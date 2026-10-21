@@ -93,13 +93,14 @@ export function matchLoser(m) {
 // Tabelle
 // -----------------------------------------------------------------------------
 
-export function computeTable(state, tier) {
+export function computeTable(state, tier, uptoMd = Infinity) {
   const league = state.leagues[tier];
   const rows = {};
   for (const id of league.clubIds) {
     rows[id] = { clubId: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] };
   }
-  for (const round of league.fixtures) {
+  for (const [ri, round] of league.fixtures.entries()) {
+    if (ri >= uptoMd) break;
     for (const m of round) {
       if (m.hg == null) continue;
       const h = rows[m.home];

@@ -511,3 +511,15 @@ test('Internationale Welt: im Schnitt stammt gut die Hälfte des Kaders aus dem 
   for (const c of ai) for (const id of c.playerIds) { all++; if (s.players[id].nation === c.country) home++; }
   assert.ok(home / all > 0.55 && home / all < 0.8, `${Math.round((home / all) * 100)} %`);
 });
+
+test('Prognose: der gewählte Spielstil verändert die Siegprognose nicht', async () => {
+  const { forecastMatch } = await import('../src/engine/forecast.js');
+  const { STYLE_KEYS } = await import('../src/engine/constants.js');
+  const { userMatch } = await import('../src/engine/game.js');
+  const s = newStartedGame(11);
+  const entry = userMatch(s);
+  assert.ok(entry, 'Nutzer hat ein Spiel');
+  const setup = ensureUserSetup(s);
+  const results = STYLE_KEYS.map(style => JSON.stringify(forecastMatch(s, entry, { ...setup, style })));
+  assert.equal(new Set(results).size, 1, results.join(' | '));
+});
