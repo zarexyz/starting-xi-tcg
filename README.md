@@ -8,7 +8,8 @@ Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wähls
 
 - **Welt:** 60 fiktive Vereine in 6 Ligen, jeder Spieler existiert genau einmal
 - **Spieltag:** Vorbereitung mit Gegneranalyse, Spielstil (Konter-Kreislauf) und Formation, Siegprognose
-- **Live-Spiel:** Ticker mit Karten-Einblendungen bei Schlüsselszenen, Spielbericht mit Erklärung
+- **Live-Spiel:** Ticker, Schlüsselszenen in Stufen (Durchbruch, Abschluss), Elfmeterschießen Schuss für Schuss, Gelbe und Rote Karten mit Sperren, Spielbericht mit Erklärung
+- **Spielstand sichern:** Export und Import als Datei
 - **Kader:** Müdigkeit, Verletzungen, Rotation, Co-Trainer-Aufstellung, Moral, Gehälter mit Soft-Cap
 - **Karten:** illustrierte Porträts, 8 Werte (inklusive Mental und Torwart), Talentklassen Bronze, Silber, Gold und Ikone, Potenzial als Scout-Schätzung
 - **Packs:** Starter-Pack, Draft-Packs (1 aus 3), Ausrüstungs-Packs mit Fitness, Training für einzelne Werte, Matchplänen und Taktik

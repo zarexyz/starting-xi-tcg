@@ -9,8 +9,9 @@ import { clubPlayers } from './world.js';
 /** Reihenfolge, in der Slots besetzt werden: Spezialisten zuerst */
 const SLOT_PRIORITY = { TW: 0, ST: 1, IV: 2, ZDM: 3, LV: 4, RV: 4, ZOM: 5, ZM: 6, LF: 7, RF: 7, LM: 8, RM: 8 };
 
+/** Einsatzbereit: nicht verletzt und nicht gesperrt */
 export function isAvailable(p) {
-  return p && !p.injury;
+  return p && !p.injury && !p.suspension;
 }
 
 /**

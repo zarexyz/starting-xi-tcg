@@ -4,6 +4,7 @@
 
 import { store, subscribe, notify, act, setUi, setView, toast, startGame, resumeGame, updateSettings } from './state/store.js';
 import { deleteGame } from './state/storage.js';
+import { exportSave, pickSaveFile, parseSave } from './state/backup.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
   placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
@@ -201,6 +202,7 @@ function lineupTap({ slot, id, from }) {
   const target = tapped ? { playerId: tapped } : from === 'slot' ? { slot } : { bench: true };
   const res = act(swapPlayers, sel, target);
   if (res && res.ok === false && res.reason === 'injured') toast('Verletzte Spieler können nicht spielen.');
+  if (res && res.ok === false && res.reason === 'suspended') toast('Gesperrte Spieler können nicht spielen.');
   setUi({ selected: null });
   if (res?.ok) playSound('tap', store.settings);
 }
@@ -227,6 +229,23 @@ const handlers = {
   // Titel & Gründung
   continue: () => { if (resumeGame()) setUi({ screen: 'app', tab: 'home' }); else setUi({ slotPicker: true }); },
   'show-slots': () => setUi({ slotPicker: true }),
+  'export-save': async () => {
+    if (!store.game) return;
+    const res = await exportSave(store.game);
+    if (res === 'downloaded') toast('Sicherung gespeichert. Du findest sie in deinen Downloads.');
+    else if (res === 'shared') toast('Sicherung geteilt.');
+    else if (res !== 'cancelled') toast(res);
+  },
+  'import-save': async d => {
+    const slot = Number(d.slot);
+    const text = await pickSaveFile();
+    if (!text) return;
+    const res = parseSave(text);
+    if (res.error) { toast(res.error); return; }
+    startGame(slot, res.game);
+    setUi({ screen: 'app', tab: 'home', slotPicker: false, sheet: null, flow: null });
+    toast(`${res.game.clubs.user.name} geladen, Saison ${res.game.season}.`);
+  },
   'load-slot': d => { if (resumeGame(Number(d.slot))) setUi({ screen: 'app', tab: 'home', slotPicker: false }); },
   'delete-slot': d => askConfirm('Spielstand löschen?', `Spielstand ${d.slot} wird endgültig gelöscht.`, 'Löschen', () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
   'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0 } }),
@@ -321,6 +340,7 @@ const handlers = {
 
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
+  'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
   'set-speed': d => updateSettings({ speed: d.value }),
 
   // Spieltag
@@ -455,6 +475,6 @@ store.ui.screen = 'title';
 render();
 
 // Nur für lokale Tests: Zugriff auf den Store aus der Browser-Konsole
-if (location.hostname === 'localhost' && location.port) window.__sxi = { store, setUi, act };
+if (location.hostname === 'localhost' && location.port) window.__sxi = { store, setUi, act, startMatch, notify };
 
 export { icon };

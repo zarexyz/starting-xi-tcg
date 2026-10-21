@@ -215,3 +215,11 @@ button.card:hover .card__frame::after { --holo: -20%; background-position: -20% 
 }
 .card__backface svg { width: 38%; height: auto; }
 .card__backface b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--w) * 0.12); }
+.card__badge--red { background: #fff; }
+.card__badge--red i, .redcard, .yellowcard {
+  display: inline-block; width: 9px; height: 12px; border-radius: 2px;
+  background: #dc2626; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); transform: rotate(8deg); flex: none;
+}
+.yellowcard { background: #facc15; }
+.card--xs .card__badge--red i { width: 7px; height: 10px; }
+.chip .redcard, .chip .yellowcard { margin-right: 2px; }

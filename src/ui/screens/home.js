@@ -76,9 +76,11 @@ function squadAlerts(game) {
   const squad = clubPlayers(game, 'user');
   const injured = squad.filter(p => p.injury);
   const tired = squad.filter(p => !p.injury && p.condition < 70);
+  const banned = squad.filter(p => p.suspension);
   const items = game.user.inventory.length;
   const parts = [];
   if (injured.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss">${icon('medical')}</span><div class="row__main"><div class="row__title">${injured.length} verletzt</div><div class="row__sub">${injured.map(p => esc(p.last)).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (banned.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss"><i class="redcard"></i></span><div class="row__main"><div class="row__title">${banned.length} gesperrt</div><div class="row__sub">${banned.map(p => `${esc(p.last)} (${p.suspension.games} Sp.)`).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
   if (tired.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--warn">${icon('battery')}</span><div class="row__main"><div class="row__title">${tired.length} müde (unter 70 %)</div><div class="row__sub">Rotieren oder Fitness-Gegenstand nutzen</div></div>${icon('chevronRight', 'row__chev')}</li>`);
   if (items) parts.push(`<li class="row row--button" data-action="open-items"><span class="alert-dot">${icon('clipboard')}</span><div class="row__main"><div class="row__title">${items} Gegenstände im Spind</div><div class="row__sub">Fitness, Training, Taktik</div></div>${icon('chevronRight', 'row__chev')}</li>`);
   if (!parts.length) return '';

@@ -58,12 +58,12 @@ function benchRow(game, setup, selected) {
 function reserveRow(game, setup, selected) {
   const used = new Set([...Object.values(setup.lineup), ...setup.bench]);
   const rest = clubPlayers(game, 'user').filter(p => !used.has(p.id))
-    .sort((a, b) => !!a.injury - !!b.injury || GROUP_ORDER[POSITION_GROUP[a.position]] - GROUP_ORDER[POSITION_GROUP[b.position]] || b.ovr - a.ovr);
+    .sort((a, b) => !!(a.injury || a.suspension) - !!(b.injury || b.suspension) || GROUP_ORDER[POSITION_GROUP[a.position]] - GROUP_ORDER[POSITION_GROUP[b.position]] || b.ovr - a.ovr);
   if (!rest.length) return '';
   return `<div class="strip strip--reserve ${selected ? 'is-picking' : ''}">
     <div class="strip__label">${icon('user')}Nicht im Kader <span class="muted">${rest.length}</span></div>
-    <div class="strip__row">${rest.map(p => p.injury
-      ? `<div class="strip__item is-out">${cardHtml(p, { size: 'xs', colors: game.clubs.user.colors, showCondition: true })}<span class="strip__pos">verletzt</span></div>`
+    <div class="strip__row">${rest.map(p => p.injury || p.suspension
+      ? `<div class="strip__item is-out">${cardHtml(p, { size: 'xs', colors: game.clubs.user.colors, showCondition: true })}<span class="strip__pos">${p.injury ? 'verletzt' : 'gesperrt'}</span></div>`
       : stripCard(game, p, 'reserve-tap', selected)).join('')}</div>
   </div>`;
 }
@@ -140,6 +140,7 @@ export function playerRow(game, p, opts = {}) {
   const colors = game.clubs[p.clubId]?.colors || game.clubs.user.colors;
   const cond = p.condition;
   const status = p.injury ? `<span class="chip chip--loss">${icon('medical')}${p.injury.days} Sp.</span>` :
+    p.suspension ? `<span class="chip chip--loss"><i class="redcard"></i>${p.suspension.games} Sp.</span>` :
     `<span class="mini-bar ${cond < 65 ? 'is-low' : cond < 80 ? 'is-warn' : ''}" title="Fitness ${cond} %"><span style="width:${cond}%"></span></span>`;
   return `<li><button class="row row--button prow ${opts.selected ? 'is-selected' : ''}" data-action="${opts.action || 'open-player'}" data-id="${p.id}">
     <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
@@ -204,6 +205,8 @@ export function playerSheet(game, id) {
       <div class="pdetail__card">${cardHtml(p, { size: 'lg', colors: club.colors })}</div>
       <div class="pdetail__status">
         ${p.injury ? `<span class="chip chip--loss">${icon('medical')}${esc(p.injury.label)}, noch ${p.injury.days} Sp.</span>` : ''}
+        ${p.suspension ? `<span class="chip chip--loss"><i class="redcard"></i>Gesperrt (${esc(p.suspension.reason)}), noch ${p.suspension.games} Sp.</span>` : ''}
+        ${!p.suspension && p.yellowCount >= 3 ? `<span class="chip chip--warn"><i class="yellowcard"></i>${p.yellowCount} Gelbe, bei 5 gesperrt</span>` : ''}
         ${own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? 'Startelf' : onBench ? 'Bank' : 'Nicht im Kader'}</span>` : `<span class="chip">${esc(club.name)}</span>`}
         <span class="chip">${flagSvg(p.nation, 16)}${esc(NATIONS[p.nation]?.name || p.nation)}</span>
       </div>
@@ -257,7 +260,7 @@ export function playerSheet(game, id) {
       </section>
 
       ${own ? `<div class="pdetail__actions">
-        ${inLineup ? `<button class="btn btn--secondary" data-action="to-bench" data-id="${p.id}">${icon('bench')}Auf die Bank</button>` : `<button class="btn btn--secondary" data-action="pick-for-lineup" data-id="${p.id}" ${p.injury ? 'disabled' : ''}>${icon('pitch')}In die Startelf</button>`}
+        ${inLineup ? `<button class="btn btn--secondary" data-action="to-bench" data-id="${p.id}">${icon('bench')}Auf die Bank</button>` : `<button class="btn btn--secondary" data-action="pick-for-lineup" data-id="${p.id}" ${p.injury || p.suspension ? 'disabled' : ''}>${icon('pitch')}In die Startelf</button>`}
         <button class="btn btn--secondary" data-action="open-items" data-player="${p.id}">${icon('clipboard')}Gegenstand nutzen</button>
         ${transferButtons(game, p)}
         <button class="btn btn--danger" data-action="release" data-id="${p.id}">${icon('trash')}Entlassen</button>

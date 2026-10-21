@@ -24,7 +24,7 @@ npm run dev       # Spiel im Browser unter http://localhost:3000
 Vorher in `capacitor.config.json` die **App-ID** festlegen. Sie ist für immer mit der App im Play Store verbunden und kann später nicht geändert werden. Üblich ist eine umgedrehte Domain, zum Beispiel `de.deinname.startingxi`.
 
 ```bash
-npm install @capacitor/core @capacitor/android @capacitor/app
+npm install @capacitor/core @capacitor/android @capacitor/app @capacitor/filesystem @capacitor/share
 npm install -D @capacitor/cli
 npm run build
 npx cap add android
@@ -85,6 +85,6 @@ Nach der Freigabe die `.aab` im Track **Produktion** hochladen, Release-Notizen 
 
 **Muss ich Vercel weiter nutzen?** Nicht für die App. Vercel ist praktisch für die Web-Version, zum Testen im Browser und um die Datenschutzerklärung zu hosten.
 
-**Wo liegt der Spielstand?** Lokal auf dem Gerät. Bei einer Neuinstallation ist er weg. Ein Cloud-Speicher kommt erst mit dem Mehrspieler-Modus.
+**Wo liegt der Spielstand?** Lokal auf dem Gerät. Unter Verein → Optionen → „Spielstand sichern“ lässt er sich als Datei teilen (dafür sind die Plugins Filesystem und Share installiert) und auf dem Startbildschirm unter „Spielstände“ wieder laden. Ein Cloud-Speicher kommt später.
 
 **Kann ich später Werbung und Käufe einbauen?** Ja, über die Capacitor-Plugins für AdMob und Google Play Billing. Dann müssen Datenschutzerklärung und Datensicherheit angepasst werden.

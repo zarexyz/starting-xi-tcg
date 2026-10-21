@@ -50,6 +50,13 @@ function warnings(game, setup) {
   }
   const injuredOut = clubPlayers(game, 'user').filter(p => p.injury).length;
   if (injuredOut) list.push({ icon: 'medical', text: `${injuredOut} Spieler fehlen verletzt.`, tone: 'muted' });
+  for (const p of clubPlayers(game, 'user').filter(x => x.suspension)) {
+    list.push({ icon: 'alert', text: `${p.last} ist gesperrt (${p.suspension.reason}).`, tone: 'muted' });
+  }
+  for (const pid of Object.values(setup.lineup)) {
+    const p = game.players[pid];
+    if (p && p.yellowCount === 4) list.push({ icon: 'alert', text: `${p.last} hat 4 Gelbe: Bei der nächsten ist er gesperrt.`, tone: 'warn' });
+  }
   return list;
 }
 
@@ -64,7 +71,7 @@ export function prepFlow(game, ui) {
   const oppStyle = STYLES[opp.preferredStyle];
   const table = computeTable(game, opp.tier);
   const oppRow = table.find(r => r.clubId === oppId);
-  const star = clubPlayers(game, oppId).filter(p => !p.injury).sort((a, b) => b.ovr - a.ovr)[0];
+  const star = clubPlayers(game, oppId).filter(p => !p.injury && !p.suspension).sort((a, b) => b.ovr - a.ovr)[0];
   const pred = prediction(game, entry, setup);
   const warn = warnings(game, setup);
   const tactic = game.user.inventory.find(i => i.type === 'TACTIC');

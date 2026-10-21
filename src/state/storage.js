@@ -49,7 +49,7 @@ export function slotInfo(slot) {
 }
 
 export function loadSettings() {
-  return safe(() => ({ sound: true, speed: 'normal', ...JSON.parse(localStorage.getItem(SETTINGS) || '{}') }), { sound: true, speed: 'normal' });
+  return safe(() => ({ sound: true, speed: 'normal', autoScenes: false, ...JSON.parse(localStorage.getItem(SETTINGS) || '{}') }), { sound: true, speed: 'normal' });
 }
 
 export function saveSettings(settings) {

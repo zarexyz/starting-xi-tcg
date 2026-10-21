@@ -146,16 +146,49 @@ export function simulateMatch(rng, home, away, opts = {}) {
     if (cand) subs.push({ side: inj.side, outId: inj.playerId, inId: cand.id, minute: inj.minute });
   }
 
-  /** Aufstellung zu einer bestimmten Minute (Verletzte raus, Einwechselspieler rein) */
+  const cards = [];
+  const sentOff = (sideKey, id, minute) => cards.some(c => c.side === sideKey && c.playerId === id && c.type !== 'Y' && c.minute < minute);
+
+  /** Aufstellung zu einer bestimmten Minute (Verletzte raus, Einwechselspieler rein, Platzverweise fehlen) */
   const slotsAt = (team, sideKey, minute) => team.slots.map(sl => {
     if (!sl.player) return sl;
     const inj = injuries.find(x => x.side === sideKey && x.playerId === sl.player.id && x.minute < minute);
-    if (!inj) return sl;
+    if (!inj) return sentOff(sideKey, sl.player.id, minute) ? { ...sl, player: null } : sl;
     const sub = subs.find(x => x.side === sideKey && x.outId === sl.player.id);
     const subPlayer = sub && team.bench.find(b => b.id === sub.inId);
-    if (!subPlayer) return { ...sl, player: null };
+    if (!subPlayer || sentOff(sideKey, subPlayer.id, minute)) return { ...sl, player: null };
     return { ...sl, player: subPlayer, rating: effectiveRating(subPlayer, sl.pos) };
   }).filter(sl => sl.player);
+
+  // Gelbe und Rote Karten: Pressing foult mehr, Abwehrspieler eher als Stürmer
+  const foulRate = st => (st.key === 'PRESSING' ? 1.3 : st.key === 'MAUERN' ? 1.15 : st.key === 'BALLBESITZ' ? 0.85 : 1);
+  const cardEvents = [];
+  for (const side of sides) {
+    const nYellow = rng.poisson(1.7 * foulRate(side.team.style));
+    for (let i = 0; i < nYellow; i++) cardEvents.push({ side: side.key, team: side.team, minute: rng.int(8, 90), kind: 'Y' });
+    if (rng.chance(0.07 * foulRate(side.team.style))) cardEvents.push({ side: side.key, team: side.team, minute: rng.int(10, 88), kind: 'R' });
+  }
+  cardEvents.sort((a, b) => a.minute - b.minute);
+  const groupWeight = { DEF: 1.6, MID: 1.25, ATT: 0.7, GK: 0.12 };
+  for (const ev of cardEvents) {
+    const onPitch = slotsAt(ev.team, ev.side, ev.minute);
+    if (!onPitch.length) continue;
+    const pick = rng.weighted(onPitch.map(sl => ({
+      value: sl,
+      weight: groupWeight[sl.group] * (1 + Math.max(0, 60 - attrOf(sl.player, 'men')) / 60)
+    })));
+    const id = pick.player.id;
+    if (ev.kind === 'R') { cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'R' }); continue; }
+    const hasYellow = cards.some(c => c.side === ev.side && c.playerId === id && c.type === 'Y');
+    if (hasYellow) {
+      // Zweite Gelbe nur selten: Spieler halten sich meist zurück
+      if (rng.chance(0.35)) cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'YR' });
+    } else {
+      cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'Y' });
+    }
+  }
+  /** Wie viele Spieler fehlen einer Seite zur Minute durch Platzverweis */
+  const redsBefore = (sideKey, minute) => cards.filter(c => c.side === sideKey && c.type !== 'Y' && c.minute < minute).length;
 
   // Angriffe auf Minuten verteilen, dann der Reihe nach ausspielen (Spielstand zählt für Mental)
   const usedMinutes = new Set();
@@ -182,6 +215,11 @@ export function simulateMatch(rng, home, away, opts = {}) {
     const sp = shooter.player;
     const dp = defender.player;
 
+    // Unterzahl: jeder Platzverweis kostet spürbar
+    const oppKey = side.key === 'home' ? 'away' : 'home';
+    const manDiff = redsBefore(oppKey, minute) - redsBefore(side.key, minute);
+    const manEdge = manDiff * 0.32;
+
     // Mental bei Rückstand: starke Köpfe bäumen sich auf, schwache verkrampfen
     const behind = score[side.key] < score[side.key === 'home' ? 'away' : 'home'];
     const nerve = behind && minute > 55 ? mentalEdge(side.team) * 0.25 : 0;
@@ -192,7 +230,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
     const p1 = clamp(sigmoid(
       (side.team.attackPower - side.opp.defensePower) / 24 +
       (shooterBreak - defenderHold) / 60 +
-      side.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve - 0.15
+      side.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve + manEdge - 0.15
     ), 0.12, 0.85);
 
     // Phase 2: Abschluss – Schuss gegen Torwart
@@ -234,7 +272,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
   // Elfmeterschießen in K.-o.-Spielen
   let pens = null;
   if (opts.knockout && hg === ag) {
-    pens = penaltyShootout(rng, home, away);
+    pens = penaltyShootout(rng, home, away, slotsAt(home, 'home', 121), slotsAt(away, 'away', 121));
   }
 
   const result = {
@@ -255,6 +293,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
     goals,
     injuries,
     subs,
+    cards,
     lineups: {
       home: home.slots.map(s => ({ pos: s.pos, playerId: s.player?.id })),
       away: away.slots.map(s => ({ pos: s.pos, playerId: s.player?.id }))
@@ -277,30 +316,44 @@ export function simulateMatch(rng, home, away, opts = {}) {
   return result;
 }
 
-function penaltyShootout(rng, home, away) {
-  const taker = team => {
-    const shooters = team.slots.filter(s => s.player && s.group !== 'GK')
-      .sort((a, b) => (attrOf(b.player, 'sch') + attrOf(b.player, 'men') * 0.5) - (attrOf(a.player, 'sch') + attrOf(a.player, 'men') * 0.5));
-    return shooters;
-  };
-  const hs = taker(home);
-  const as = taker(away);
+/**
+ * Elfmeterschießen Schuss für Schuss. Wer am Ende auf dem Platz steht, schießt.
+ * Rückgabe: { h, a, kicks: [{ side, takerId, keeperId, scored, score: [h, a] }] }
+ */
+function penaltyShootout(rng, home, away, homeSlots, awaySlots) {
+  const order = slots => slots.filter(s => s.player && s.group !== 'GK')
+    .sort((a, b) => (attrOf(b.player, 'sch') + attrOf(b.player, 'men') * 0.5) - (attrOf(a.player, 'sch') + attrOf(a.player, 'men') * 0.5));
+  const hs = order(homeSlots);
+  const as = order(awaySlots);
+  const hk = homeSlots.find(s => s.group === 'GK') || null;
+  const ak = awaySlots.find(s => s.group === 'GK') || null;
   // Schuss gegen Torwart, die Nerven des Schützen entscheiden mit
-  const prob = (s, keeper) => clamp(0.76 + (attrOf(s.player, 'sch') - (keeper?.rating ?? 50)) / 200 + (attrOf(s.player, 'men') - 55) / 250, 0.5, 0.93);
+  const prob = (s, keeper) => clamp(0.76 + (attrOf(s.player, 'sch') - (keeper?.rating ?? 40)) / 200 + (attrOf(s.player, 'men') - 55) / 250, 0.5, 0.93);
   let h = 0;
   let a = 0;
+  const kicks = [];
+  const kick = (side, i) => {
+    const takers = side === 'home' ? hs : as;
+    const keeper = side === 'home' ? ak : hk;
+    const t = takers[i % takers.length];
+    const scored = rng.chance(prob(t, keeper));
+    if (scored) { if (side === 'home') h++; else a++; }
+    kicks.push({ side, takerId: t.player.id, keeperId: keeper?.player?.id || null, scored, score: [h, a] });
+  };
   for (let i = 0; i < 5; i++) {
-    if (rng.chance(prob(hs[i % hs.length], away.keeper))) h++;
-    if (rng.chance(prob(as[i % as.length], home.keeper))) a++;
+    kick('home', i);
+    if (h > a + (5 - i - 1) + 1 || a > h + (5 - i - 1)) break; // vorzeitig entschieden
+    kick('away', i);
+    if (h > a + (5 - i - 1) || a > h + (5 - i - 1)) break;
   }
   let i = 5;
-  while (h === a && i < 30) {
-    if (rng.chance(prob(hs[i % hs.length], away.keeper))) h++;
-    if (rng.chance(prob(as[i % as.length], home.keeper))) a++;
+  while (h === a && i < 40) {
+    kick('home', i);
+    kick('away', i);
     i++;
   }
-  if (h === a) h++;
-  return { h, a };
+  if (h === a) { h++; kicks.push({ side: 'home', takerId: hs[0].player.id, keeperId: ak?.player?.id || null, scored: true, score: [h, a] }); }
+  return { h, a, kicks };
 }
 
 function rateplayers(rng, result, home, away, chances) {
@@ -326,6 +379,11 @@ function rateplayers(rng, result, home, away, chances) {
       if (s.group === 'DEF') r += ga === 0 ? 0.45 : -ga * 0.15;
       ratings[id] = Math.round(clamp(r, 3.5, 10) * 10) / 10;
     }
+  }
+  for (const c of result.cards || []) {
+    if (ratings[c.playerId] == null) continue;
+    const pen = c.type === 'Y' ? 0.25 : 1.3;
+    ratings[c.playerId] = Math.round(clamp(ratings[c.playerId] - pen, 3, 10) * 10) / 10;
   }
   for (const sub of result.subs) {
     const g = result.goals.filter(x => x.scorerId === sub.inId).length;
@@ -393,7 +451,10 @@ const T = {
     '{p} bleibt liegen und muss verletzt raus.',
     'Bittere Szene: {p} verletzt sich und kann nicht weitermachen.'
   ],
-  sub: ['Wechsel: {i} kommt für {o}.']
+  sub: ['Wechsel: {i} kommt für {o}.'],
+  yellow: ['Gelbe Karte für {p}.', '{p} sieht Gelb nach einem harten Einsteigen.', 'Taktisches Foul von {p}, Gelb.'],
+  yellowRed: ['Gelb-Rot! {p} muss vom Platz.', '{p} sieht die zweite Gelbe und fliegt.'],
+  red: ['Rote Karte! {p} fliegt nach einer Notbremse.', 'Glatt Rot für {p}!']
 };
 
 function fill(rng, list, vars) {
@@ -441,6 +502,10 @@ function buildTicker(rng, result, home, away, chances) {
   for (const sub of result.subs) {
     items.push({ minute: sub.minute, type: 'sub', side: sub.side, text: fill(rng, T.sub, { i: name(sub.inId), o: name(sub.outId) }) });
   }
+  for (const c of result.cards || []) {
+    const list = c.type === 'Y' ? T.yellow : c.type === 'YR' ? T.yellowRed : T.red;
+    items.push({ minute: c.minute, type: c.type === 'Y' ? 'yellow' : 'red', side: c.side, playerId: c.playerId, text: fill(rng, list, { p: name(c.playerId) }) });
+  }
   items.push({ minute: 45, type: 'half', text: 'Halbzeit.' });
   items.sort((a, b) => a.minute - b.minute || (a.type === 'half' ? -1 : 1));
   items.push({ minute: 90, type: 'end', text: `Abpfiff! ${result.hg}:${result.ag}.` });
@@ -481,6 +546,15 @@ export function analyzeMatch(state, result, side) {
   if (cond < 82) reasons.push({ impact: -1, icon: 'battery', text: `Müde Beine: Deine Startelf ging mit ${cond} % Fitness ins Spiel.` });
   const theirCond = result.meta.avgCondition[o];
   if (theirCond < 82 && cond - theirCond >= 8) reasons.push({ impact: 1, icon: 'battery', text: `Frischere Beine: Der Gegner kam nur mit ${theirCond} % Fitness.` });
+
+  const myReds = (result.cards || []).filter(c => c.side === side && c.type !== 'Y');
+  const theirReds = (result.cards || []).filter(c => c.side !== side && c.type !== 'Y');
+  if (myReds.length) {
+    const p = state.players[myReds[0].playerId];
+    reasons.push({ impact: -1, icon: 'alert', text: `Ab der ${myReds[0].minute}. Minute in Unterzahl${p ? ` nach Platzverweis für ${shortName(p)}` : ''}.` });
+  } else if (theirReds.length) {
+    reasons.push({ impact: 1, icon: 'alert', text: `Ab der ${theirReds[0].minute}. Minute in Überzahl.` });
+  }
 
   const lineup = result.lineups[side];
   const offPos = lineup

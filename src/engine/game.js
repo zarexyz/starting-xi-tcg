@@ -82,8 +82,9 @@ function startSeason(rng, state, cupByes) {
   state.dayIndex = 0;
   state.calendar = buildCalendar();
   for (const p of Object.values(state.players)) {
-    p.stats = { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0 };
+    p.stats = { apps: 0, goals: 0, assists: 0, ratingSum: 0, motm: 0, yellows: 0, reds: 0 };
     p.half = { apps: 0, ratingSum: 0 };
+    p.yellowCount = 0;
   }
   for (const c of Object.values(state.clubs)) c.halfGames = 0;
 }
@@ -418,7 +419,7 @@ export function swapPlayers(state, aId, target) {
   if (target.playerId) {
     bId = target.playerId;
     if (bId === aId || !state.players[bId] || state.players[bId].clubId !== 'user') return { ok: false };
-    if (state.players[bId].injury && a.type !== 'out') return { ok: false, reason: 'injured' };
+    if ((state.players[bId].injury || state.players[bId].suspension) && a.type !== 'out') return { ok: false, reason: state.players[bId].injury ? 'injured' : 'suspended' };
     b = locate(bId);
   } else if (target.slot) {
     b = { type: 'slot', key: target.slot };
@@ -428,7 +429,7 @@ export function swapPlayers(state, aId, target) {
     b = { type: 'bench', idx: bench.length };
     bench.push(null);
   } else return { ok: false };
-  if (state.players[aId].injury && b.type !== 'out') return { ok: false, reason: 'injured' };
+  if ((state.players[aId].injury || state.players[aId].suspension) && b.type !== 'out') return { ok: false, reason: state.players[aId].injury ? 'injured' : 'suspended' };
   if (a.type === 'out' && b.type === 'out') return { ok: false };
   put(b, aId);
   put(a, bId);
@@ -509,6 +510,34 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     p.stats.assists += assists; p.careerStats.assists += assists;
     if (result.motm === id) p.stats.motm++;
   }
+  // Karten und Sperren: Rot 1–3 Spiele, Gelb-Rot 1 Spiel, 5 Gelbe = 1 Spiel
+  for (const c of (result.cards || []).filter(x => x.side === side)) {
+    const p = state.players[c.playerId];
+    if (!p) continue;
+    p.stats.yellows = p.stats.yellows || 0;
+    p.stats.reds = p.stats.reds || 0;
+    let games = 0;
+    let reason = '';
+    if (c.type === 'Y') {
+      p.stats.yellows++;
+      p.yellowCount = (p.yellowCount || 0) + 1;
+      if (p.yellowCount >= 5) { games = 1; reason = '5. Gelbe Karte'; p.yellowCount = 0; }
+    } else if (c.type === 'YR') {
+      p.stats.reds++;
+      games = 1; reason = 'Gelb-Rot';
+    } else {
+      p.stats.reds++;
+      games = rng.weighted([{ value: 1, weight: 5 }, { value: 2, weight: 3 }, { value: 3, weight: 1 }]);
+      reason = 'Rote Karte';
+    }
+    if (games) {
+      p.suspension = { games: (p.suspension?.games || 0) + games, reason, fresh: true };
+      if (clubId === 'user') {
+        addNews(state, 'suspension', `${shortName(p)} gesperrt`, `${displayName(p)} fehlt nach ${reason === '5. Gelbe Karte' ? 'der 5. Gelben Karte' : reason === 'Gelb-Rot' ? 'Gelb-Rot' : 'der Roten Karte'} ${games === 1 ? 'im nächsten Spiel' : `in den nächsten ${games} Spielen`}.`, { playerId: p.id });
+      }
+    }
+  }
+
   // Temporäre Karten gelten genau ein Spiel
   for (const id of state.clubs[clubId]?.playerIds || []) {
     if (state.players[id]?.tempBoost) state.players[id].tempBoost = null;
@@ -578,6 +607,18 @@ export function playDay(state) {
           finance: []
         };
         state.user.matchBoost = null;
+      }
+    }
+
+    // Sperren laufen ab: zählt jedes Spiel des eigenen Vereins
+    for (const p of Object.values(state.players)) {
+      if (!p.suspension) continue;
+      if (p.suspension.fresh) { delete p.suspension.fresh; continue; }
+      if (!participating.has(p.clubId)) continue;
+      p.suspension.games--;
+      if (p.suspension.games <= 0) {
+        p.suspension = null;
+        if (p.clubId === 'user') addNews(state, 'suspension', `${shortName(p)} wieder spielberechtigt`, `Die Sperre von ${displayName(p)} ist abgelaufen.`, { playerId: p.id });
       }
     }
 

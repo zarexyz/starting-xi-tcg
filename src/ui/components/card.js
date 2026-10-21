@@ -38,7 +38,8 @@ export function cardHtml(p, opts = {}) {
   const attrs = CARD_ATTRS[isGk ? 'gk' : 'field'];
   const tag = opts.action ? 'button' : 'div';
   const actionAttrs = opts.action ? `type="button" data-action="${opts.action}" data-id="${p.id}"${opts.data || ''}` : '';
-  const injured = p.injury ? `<span class="card__badge card__badge--injury" title="Verletzt">${icon('medical')}</span>` : '';
+  const injured = p.injury ? `<span class="card__badge card__badge--injury" title="Verletzt">${icon('medical')}</span>` :
+    p.suspension ? `<span class="card__badge card__badge--red" title="Gesperrt"><i></i></span>` : '';
   const sel = opts.selected ? ' is-selected' : '';
   const style = `--club:${colors.primary};--club2:${colors.secondary}`;
 

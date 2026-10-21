@@ -423,3 +423,44 @@ test('Spielstand v1 wird auf 8 Werte umgerechnet, Stärke bleibt fast gleich', (
   }
   for (const c of Object.values(m.clubs)) if (!c.isUser) assert.ok(c.coach?.style);
 });
+
+test('Karten und Sperren: Platzverweis sperrt, Sperre läuft nach Spielen ab', () => {
+  const s = newStartedGame(31);
+  let found = null;
+  for (let i = 0; i < 40 && !found; i++) {
+    const r = playDay(s);
+    if (!r) continue;
+    const red = r.result.cards.find(c => c.side === r.side && c.type !== 'Y');
+    if (red) found = red.playerId;
+  }
+  // Über die ganze Liga: rund 3–4 Gelbe pro Spiel
+  if (found) {
+    const p = s.players[found];
+    assert.ok(p.suspension && p.suspension.games >= 1);
+    const st = ensureUserSetup(s);
+    assert.ok(!Object.values(st.lineup).includes(found) && !st.bench.includes(found));
+    let guard = 0;
+    while (s.players[found]?.suspension && guard++ < 10) playDay(s);
+    assert.equal(s.players[found].suspension, null);
+  }
+});
+
+test('Elfmeterschießen liefert jeden Schuss und ein eindeutiges Ergebnis', () => {
+  const rng = createRng(99);
+  const s = newStartedGame(4);
+  const ids = s.leagues[2].clubIds;
+  let shootouts = 0;
+  for (let i = 0; i < 300 && shootouts < 15; i++) {
+    const a = buildTeam(s, ids[0], { formation: '4-4-2', style: 'AUSGEWOGEN', ...bestLineup(s, ids[0], '4-4-2') });
+    const b = buildTeam(s, ids[1], { formation: '4-4-2', style: 'AUSGEWOGEN', ...bestLineup(s, ids[1], '4-4-2') });
+    const r = simulateMatch(rng, a, b, { knockout: true });
+    if (!r.pens) continue;
+    shootouts++;
+    assert.notEqual(r.pens.h, r.pens.a);
+    const last = r.pens.kicks[r.pens.kicks.length - 1];
+    assert.deepEqual(last.score, [r.pens.h, r.pens.a]);
+    assert.equal(r.pens.kicks.filter(k => k.side === 'home' && k.scored).length, r.pens.h);
+    assert.ok(r.pens.kicks.length >= 6);
+  }
+  assert.ok(shootouts > 0);
+});

@@ -9,6 +9,13 @@ import { esc, fmt } from '../html.js';
 import { LEAGUE_INFO } from '../../engine/world.js';
 import { STYLES } from '../../engine/constants.js';
 
+function cardMark(r, side, id) {
+  const c = (r.cards || []).filter(x => x.side === side && x.playerId === id);
+  if (!c.length) return '';
+  const red = c.some(x => x.type !== 'Y');
+  return ` <i class="${red ? 'redcard' : 'yellowcard'}" title="${red ? 'Platzverweis' : 'Gelbe Karte'}"></i>`;
+}
+
 function pname(game, snapshot, id) {
   const p = game.players[id] || snapshot?.[id];
   return p ? `${p.first[0]}. ${p.last}` : 'Unbekannt';
@@ -44,6 +51,9 @@ export function resultFlow(game, flow) {
     ${r.goals.length ? `<ul class="goals">${r.goals.map(g => `<li class="goals__item goals__item--${g.side}">
       <span class="num">${g.minute > 90 ? '90+' : g.minute}'</span>${icon('ball')}<span>${esc(pname(game, snapshot, g.scorerId))}${g.assistId ? ` <small class="muted">(${esc(pname(game, snapshot, g.assistId))})</small>` : ''}</span>
     </li>`).join('')}</ul>` : '<p class="small muted report__center">Keine Tore.</p>'}
+    ${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).length ? `<ul class="goals goals--cards">${(r.cards || []).filter(c => c.type !== 'Y' || c.side === side).map(c => `<li class="goals__item goals__item--${c.side}">
+      <span class="num">${c.minute}'</span><i class="${c.type === 'Y' ? 'yellowcard' : 'redcard'}"></i><span>${esc(pname(game, snapshot, c.playerId))}${c.type === 'YR' ? ' <small class="muted">(Gelb-Rot)</small>' : ''}${c.type !== 'Y' && c.side === side ? ' <small class="neg">gesperrt</small>' : ''}</span>
+    </li>`).join('')}</ul>` : ''}
 
     <section class="section">
       <div class="section__head"><h2 class="section__title">Warum?</h2></div>
@@ -71,7 +81,7 @@ export function resultFlow(game, flow) {
         const motm = r.motm === x.id;
         return `<li class="row">
           <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
-          <div class="row__main"><div class="row__title">${esc(p.first[0])}. ${esc(p.last)}</div><div class="row__sub">${p.position}${mySubs.includes(x.id) ? ', eingewechselt' : ''}</div></div>
+          <div class="row__main"><div class="row__title">${esc(p.first[0])}. ${esc(p.last)}${cardMark(r, side, x.id)}</div><div class="row__sub">${p.position}${mySubs.includes(x.id) ? ', eingewechselt' : ''}</div></div>
           ${motm ? `<span class="chip chip--warn">${icon('star')}Bester</span>` : ''}
           <span class="grade ${x.r >= 7.5 ? 'grade--top' : x.r < 5.8 ? 'grade--low' : ''}">${x.r.toFixed(1)}</span>
         </li>`;

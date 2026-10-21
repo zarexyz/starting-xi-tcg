@@ -58,10 +58,12 @@ function slotPicker(slots) {
         <li class="row">
           <span class="slot-empty">${icon('plus')}</span>
           <div class="row__main"><div class="row__title">Freier Platz ${SLOTS[i]}</div><div class="row__sub">Neuen Verein gründen</div></div>
+          <button class="icon-btn" data-action="import-save" data-slot="${SLOTS[i]}" aria-label="Sicherung in Platz ${SLOTS[i]} laden" title="Sicherung laden">${icon('upload')}</button>
           <button class="btn btn--sm btn--secondary" data-action="new-game" data-slot="${SLOTS[i]}">Gründen</button>
         </li>`).join('')}
     </ul>
-  </div>`;
+  </div>
+  <p class="xsmall muted slot-note">${slots.every(Boolean) ? 'Um eine Sicherung zu laden, gib zuerst einen Platz frei.' : `${icon('upload')} lädt eine gesicherte Datei in einen freien Platz.`}</p>`;
 }
 
 // -----------------------------------------------------------------------------

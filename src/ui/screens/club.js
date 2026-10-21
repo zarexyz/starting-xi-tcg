@@ -76,12 +76,22 @@ function settings(store) {
       </li>
       <li class="row">${segmented([['slow', 'Ruhig'], ['normal', 'Normal'], ['fast', 'Schnell']], s.speed, 'set-speed')}</li>
       <li class="row">
+        <span class="alert-dot">${icon('play')}</span>
+        <div class="row__main"><div class="row__title">Szenen automatisch fortsetzen</div><div class="row__sub">Sonst geht es nach jeder Szene erst per Tippen weiter</div></div>
+        <button class="toggle" role="switch" aria-checked="${!!s.autoScenes}" data-action="toggle-auto-scenes"><span></span></button>
+      </li>
+      <li class="row">
         <span class="alert-dot">${icon('save')}</span>
         <div class="row__main"><div class="row__title">Spielstand ${store.slot}</div><div class="row__sub">Wird nach jeder Aktion automatisch gespeichert</div></div>
         <button class="btn btn--sm btn--secondary" data-action="to-title">Wechseln</button>
       </li>
+      <li class="row">
+        <span class="alert-dot">${icon('download')}</span>
+        <div class="row__main"><div class="row__title">Spielstand sichern</div><div class="row__sub">Als Datei speichern, etwa vor einem Handywechsel. Laden über „Spielstände“ auf dem Startbildschirm.</div></div>
+        <button class="btn btn--sm btn--secondary" data-action="export-save">Sichern</button>
+      </li>
     </ul>
-    <p class="xsmall muted settings-note">Starting XI TCG, Version 0.2. Alle Vereine und Spieler sind frei erfunden.</p>
+    <p class="xsmall muted settings-note">Starting XI TCG, Version 1.2. Alle Vereine und Spieler sind frei erfunden.</p>
   `;
 }
 
