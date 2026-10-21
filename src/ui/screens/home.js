@@ -11,6 +11,8 @@ import { computeTable, CUP_ROUND_NAMES } from '../../engine/schedule.js';
 import { STYLES } from '../../engine/constants.js';
 import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { packArt } from '../flows/pack.js';
+import { t } from '../../i18n/index.js';
+import { newsTitle, newsText, pendingTitle } from '../text.js';
 
 function tableRowsAround(game) {
   const tier = game.clubs.user.tier;
@@ -23,8 +25,8 @@ function tableRowsAround(game) {
 function compLabel(game, entry) {
   if (!entry) return '';
   if (entry.comp === 'league') return LEAGUE_INFO[game.clubs.user.tier].name;
-  if (entry.comp === 'cup') return `Pokal, ${CUP_ROUND_NAMES[entry.round]}`;
-  return entry.stage === 'final' ? 'Final Four, Finale' : 'Final Four, Halbfinale';
+  if (entry.comp === 'cup') return t('day.cup', { round: CUP_ROUND_NAMES[entry.round] });
+  return entry.stage === 'final' ? t('day.ffFinal') : t('day.ffSemi');
 }
 
 function matchTicket(game) {
@@ -34,8 +36,8 @@ function matchTicket(game) {
     const next = nextUserMatch(game);
     return `<section class="ticket ticket--idle">
       <div class="ticket__head"><span class="chip">${icon('calendar')}${esc(dayLabel(game, day))}</span></div>
-      <p class="ticket__idle">Heute spielt dein Verein nicht. ${next ? `Nächstes Spiel: ${esc(dayLabel(game, next.day))}.` : 'Die Saison ist für dich gelaufen.'}</p>
-      <button class="btn btn--secondary btn--block" data-action="sim-day">${icon('forward')}Spieltag simulieren</button>
+      <p class="ticket__idle">${t('home.noMatch')} ${next ? t('home.next', { day: esc(dayLabel(game, next.day)) }) : t('home.seasonDone')}</p>
+      <button class="btn btn--secondary btn--block" data-action="sim-day">${icon('forward')}${t('home.simDay')}</button>
     </section>`;
   }
   const { m } = today;
@@ -51,25 +53,25 @@ function matchTicket(game) {
     <div class="ticket__head">
       <span class="ticket__day">${esc(dayLabel(game, day))}</span>
       <span class="chip">${esc(compLabel(game, today))}</span>
-      ${rivalry(home, away) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}Derby</span>` : ''}
+      ${rivalry(home, away) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
     </div>
     <div class="ticket__match">
       <div class="ticket__team" data-action="open-club" data-id="${home.id}" role="button">
         ${crestSvg(home, 64)}
         <b>${esc(home.name)}</b>
-        <span class="num">Stärke ${clubStrength(game, home.id)}</span>
+        <span class="num">${t('w.rating')} ${clubStrength(game, home.id)}</span>
         ${formHtml(formOf(home.id))}
       </div>
-      <div class="ticket__vs display">${isHome ? 'Heim' : 'Ausw.'}</div>
+      <div class="ticket__vs display">${isHome ? t('home.home') : t('home.away')}</div>
       <div class="ticket__team" data-action="open-club" data-id="${away.id}" role="button">
         ${crestSvg(away, 64)}
         <b>${esc(away.name)}</b>
-        <span class="num">Stärke ${clubStrength(game, away.id)}</span>
+        <span class="num">${t('w.rating')} ${clubStrength(game, away.id)}</span>
         ${formHtml(formOf(away.id))}
       </div>
     </div>
-    <div class="ticket__scout">${icon('strategy')}<span>${esc(opp.name)} spielt fast immer <b>${oppStyle.name}</b> im ${opp.preferredFormation}.</span></div>
-    <button class="btn btn--primary btn--block" data-action="open-prep">${icon('whistle')}Spiel vorbereiten</button>
+    <div class="ticket__scout">${icon('strategy')}<span>${t('home.scout', { club: esc(opp.name), style: `<b>${oppStyle.name}</b>`, formation: opp.preferredFormation })}</span></div>
+    <button class="btn btn--primary btn--block" data-action="open-prep">${icon('whistle')}${t('home.prep')}</button>
   </section>`;
 }
 
@@ -80,23 +82,23 @@ function squadAlerts(game) {
   const banned = squad.filter(p => p.suspension);
   const items = game.user.inventory.length;
   const parts = [];
-  if (injured.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss">${icon('medical')}</span><div class="row__main"><div class="row__title">${injured.length} verletzt</div><div class="row__sub">${injured.map(p => esc(p.last)).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (banned.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss"><i class="redcard"></i></span><div class="row__main"><div class="row__title">${banned.length} gesperrt</div><div class="row__sub">${banned.map(p => `${esc(p.last)} (${p.suspension.games} Sp.)`).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (tired.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--warn">${icon('battery')}</span><div class="row__main"><div class="row__title">${tired.length} müde (unter 70 %)</div><div class="row__sub">Rotieren oder Fitness-Gegenstand nutzen</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (items) parts.push(`<li class="row row--button" data-action="open-items"><span class="alert-dot">${icon('clipboard')}</span><div class="row__main"><div class="row__title">${items} Gegenstände im Spind</div><div class="row__sub">Fitness, Training, Taktik</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (injured.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss">${icon('medical')}</span><div class="row__main"><div class="row__title">${t('home.injured', { n: injured.length })}</div><div class="row__sub">${injured.map(p => esc(p.last)).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (banned.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss"><i class="redcard"></i></span><div class="row__main"><div class="row__title">${t('home.banned', { n: banned.length })}</div><div class="row__sub">${banned.map(p => `${esc(p.last)} (${t('w.gamesShort', { n: p.suspension.games })})`).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (tired.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--warn">${icon('battery')}</span><div class="row__main"><div class="row__title">${t('home.tired', { n: tired.length })}</div><div class="row__sub">${t('home.tiredHint')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (items) parts.push(`<li class="row row--button" data-action="open-items"><span class="alert-dot">${icon('clipboard')}</span><div class="row__main"><div class="row__title">${t('home.items', { n: items })}</div><div class="row__sub">${t('home.itemsHint')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
   if (!parts.length) return '';
-  return `<section class="section"><div class="section__head"><h2 class="section__title">Kaderlage</h2></div><ul class="list panel panel--flush">${parts.join('')}</ul></section>`;
+  return `<section class="section"><div class="section__head"><h2 class="section__title">${t('home.squadState')}</h2></div><ul class="list panel panel--flush">${parts.join('')}</ul></section>`;
 }
 
 function newsList(game) {
   const items = game.inbox.slice(0, 3);
   if (!items.length) return '';
   return `<section class="section">
-    <div class="section__head"><h2 class="section__title">Nachrichten</h2><button class="link" data-action="open-inbox">Alle</button></div>
+    <div class="section__head"><h2 class="section__title">${t('home.news')}</h2><button class="link" data-action="open-inbox">${t('home.all')}</button></div>
     <ul class="list panel panel--flush">
       ${items.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
-        ${!n.read ? '<span class="unread-dot" aria-label="ungelesen"></span>' : ''}
-        <div class="row__main"><div class="row__title">${esc(n.title)}</div><div class="row__sub news-sub">${esc(n.text)}</div></div>
+        ${!n.read ? `<span class="unread-dot" aria-label="${t('home.unread')}"></span>` : ''}
+        <div class="row__main"><div class="row__title">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
       </li>`).join('')}
     </ul>
   </section>`;
@@ -104,24 +106,19 @@ function newsList(game) {
 
 function firstSteps(game) {
   if (game.user.tipsDismissed || game.season > 1 || game.matchLog.length > 3 || game.pending) return '';
-  const steps = [
-    ['strategy', 'Gegner lesen', 'In der Spielvorbereitung siehst du, wie der Gegner meistens spielt. Wähle einen Stil, der ihn kontert.'],
-    ['battery', 'Rotieren', 'Müde Spieler bringen weniger. Der Co-Trainer stellt auf Wunsch die fitteste Elf auf.'],
-    ['trophy', 'Final Four', 'Platz 1 bis 4 spielt um den Aufstieg. Die beiden Halbfinalsieger steigen auf.'],
-    ['store', 'Verstärken', 'Mit Münzen kaufst du Packs mit neuen Talenten oder Spieler auf dem Transfermarkt.']
-  ];
+  const steps = [['strategy', 'read'], ['battery', 'rotate'], ['trophy', 'ff'], ['store', 'strengthen']];
   return `<section class="section tips">
-    <div class="section__head"><h2 class="section__title">So geht's</h2><button class="link" data-action="dismiss-tips">Ausblenden</button></div>
-    <ol class="tips__list">${steps.map(([ic, t, d]) => `<li><span class="alert-dot">${icon(ic)}</span><div><b>${t}</b><p class="small muted">${d}</p></div></li>`).join('')}</ol>
+    <div class="section__head"><h2 class="section__title">${t('tips.title')}</h2><button class="link" data-action="dismiss-tips">${t('tips.hide')}</button></div>
+    <ol class="tips__list">${steps.map(([ic, k]) => `<li><span class="alert-dot">${icon(ic)}</span><div><b>${t(`tips.${k}.t`)}</b><p class="small muted">${t(`tips.${k}.x`)}</p></div></li>`).join('')}</ol>
   </section>`;
 }
 
 export function homeScreen(game) {
   const pendingBanner = game.pending ? `<section class="pending-pack">
       <div class="pending-pack__art">${packArt(game.pending.type === 'starter' ? 'starter' : game.pending.source, 'sm')}</div>
-      <div><div class="h3">${game.pending.type === 'starter' ? 'Dein Starter-Pack' : esc(game.pending.title)}</div>
-      <p class="small muted">${game.pending.type === 'starter' ? 'Öffne es, um deinen Kader zu bekommen.' : 'Schließe die Wahl ab, bevor es weitergeht.'}</p>
-      <button class="btn btn--reward" data-action="open-pack">Öffnen</button></div>
+      <div><div class="h3">${game.pending.type === 'starter' ? t('home.starter') : esc(pendingTitle(game.pending))}</div>
+      <p class="small muted">${game.pending.type === 'starter' ? t('home.starterHint') : t('home.pendingHint')}</p>
+      <button class="btn btn--reward" data-action="open-pack">${t('home.open')}</button></div>
     </section>` : '';
 
   const { table, rows } = tableRowsAround(game);
@@ -137,7 +134,7 @@ export function homeScreen(game) {
     <section class="section">
       <div class="section__head">
         <h2 class="section__title">${LEAGUE_INFO[tier].name}</h2>
-        <button class="link" data-action="tab" data-tab="league">Tabelle</button>
+        <button class="link" data-action="tab" data-tab="league">${t('lg.table')}</button>
       </div>
       <div class="panel panel--flush">
         <table class="table">
@@ -155,7 +152,7 @@ export function homeScreen(game) {
           </tbody>
         </table>
       </div>
-      <p class="xsmall muted legend"><span class="legend__ff"></span>Platz 1–4: Final Four${tier < 6 ? ' <span class="legend__down"></span>Platz 9–10: Abstieg' : ''}. Nach ${played} von 18 Spieltagen bist du ${pos}.</p>
+      <p class="xsmall muted legend"><span class="legend__ff"></span>${t('home.legendFF')}${tier < 6 ? ` <span class="legend__down"></span>${t('home.legendDown')}` : ''}. ${t('home.after', { played, pos })}</p>
     </section>
 
     ${squadAlerts(game)}

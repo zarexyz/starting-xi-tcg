@@ -14,8 +14,8 @@ import { aiSetup, bestLineup, repairLineup } from './ai.js';
 import { developPlayer, shortName, displayName, salaryFor, createPlayer, trainAttribute, avgRating } from './player.js';
 import { generateStarterSquad, generateStarDraft, generateDraft, generateItems, PACKS, CONSUMABLES } from './packs.js';
 import { matchIncome, seasonPrize, CUP_PRIZES, FINAL_FOUR_PRIZES, weeklyWages, wageCap } from './economy.js';
-import { ATTR_NAMES, STYLES } from './constants.js';
-const STYLE_NAMES = Object.fromEntries(Object.entries(STYLES).map(([k, v]) => [k, v.name]));
+import { ATTR_NAMES, STYLES, POS_LABEL } from './constants.js';
+import { t } from '../i18n/index.js';
 import { newCoach } from './world.js';
 import { aiTransferWindow } from './market.js';
 
@@ -65,8 +65,7 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern,
     { type: 'FITNESS' }, { type: 'FITNESS' }, { type: 'TRAIN', attr: 'sch' }, { type: 'BOOST', attr: 'tem' },
     { type: 'MORALE' }, { type: 'TACTIC' }
   ].map(item => ({ id: `i${++state.nextId}`, ...item }));
-  addNews(state, 'welcome', 'Willkommen, Trainer!',
-    `${clubName} startet in der ${LEAGUE_INFO[6].name}. Ziel: Platz 1–4 für das Final Four – die beiden Halbfinalsieger steigen auf. Öffne zuerst dein Starter-Pack.`);
+  addNews(state, 'welcome', 'news.welcome', { club: clubName, league: LEAGUE_INFO[6].name });
   return state;
 }
 
@@ -98,10 +97,11 @@ export function newClubStats() {
 // Hilfen
 // -----------------------------------------------------------------------------
 
-export function addNews(state, type, title, text, extra = {}) {
+/** Nachricht mit Übersetzungsschlüssel: Titel = key.t, Text = key.x */
+export function addNews(state, type, key, params = {}, extra = {}) {
   state.inbox.unshift({
     id: `n${++state.nextId}`,
-    type, title, text,
+    type, k: key, p: params,
     season: state.season,
     day: state.dayIndex,
     read: false,
@@ -110,9 +110,10 @@ export function addNews(state, type, title, text, extra = {}) {
   if (state.inbox.length > 80) state.inbox.length = 80;
 }
 
-function ledger(state, label, amount) {
+/** Kassenbuch: label ist ein Übersetzungsschlüssel, lp seine Platzhalter */
+function ledger(state, label, amount, lp = {}) {
   state.clubs.user.coins += amount;
-  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label, amount });
+  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label, lp, amount });
   if (state.user.ledger.length > 60) state.user.ledger.length = 60;
 }
 
@@ -121,11 +122,11 @@ export function currentDay(state) {
 }
 
 export function dayLabel(state, day = currentDay(state)) {
-  if (!day) return 'Saisonende';
-  if (day.type === 'league') return `Spieltag ${day.md}`;
-  if (day.type === 'cup') return `Pokal, ${CUP_ROUND_NAMES[day.round]}`;
-  if (day.type === 'ff_semi') return 'Final Four, Halbfinale';
-  if (day.type === 'ff_final') return 'Final Four, Finale';
+  if (!day) return t('day.end');
+  if (day.type === 'league') return t('day.league', { md: day.md });
+  if (day.type === 'cup') return t('day.cup', { round: CUP_ROUND_NAMES[day.round] });
+  if (day.type === 'ff_semi') return t('day.ffSemi');
+  if (day.type === 'ff_final') return t('day.ffFinal');
   return '';
 }
 
@@ -195,13 +196,13 @@ export function openStarterPack(state) {
 export function buyPack(state, packKey) {
   const pack = PACKS[packKey];
   const club = state.clubs.user;
-  if (!pack) return { error: 'Unbekanntes Pack.' };
-  if (state.pending) return { error: 'Erst das offene Pack abschließen.' };
-  if (club.coins < pack.price) return { error: 'Nicht genug Münzen.' };
+  if (!pack) return { error: t('err.unknownPack') };
+  if (state.pending) return { error: t('err.openPack') };
+  if (club.coins < pack.price) return { error: t('err.coins') };
   if (pack.kind === 'draft' && club.playerIds.length >= MAX_SQUAD) {
-    return { error: `Kader voll (${MAX_SQUAD}). Gib zuerst einen Spieler ab.` };
+    return { error: t('err.squadFull', { max: MAX_SQUAD }) };
   }
-  ledger(state, pack.name, -pack.price);
+  ledger(state, 'ledger.pack', -pack.price, { packK: `pack.${packKey}.name` });
   return withRng(state, rng => {
     if (pack.kind === 'draft') {
       state.pending = { type: 'draft', source: packKey, title: pack.name, candidates: generateDraft(rng, state, packKey) };
@@ -228,8 +229,7 @@ export function pickDraft(state, index) {
   state.pending = null;
   if (wasStar) {
     ensureUserSetup(state);
-    addNews(state, 'squad', `${displayName(p)} ist dein Starspieler`,
-      `${displayName(p)} (${p.position}, ${p.ovr}) führt dein Team an. Prüfe die Aufstellung im Kader und lege los!`);
+    addNews(state, 'squad', 'news.star', { name: displayName(p), posK: `pos.${p.position}`, ovr: p.ovr }, { playerId: p.id });
   } else {
     state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
   }
@@ -246,30 +246,30 @@ export function closePending(state) {
 
 export function useItem(state, itemId, playerId = null) {
   const idx = state.user.inventory.findIndex(i => i.id === itemId);
-  if (idx < 0) return { error: 'Gegenstand nicht gefunden.' };
+  if (idx < 0) return { error: t('err.itemMissing') };
   const item = state.user.inventory[idx];
   const def = CONSUMABLES[item.type];
   const squad = clubPlayers(state, 'user');
   const player = playerId ? state.players[playerId] : null;
   if ((def.target === 'player' || def.target === 'injured') && (!player || player.clubId !== 'user')) {
-    return { error: 'Bitte einen Spieler wählen.' };
+    return { error: t('err.pickPlayer') };
   }
   let message = '';
   const res = withRng(state, rng => {
     switch (item.type) {
       case 'FITNESS':
         player.condition = Math.min(100, player.condition + 35);
-        message = `${shortName(player)} ist wieder frisch (${player.condition} %).`;
+        message = t('item.msg.fitness', { name: shortName(player), cond: player.condition });
         break;
       case 'REGEN':
         squad.forEach(p => { p.condition = Math.min(100, p.condition + 12); });
-        message = 'Der ganze Kader hat sich erholt (+12 Fitness).';
+        message = t('item.msg.regen');
         break;
       case 'MEDICAL':
-        if (!player.injury) return { error: `${shortName(player)} ist nicht verletzt.` };
+        if (!player.injury) return { error: t('item.err.notInjured', { name: shortName(player) }) };
         player.injury.days = Math.max(0, player.injury.days - 4);
         if (player.injury.days === 0) player.injury = null;
-        message = player.injury ? `${shortName(player)} fällt nur noch ${player.injury.days} Spieltage aus.` : `${shortName(player)} ist wieder fit!`;
+        message = player.injury ? t('item.msg.medical', { name: shortName(player), n: player.injury.days }) : t('item.msg.healed', { name: shortName(player) });
         break;
       case 'TRAIN':
       case 'TRAIN_PLUS': {
@@ -278,38 +278,38 @@ export function useItem(state, itemId, playerId = null) {
         const before = player.attrs[attr];
         const { gain, ovrDelta } = trainAttribute(rng, player, attr, amount);
         message = gain > 0
-          ? `${shortName(player)}: ${ATTR_NAMES[attr]} ${before} → ${player.attrs[attr]}${ovrDelta > 0 ? `, Stärke jetzt ${player.ovr}` : ''}.`
-          : `${shortName(player)} ist an seiner Grenze, das Training bringt kaum noch etwas.`;
+          ? t(ovrDelta > 0 ? 'item.msg.trainOvr' : 'item.msg.train', { name: shortName(player), attr: ATTR_NAMES[attr], from: before, to: player.attrs[attr], ovr: player.ovr })
+          : t('item.msg.trainLimit', { name: shortName(player) });
         break;
       }
       case 'BOOST': {
         const attr = item.attr || 'tem';
-        if (player.tempBoost) return { error: `${shortName(player)} hat schon eine Karte für das nächste Spiel.` };
+        if (player.tempBoost) return { error: t('item.err.hasBoost', { name: shortName(player) }) };
         player.tempBoost = { attr, amount: 6 };
-        message = `${shortName(player)}: ${ATTR_NAMES[attr]} +6 im nächsten Spiel.`;
+        message = t('item.msg.boost', { name: shortName(player), attr: ATTR_NAMES[attr] });
         break;
       }
       case 'MORALE':
         squad.forEach(p => { p.morale = Math.min(100, p.morale + 15); });
-        message = 'Die Kabine brennt! +15 Moral für alle.';
+        message = t('item.msg.morale');
         break;
       case 'TACTIC':
-        if (state.user.matchBoost) return { error: 'Für das nächste Spiel ist schon eine Taktiktafel aktiv.' };
+        if (state.user.matchBoost) return { error: t('item.err.tactic') };
         state.user.matchBoost = { mid: 3 };
-        message = 'Taktiktafel aktiv: Mittelfeld +3 im nächsten Spiel.';
+        message = t('item.msg.tactic');
         break;
       case 'RETRAIN': {
         const related = ['IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST']
           .filter(pos => pos !== player.position && !player.secondary.includes(pos) &&
             POSITION_GROUP[pos] === POSITION_GROUP[player.position]);
-        if (!related.length || player.position === 'TW') return { error: 'Für diesen Spieler gibt es keine passende Umschulung.' };
+        if (!related.length || player.position === 'TW') return { error: t('item.err.retrain') };
         const pos = rng.pick(related);
         player.secondary.push(pos);
-        message = `${shortName(player)} beherrscht jetzt auch ${pos}.`;
+        message = t('item.msg.retrain', { name: shortName(player), pos: POS_LABEL[pos] });
         break;
       }
       default:
-        return { error: 'Unbekannter Gegenstand.' };
+        return { error: t('err.itemMissing') };
     }
     return { ok: true };
   });
@@ -454,12 +454,12 @@ export function setAutoLineup(state, on) {
 export function releasePlayer(state, playerId) {
   const club = state.clubs.user;
   const p = state.players[playerId];
-  if (!p || p.clubId !== 'user') return { error: 'Spieler nicht im Kader.' };
-  if (club.playerIds.length <= 16) return { error: 'Mindestens 16 Spieler müssen im Kader bleiben.' };
+  if (!p || p.clubId !== 'user') return { error: t('err.notInSquad') };
+  if (club.playerIds.length <= 16) return { error: t('err.minSquad') };
   club.playerIds = club.playerIds.filter(id => id !== playerId);
   delete state.players[playerId];
   if (state.user.setup) state.user.setup = repairLineup(state, 'user', state.user.setup);
-  addNews(state, 'squad', `${displayName(p)} verlässt den Verein`, `Der Vertrag mit ${displayName(p)} wurde aufgelöst. Er beendet seine Laufbahn im Profifußball.`);
+  addNews(state, 'squad', 'news.released', { name: displayName(p) });
   return { ok: true };
 }
 
@@ -467,7 +467,6 @@ export function releasePlayer(state, playerId) {
 // Spieltag spielen
 // -----------------------------------------------------------------------------
 
-const INJURY_LABELS = ['Muskelfaserriss', 'Bänderdehnung', 'Prellung', 'Zerrung', 'Sprunggelenk', 'Knieverletzung', 'Leistenprobleme'];
 
 function setupFor(rng, state, clubId) {
   if (clubId === 'user') {
@@ -526,19 +525,19 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     if (c.type === 'Y') {
       p.stats.yellows++;
       p.yellowCount = (p.yellowCount || 0) + 1;
-      if (p.yellowCount >= 5) { games = 1; reason = '5. Gelbe Karte'; p.yellowCount = 0; }
+      if (p.yellowCount >= 5) { games = 1; reason = 'yellow5'; p.yellowCount = 0; }
     } else if (c.type === 'YR') {
       p.stats.reds++;
-      games = 1; reason = 'Gelb-Rot';
+      games = 1; reason = 'yellowRed';
     } else {
       p.stats.reds++;
       games = rng.weighted([{ value: 1, weight: 5 }, { value: 2, weight: 3 }, { value: 3, weight: 1 }]);
-      reason = 'Rote Karte';
+      reason = 'red';
     }
     if (games) {
       p.suspension = { games: (p.suspension?.games || 0) + games, reason, fresh: true };
       if (clubId === 'user') {
-        addNews(state, 'suspension', `${shortName(p)} gesperrt`, `${displayName(p)} fehlt nach ${reason === '5. Gelbe Karte' ? 'der 5. Gelben Karte' : reason === 'Gelb-Rot' ? 'Gelb-Rot' : 'der Roten Karte'} ${games === 1 ? 'im nächsten Spiel' : `in den nächsten ${games} Spielen`}.`, { playerId: p.id });
+        addNews(state, 'suspension', `news.ban.${reason}`, { short: shortName(p), name: displayName(p), n: games }, { playerId: p.id });
       }
     }
   }
@@ -598,9 +597,10 @@ function applyMatchEffects(rng, state, result, side, team, played) {
       { value: 1, weight: 4 }, { value: 2, weight: 4 }, { value: 3, weight: 3 },
       { value: 5, weight: 2 }, { value: 8, weight: 1 }
     ]);
-    p.injury = { days, label: rng.pick(INJURY_LABELS) };
+    const code = rng.int(0, 6);
+    p.injury = { days, code };
     if (clubId === 'user') {
-      addNews(state, 'injury', `${shortName(p)} verletzt`, `${displayName(p)} fällt mit ${p.injury.label} voraussichtlich ${days} ${days === 1 ? 'Spiel' : 'Spiele'} aus.`, { playerId: p.id });
+      addNews(state, 'injury', 'news.injury', { short: shortName(p), name: displayName(p), injK: `injury.${code}`, n: days }, { playerId: p.id });
     }
   }
   return outcome;
@@ -648,8 +648,9 @@ export function playDay(state) {
         const opponentId = side === 'home' ? m.away : m.home;
         if (rival === 'derby') {
           const oppName = state.clubs[opponentId].name;
-          if (outcome === 'W') addNews(state, 'derby', `Derbysieg gegen ${oppName}!`, `Die Stadt gehört uns! ${state.clubs.user.name} gewinnt das Derby gegen ${oppName} ${side === 'home' ? `${result.hg}:${result.ag}` : `${result.ag}:${result.hg}`}.`, { clubId: opponentId });
-          else if (outcome === 'L') addNews(state, 'derby', `Derbyniederlage gegen ${oppName}`, `Bitterer Abend: Das Derby gegen ${oppName} geht verloren. Die Fans erwarten eine Reaktion.`, { clubId: opponentId });
+          const score = side === 'home' ? `${result.hg}:${result.ag}` : `${result.ag}:${result.hg}`;
+          if (outcome === 'W') addNews(state, 'derby', 'news.derbyWin', { opp: oppName, club: state.clubs.user.name, score }, { clubId: opponentId });
+          else if (outcome === 'L') addNews(state, 'derby', 'news.derbyLoss', { opp: oppName, score }, { clubId: opponentId });
         }
         userResult = {
           result,
@@ -674,7 +675,7 @@ export function playDay(state) {
       p.suspension.games--;
       if (p.suspension.games <= 0) {
         p.suspension = null;
-        if (p.clubId === 'user') addNews(state, 'suspension', `${shortName(p)} wieder spielberechtigt`, `Die Sperre von ${displayName(p)} ist abgelaufen.`, { playerId: p.id });
+        if (p.clubId === 'user') addNews(state, 'suspension', 'news.unbanned', { short: shortName(p), name: displayName(p) }, { playerId: p.id });
       }
     }
 
@@ -686,7 +687,7 @@ export function playDay(state) {
         p.injury.days--;
         if (p.injury.days <= 0) {
           p.injury = null;
-          if (p.clubId === 'user') addNews(state, 'injury', `${shortName(p)} ist wieder fit`, `${displayName(p)} steht wieder zur Verfügung.`, { playerId: p.id });
+          if (p.clubId === 'user') addNews(state, 'injury', 'news.fit', { short: shortName(p), name: displayName(p) }, { playerId: p.id });
         }
       }
     }
@@ -696,26 +697,26 @@ export function playDay(state) {
       const tier = state.clubs.user.tier;
       let income = matchIncome(tier, userResult.side === 'home' && !(day.type === 'ff_final'), userResult.outcome);
       if (userResult.rivalry === 'derby') income = Math.round(income * 1.25);
-      ledger(state, `Einnahmen ${userResult.label}`, income);
-      userResult.finance.push({ label: 'Zuschauer & Sponsoren', amount: income });
+      ledger(state, 'ledger.income', income, { day: userResult.label });
+      userResult.finance.push({ label: 'fin.gate', amount: income });
       if (day.type === 'cup' && userResult.outcome === 'W') {
         const prize = CUP_PRIZES[day.round];
-        ledger(state, `Pokalprämie ${CUP_ROUND_NAMES[day.round]}`, prize);
-        userResult.finance.push({ label: 'Pokalprämie', amount: prize });
+        ledger(state, 'ledger.cupPrize', prize, { roundK: `cup.${day.round}` });
+        userResult.finance.push({ label: 'fin.cup', amount: prize });
       }
       if (day.type === 'ff_semi' && userResult.outcome === 'W') {
-        ledger(state, 'Final-Four-Prämie', FINAL_FOUR_PRIZES.semi);
-        userResult.finance.push({ label: 'Final-Four-Prämie', amount: FINAL_FOUR_PRIZES.semi });
+        ledger(state, 'fin.ff', FINAL_FOUR_PRIZES.semi);
+        userResult.finance.push({ label: 'fin.ff', amount: FINAL_FOUR_PRIZES.semi });
       }
       if (day.type === 'ff_final' && userResult.outcome === 'W') {
-        ledger(state, 'Titelprämie', FINAL_FOUR_PRIZES.final);
-        userResult.finance.push({ label: 'Titelprämie', amount: FINAL_FOUR_PRIZES.final });
+        ledger(state, 'fin.title', FINAL_FOUR_PRIZES.final);
+        userResult.finance.push({ label: 'fin.title', amount: FINAL_FOUR_PRIZES.final });
       }
     }
     if (day.type === 'league') {
       const wages = weeklyWages(state, 'user');
-      ledger(state, `Gehälter Spieltag ${day.md}`, -wages);
-      if (userResult) userResult.finance.push({ label: 'Gehälter', amount: -wages });
+      ledger(state, 'ledger.wages', -wages, { md: day.md });
+      if (userResult) userResult.finance.push({ label: 'fin.wages', amount: -wages });
       handleWages(state);
     }
 
@@ -747,8 +748,7 @@ function handleWages(state) {
   if (club.coins < 0) {
     state.user.unpaidDays++;
     squad.forEach(p => { p.morale = Math.max(20, p.morale - 10); });
-    addNews(state, 'finance', 'Gehälter nicht gezahlt!',
-      `Die Kasse ist leer. Die Spieler sind sauer (Moral −10). Nach 3 Spieltagen ohne Gehalt verlässt der teuerste Spieler den Verein.`);
+    addNews(state, 'finance', 'news.unpaid');
     if (state.user.unpaidDays >= 3 && squad.length > 16) {
       const top = [...squad].sort((a, b) => salaryFor(b.ovr) - salaryFor(a.ovr))[0];
       club.playerIds = club.playerIds.filter(id => id !== top.id);
@@ -758,7 +758,7 @@ function handleWages(state) {
       top.clubId = target;
       state.clubs[target].playerIds.push(top.id);
       state.user.unpaidDays = 0;
-      addNews(state, 'finance', `${displayName(top)} ist weg`, `Ohne Gehalt hat ${displayName(top)} den Verein verlassen und ist zu ${state.clubs[target].name} gewechselt.`);
+      addNews(state, 'finance', 'news.walkout', { name: displayName(top), club: state.clubs[target].name }, { clubId: target });
       state.user.setup = repairLineup(state, 'user', state.user.setup);
     }
   } else {
@@ -773,8 +773,8 @@ function afterDay(rng, state, day) {
   if (day.type === 'league' && day.md === 9) {
     const changes = developAll(rng, state, false);
     recordHistory(state);
-    state.devReport = { title: `Halbserie, Saison ${state.season}`, changes };
-    addNews(state, 'development', 'Halbzeit der Saison', 'Die Spieler haben sich weiterentwickelt. Es zählen Alter, Spielzeit und Leistung: Wer jung ist, spielt und gute Noten holt, legt zu. Ältere Spieler bauen langsam ab. Schau in deinen Kader!');
+    state.devReport = { tk: 'dev.titleMid', tp: { season: state.season }, changes };
+    addNews(state, 'development', 'news.midseason');
   }
   if (day.type === 'cup') {
     const round = state.cup.rounds[day.round];
@@ -790,12 +790,12 @@ function afterDay(rng, state, day) {
       const um = state.cup.rounds[day.round + 1].find(m => m.home === 'user' || m.away === 'user');
       if (um) {
         const opp = state.clubs[um.home === 'user' ? um.away : um.home];
-        addNews(state, 'cup', `Pokal-Auslosung: ${CUP_ROUND_NAMES[day.round + 1]}`, `Dein Gegner: ${opp.name} (${LEAGUE_INFO[opp.tier].short}). ${um.home === 'user' ? 'Heimspiel' : 'Auswärtsspiel'}.`);
+        addNews(state, 'cup', 'news.cupDraw', { roundK: `cup.${day.round + 1}`, opp: opp.name, tier: opp.tier, venueK: um.home === 'user' ? 'w.home' : 'w.away' }, { clubId: opp.id });
       }
     } else {
       state.cup.winner = winners[0];
       if (winners[0] === 'user') {
-        addNews(state, 'trophy', 'POKALSIEGER!', `${state.clubs.user.name} gewinnt den Pokal! Ein historischer Tag für den Verein.`);
+        addNews(state, 'trophy', 'news.cupWin', { club: state.clubs.user.name });
       }
     }
   }
@@ -803,7 +803,7 @@ function afterDay(rng, state, day) {
     for (let tier = 1; tier <= 6; tier++) state.finalFours[tier] = createFinalFour(state, tier);
     const userTable = computeTable(state, state.clubs.user.tier);
     const pos = userTable.find(r => r.clubId === 'user').pos;
-    if (pos <= 4) addNews(state, 'ff', 'Final Four erreicht!', `Platz ${pos}! Ihr spielt um ${state.clubs.user.tier === 1 ? 'die Meisterschaft' : 'den Aufstieg'}.`);
+    if (pos <= 4) addNews(state, 'ff', state.clubs.user.tier === 1 ? 'news.ffTitle' : 'news.ffUp', { pos });
   }
   if (day.type === 'ff_semi') {
     for (const ff of Object.values(state.finalFours)) {
@@ -812,7 +812,7 @@ function afterDay(rng, state, day) {
       ff.final = seedOf(a) <= seedOf(b) ? { home: a, away: b } : { home: b, away: a };
       if (ff.tier > 1) ff.promoted = [a, b];
       if (ff.tier > 1 && (a === 'user' || b === 'user')) {
-        addNews(state, 'trophy', 'AUFSTIEG!', `Mit dem Halbfinalsieg steigt ${state.clubs.user.name} in die ${LEAGUE_INFO[ff.tier - 1].name} auf!`);
+        addNews(state, 'trophy', 'news.promoted', { club: state.clubs.user.name, league: LEAGUE_INFO[ff.tier - 1].name });
       }
     }
   }
@@ -888,11 +888,12 @@ function endSeason(rng, state) {
     promoted: promoted[userTier].includes('user'),
     relegated: relegated[userTier].includes('user'),
     champion: ff?.champion === 'user',
-    ffStage: ff && ff.seeds.includes('user') ? (ff.champion === 'user' ? 'Sieger' : ff.final && (ff.final.home === 'user' || ff.final.away === 'user') ? 'Finale' : 'Halbfinale') : null,
-    cup: state.cup.winner === 'user' ? 'Sieger' : state.cup.userOut ? CUP_ROUND_NAMES[state.cup.userOut] : '—'
+    // Codes statt Texte: W = Sieger, F = Finale, SF = Halbfinale; Pokal: 'W' oder Runde des Ausscheidens
+    ffStage: ff && ff.seeds.includes('user') ? (ff.champion === 'user' ? 'W' : ff.final && (ff.final.home === 'user' || ff.final.away === 'user') ? 'F' : 'SF') : null,
+    cup: state.cup.winner === 'user' ? 'W' : state.cup.userOut || 0
   };
   const prize = seasonPrize(userTier, row.pos);
-  ledger(state, `Saisonprämie Platz ${row.pos}`, prize);
+  ledger(state, 'ledger.seasonPrize', prize, { pos: row.pos });
   userSummary.prize = prize;
 
   // Chronik aller Vereine und Karriere-Stationen aller Spieler (vor Auf- und Abstieg)
@@ -937,7 +938,7 @@ function endSeason(rng, state) {
     state.leagues[tier].clubIds = Object.values(state.clubs).filter(c => c.tier === tier).map(c => c.id);
   }
   if (userSummary.relegated) {
-    addNews(state, 'season', 'Abstieg', `${state.clubs.user.name} muss in die ${LEAGUE_INFO[userTier + 1].name}. Kopf hoch – nächste Saison geht es wieder hoch!`);
+    addNews(state, 'season', 'news.relegated', { club: state.clubs.user.name, league: LEAGUE_INFO[userTier + 1].name });
   }
 
   // Entwicklung zweite Saisonhälfte, Alterung, Karriereende
@@ -950,8 +951,7 @@ function endSeason(rng, state) {
         if (club) club.playerIds = club.playerIds.filter(id => id !== p.id);
         if (p.clubId === 'user') {
           summary.retired.push({ name: displayName(p), age: p.age, apps: p.careerStats.apps, goals: p.careerStats.goals });
-          addNews(state, 'squad', `${displayName(p)} beendet seine Karriere`,
-            `Mit ${p.age} Jahren hängt ${displayName(p)} die Schuhe an den Nagel. ${p.careerStats.apps} Spiele, ${p.careerStats.goals} Tore für deinen Verein.`);
+          addNews(state, 'squad', 'news.retired', { name: displayName(p), age: p.age, apps: p.careerStats.apps, goals: p.careerStats.goals });
         }
         delete state.players[p.id];
       }
@@ -984,8 +984,7 @@ function endSeason(rng, state) {
   }
   if (youth.length) {
     summary.youth = youth.map(p => p.id);
-    addNews(state, 'squad', 'Nachwuchs aus der eigenen Jugend',
-      `${youth.map(p => `${displayName(p)} (${p.position}, ${TIERS[p.tier].name})`).join(', ')} rücken in den Profikader auf.`);
+    addNews(state, 'squad', 'news.youth', { list: youth.map(p => displayName(p)).join(', '), n: youth.length }, { playerId: youth[0].id });
   }
 
   // KI-Kader auffüllen (Nachwuchs)
@@ -1020,8 +1019,7 @@ function endSeason(rng, state) {
       club.coach = newCoach(rng, club.preferredStyle, club.country);
       club.preferredStyle = club.coach.style;
       if (prev && (club.tier === state.clubs.user.tier)) {
-        addNews(state, 'coach', `Trainerwechsel bei ${club.name}`,
-          `${prev.name} muss gehen. Nachfolger ${club.coach.name} steht für ${STYLE_NAMES[club.coach.style]}.`, { clubId: club.id });
+        addNews(state, 'coach', 'news.coach', { club: club.name, old: prev.name, coach: club.coach.name, styleK: `style.${club.coach.style}.name` }, { clubId: club.id });
       }
     }
   }
@@ -1037,11 +1035,10 @@ function endSeason(rng, state) {
   state.user.setup = state.user.setup ? repairLineup(state, 'user', state.user.setup) : null;
   recordHistory(state);
   state.devReport = {
-    title: `Sommerpause vor Saison ${state.season}`,
+    tk: 'dev.titleSummer', tp: { season: state.season },
     changes: devChanges.filter(c => state.players[c.id])
   };
-  addNews(state, 'season', `Saison ${state.season} beginnt`,
-    `Neue Saison in der ${LEAGUE_INFO[state.clubs.user.tier].name}. Alle Spieler sind ein Jahr älter – prüfe Kader und Aufstellung.`);
+  addNews(state, 'season', 'news.newSeason', { season: state.season, league: LEAGUE_INFO[state.clubs.user.tier].name });
 }
 
 export function acknowledgeSeasonSummary(state) {

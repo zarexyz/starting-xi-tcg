@@ -247,10 +247,10 @@ export function simulateMatch(rng, home, away, opts = {}) {
       shooter, assister, defender, keeper,
       p1, p2, broke, scored,
       xg: p1 * p2,
-      att: { label: 'Tempo & Dribbling', value: Math.round(shooterBreak) },
-      def: { label: 'Abwehr & Physis', value: Math.round(defenderHold) },
-      fin: { label: 'Schuss', value: Math.round(finish) },
-      gk: { label: 'Torwart', value: Math.round(keep) }
+      att: { label: 'duel.break', value: Math.round(shooterBreak) },
+      def: { label: 'duel.hold', value: Math.round(defenderHold) },
+      fin: { label: 'duel.finish', value: Math.round(finish) },
+      gk: { label: 'duel.keeper', value: Math.round(keep) }
     });
   }
 
@@ -414,8 +414,8 @@ function pickKeyScenes(chances) {
     assistId: c.assister?.player.id || null,
     outcome: c.scored ? 'GOAL' : c.broke ? 'SAVE' : 'TACKLE',
     phases: [
-      { label: 'Durchbruch', att: c.att, def: c.def, chance: pct(c.p1), success: c.broke },
-      { label: 'Abschluss', att: c.fin, def: c.gk, chance: pct(c.p2), success: c.scored, skipped: !c.broke }
+      { label: 'phase.break', att: c.att, def: c.def, chance: pct(c.p1), success: c.broke },
+      { label: 'phase.finish', att: c.fin, def: c.gk, chance: pct(c.p2), success: c.scored, skipped: !c.broke }
     ]
   }));
 }
@@ -424,43 +424,12 @@ function pickKeyScenes(chances) {
 // Ticker
 // -----------------------------------------------------------------------------
 
-const T = {
-  goal: [
-    '{s} trifft nach Vorlage von {a}!',
-    'TOR! {s} schiebt eiskalt ein, {a} hatte perfekt aufgelegt.',
-    '{s} vollendet einen sehenswerten Spielzug über {a}.',
-    'Was für ein Abschluss von {s}! {a} mit der Vorarbeit.'
-  ],
-  goalSolo: [
-    'TOR! {s} setzt sich allein durch und trifft.',
-    '{s} zieht ab – drin! Der Keeper ist chancenlos.',
-    'Sololauf von {s}, und der Ball zappelt im Netz!'
-  ],
-  save: [
-    'Riesenchance für {s}, aber {k} pariert stark!',
-    '{s} kommt frei zum Abschluss – {k} ist zur Stelle.',
-    'Knapp vorbei! {s} verzieht aus guter Position.',
-    '{s} trifft nur den Pfosten!'
-  ],
-  tackle: [
-    '{d} klärt in letzter Sekunde gegen {s}.',
-    'Starker Zweikampf von {d}, {s} kommt nicht durch.',
-    '{d} grätscht {s} sauber ab.'
-  ],
-  injury: [
-    '{p} bleibt liegen und muss verletzt raus.',
-    'Bittere Szene: {p} verletzt sich und kann nicht weitermachen.'
-  ],
-  sub: ['Wechsel: {i} kommt für {o}.'],
-  yellow: ['Gelbe Karte für {p}.', '{p} sieht Gelb nach einem harten Einsteigen.', 'Taktisches Foul von {p}, Gelb.'],
-  yellowRed: ['Gelb-Rot! {p} muss vom Platz.', '{p} sieht die zweite Gelbe und fliegt.'],
-  red: ['Rote Karte! {p} fliegt nach einer Notbremse.', 'Glatt Rot für {p}!']
-};
+/** Anzahl der Textvarianten je Ereignis (Texte in der Sprachdatei: tick.<typ>.<nr>) */
+const VARIANTS = { goal: 4, goalSolo: 3, save: 4, tackle: 3, injury: 2, sub: 1, yellow: 3, yellowRed: 2, red: 2 };
 
-function fill(rng, list, vars) {
-  let t = rng.pick(list);
-  for (const k in vars) t = t.replaceAll(`{${k}}`, vars[k]);
-  return t;
+/** Tickereintrag als Schlüssel plus Platzhalter, damit er in jeder Sprache lesbar bleibt */
+function tick(rng, type, vars) {
+  return { k: `tick.${type}.${rng.int(0, VARIANTS[type] - 1)}`, p: vars };
 }
 
 function buildTicker(rng, result, home, away, chances) {
@@ -469,7 +438,7 @@ function buildTicker(rng, result, home, away, chances) {
       [...home.bench, ...away.bench].find(x => x.id === id);
     return p ? shortName(p) : '?';
   };
-  const items = [{ minute: 0, type: 'kickoff', text: `Anpfiff! ${home.club.name} gegen ${away.club.name}.` }];
+  const items = [{ minute: 0, type: 'kickoff', k: 'tick.kickoff', p: { home: home.club.name, away: away.club.name } }];
 
   const goalChances = chances.filter(c => c.scored);
   const bigMisses = chances.filter(c => c.broke && !c.scored).sort((a, b) => b.xg - a.xg).slice(0, 3);
@@ -482,35 +451,35 @@ function buildTicker(rng, result, home, away, chances) {
       s: shortName(c.shooter.player),
       a: c.assister ? shortName(c.assister.player) : '',
       d: shortName(c.defender.player),
-      k: c.keeper?.player ? shortName(c.keeper.player) : 'der Keeper'
+      k: c.keeper?.player ? shortName(c.keeper.player) : '–'
     };
     if (c.scored) {
       if (c.side === 'home') hg++; else ag++;
       items.push({
         minute: c.minute, type: 'goal', side: c.side, score: [hg, ag],
-        text: fill(rng, c.assister ? T.goal : T.goalSolo, vars)
+        ...tick(rng, c.assister ? 'goal' : 'goalSolo', vars)
       });
     } else if (c.broke) {
-      items.push({ minute: c.minute, type: 'chance', side: c.side, text: fill(rng, T.save, vars) });
+      items.push({ minute: c.minute, type: 'chance', side: c.side, ...tick(rng, 'save', vars) });
     } else {
-      items.push({ minute: c.minute, type: 'tackle', side: c.side, text: fill(rng, T.tackle, vars) });
+      items.push({ minute: c.minute, type: 'tackle', side: c.side, ...tick(rng, 'tackle', vars) });
     }
   }
   for (const inj of result.injuries) {
-    items.push({ minute: inj.minute, type: 'injury', side: inj.side, text: fill(rng, T.injury, { p: name(inj.playerId) }) });
+    items.push({ minute: inj.minute, type: 'injury', side: inj.side, ...tick(rng, 'injury', { p: name(inj.playerId) }) });
   }
   for (const sub of result.subs) {
-    items.push({ minute: sub.minute, type: 'sub', side: sub.side, text: fill(rng, T.sub, { i: name(sub.inId), o: name(sub.outId) }) });
+    items.push({ minute: sub.minute, type: 'sub', side: sub.side, ...tick(rng, 'sub', { i: name(sub.inId), o: name(sub.outId) }) });
   }
   for (const c of result.cards || []) {
-    const list = c.type === 'Y' ? T.yellow : c.type === 'YR' ? T.yellowRed : T.red;
-    items.push({ minute: c.minute, type: c.type === 'Y' ? 'yellow' : 'red', side: c.side, playerId: c.playerId, text: fill(rng, list, { p: name(c.playerId) }) });
+    const kind = c.type === 'Y' ? 'yellow' : c.type === 'YR' ? 'yellowRed' : 'red';
+    items.push({ minute: c.minute, type: c.type === 'Y' ? 'yellow' : 'red', side: c.side, playerId: c.playerId, ...tick(rng, kind, { p: name(c.playerId) }) });
   }
-  items.push({ minute: 45, type: 'half', text: 'Halbzeit.' });
+  items.push({ minute: 45, type: 'half', k: 'tick.half' });
   items.sort((a, b) => a.minute - b.minute || (a.type === 'half' ? -1 : 1));
-  items.push({ minute: 90, type: 'end', text: `Abpfiff! ${result.hg}:${result.ag}.` });
+  items.push({ minute: 90, type: 'end', k: 'tick.end', p: { score: `${result.hg}:${result.ag}` } });
   if (result.pens) {
-    items.push({ minute: 120, type: 'pens', text: `Elfmeterschießen: ${result.pens.h}:${result.pens.a}.` });
+    items.push({ minute: 120, type: 'pens', k: 'tick.pens', p: { score: `${result.pens.h}:${result.pens.a}` } });
   }
   return items;
 }
@@ -528,32 +497,32 @@ export function analyzeMatch(state, result, side) {
   const edge = side === 'home' ? result.meta.edge : -result.meta.edge;
 
   if (edge > 0) {
-    reasons.push({ impact: 1, icon: 'strategy', text: `Dein ${myStyle.name} hat ihr ${theirStyle.name} ausgehebelt.` });
+    reasons.push({ impact: 1, icon: 'strategy', k: 'why.styleWin', p: { mineK: `style.${myStyle.key}.name`, theirsK: `style.${theirStyle.key}.name` } });
   } else if (edge < 0) {
-    reasons.push({ impact: -1, icon: 'strategy', text: `Ihr ${theirStyle.name} war das passende Mittel gegen dein ${myStyle.name}.` });
+    reasons.push({ impact: -1, icon: 'strategy', k: 'why.styleLoss', p: { mineK: `style.${myStyle.key}.name`, theirsK: `style.${theirStyle.key}.name` } });
   }
 
   const poss = result.possession[i];
-  if (poss >= 58) reasons.push({ impact: 1, icon: 'midfield', text: `Ihr habt das Mittelfeld kontrolliert (${poss} % Ballbesitz).` });
-  else if (poss <= 42) reasons.push({ impact: -1, icon: 'midfield', text: `Das Mittelfeld ging an den Gegner (nur ${poss} % Ballbesitz).` });
+  if (poss >= 58) reasons.push({ impact: 1, icon: 'midfield', k: 'why.possWin', p: { poss } });
+  else if (poss <= 42) reasons.push({ impact: -1, icon: 'midfield', k: 'why.possLoss', p: { poss } });
 
   const myGoals = i === 0 ? result.hg : result.ag;
   const myXg = result.stats.xg[i];
-  if (myGoals - myXg >= 1.1) reasons.push({ impact: 1, icon: 'target', text: `Eiskalt vor dem Tor: ${myGoals} Treffer aus ${myXg.toFixed(1)} erwarteten Toren.` });
-  else if (myXg - myGoals >= 1.1) reasons.push({ impact: -1, icon: 'target', text: `Chancenwucher: ${myXg.toFixed(1)} erwartete Tore, aber nur ${myGoals} Treffer.` });
+  if (myGoals - myXg >= 1.1) reasons.push({ impact: 1, icon: 'target', k: 'why.clinical', p: { goals: myGoals, xg: myXg.toFixed(1) } });
+  else if (myXg - myGoals >= 1.1) reasons.push({ impact: -1, icon: 'target', k: 'why.wasteful', p: { goals: myGoals, xg: myXg.toFixed(1) } });
 
   const cond = result.meta.avgCondition[i];
-  if (cond < 82) reasons.push({ impact: -1, icon: 'battery', text: `Müde Beine: Deine Startelf ging mit ${cond} % Fitness ins Spiel.` });
+  if (cond < 82) reasons.push({ impact: -1, icon: 'battery', k: 'why.tired', p: { cond } });
   const theirCond = result.meta.avgCondition[o];
-  if (theirCond < 82 && cond - theirCond >= 8) reasons.push({ impact: 1, icon: 'battery', text: `Frischere Beine: Der Gegner kam nur mit ${theirCond} % Fitness.` });
+  if (theirCond < 82 && cond - theirCond >= 8) reasons.push({ impact: 1, icon: 'battery', k: 'why.fresher', p: { cond: theirCond } });
 
   const myReds = (result.cards || []).filter(c => c.side === side && c.type !== 'Y');
   const theirReds = (result.cards || []).filter(c => c.side !== side && c.type !== 'Y');
   if (myReds.length) {
     const p = state.players[myReds[0].playerId];
-    reasons.push({ impact: -1, icon: 'alert', text: `Ab der ${myReds[0].minute}. Minute in Unterzahl${p ? ` nach Platzverweis für ${shortName(p)}` : ''}.` });
+    reasons.push({ impact: -1, icon: 'alert', k: p ? 'why.downManName' : 'why.downMan', p: { min: myReds[0].minute, name: p ? shortName(p) : '' } });
   } else if (theirReds.length) {
-    reasons.push({ impact: 1, icon: 'alert', text: `Ab der ${theirReds[0].minute}. Minute in Überzahl.` });
+    reasons.push({ impact: 1, icon: 'alert', k: 'why.upMan', p: { min: theirReds[0].minute } });
   }
 
   const lineup = result.lineups[side];
@@ -562,14 +531,14 @@ export function analyzeMatch(state, result, side) {
     .filter(x => x.p && familiarity(x.p, x.l.pos) < 0.93);
   if (offPos.length) {
     const x = offPos[0];
-    reasons.push({ impact: -1, icon: 'swap', text: `${shortName(x.p)} spielte fremd als ${x.l.pos} statt ${x.p.position}.` });
+    reasons.push({ impact: -1, icon: 'swap', k: 'why.offPos', p: { name: shortName(x.p), posK: `pos.${x.l.pos}`, ownK: `pos.${x.p.position}` } });
   }
 
   const lm = result.meta.lines[side];
   const lo = result.meta.lines[side === 'home' ? 'away' : 'home'];
   const diffAtt = lm.att - lo.def;
-  if (diffAtt >= 4) reasons.push({ impact: 1, icon: 'attack', text: 'Deine Offensive war ihrer Abwehr klar überlegen.' });
-  if (lo.att - lm.def >= 4) reasons.push({ impact: -1, icon: 'shield', text: 'Ihre Offensive war deiner Abwehr klar überlegen.' });
+  if (diffAtt >= 4) reasons.push({ impact: 1, icon: 'attack', k: 'why.attackBetter' });
+  if (lo.att - lm.def >= 4) reasons.push({ impact: -1, icon: 'shield', k: 'why.attackWorse' });
 
   if (side === 'home' && !result.meta.neutral) {
     // Heimvorteil wird nicht extra erwähnt, er ist eingepreist
@@ -583,7 +552,7 @@ export function analyzeMatch(state, result, side) {
     const rate = myGoals / myBig;
     reasons.push({
       impact: rate >= 0.34 ? 1 : -1, icon: 'target',
-      text: `Großchancen genutzt: ${myGoals} von ${myBig}.`
+      k: 'why.bigChances', p: { goals: myGoals, big: myBig }
     });
   }
   if (reasons.length < 4 && theirAttacks > 0) {
@@ -591,11 +560,11 @@ export function analyzeMatch(state, result, side) {
     const share = stopped / theirAttacks;
     reasons.push({
       impact: share >= 0.55 ? 1 : -1, icon: 'shield',
-      text: `Deine Abwehr hat ${stopped} von ${theirAttacks} gegnerischen Angriffen vor dem Abschluss gestoppt.`
+      k: 'why.stopped', p: { stopped, total: theirAttacks }
     });
   }
   if (edge === 0 && reasons.length < 4) {
-    reasons.push({ impact: 0, icon: 'strategy', text: `${myStyle.name} gegen ${theirStyle.name}: Keiner hatte einen taktischen Vorteil.` });
+    reasons.push({ impact: 0, icon: 'strategy', k: 'why.styleEven', p: { mineK: `style.${myStyle.key}.name`, theirsK: `style.${theirStyle.key}.name` } });
   }
 
   const motm = result.motm && state.players[result.motm];
@@ -603,7 +572,7 @@ export function analyzeMatch(state, result, side) {
     const mine = lineup.some(l => l.playerId === motm.id) || result.subs.some(s => s.inId === motm.id && s.side === side);
     reasons.push({
       impact: mine ? 1 : -1, icon: 'star',
-      text: `Spieler des Spiels: ${shortName(motm)} (${result.ratings[motm.id].toFixed(1)}).`
+      k: 'why.motm', p: { name: shortName(motm), rating: result.ratings[motm.id].toFixed(1) }
     });
   }
   return reasons.slice(0, 5);

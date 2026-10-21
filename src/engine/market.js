@@ -1,3 +1,4 @@
+import { t, fmtNum } from '../i18n/index.js';
 // =============================================================================
 // Transfermarkt: Spieler anderer Vereine kaufen, eigene Spieler verkaufen,
 // KI-Vereine handeln am Saisonende untereinander. Jeder Spieler bleibt einmalig.
@@ -31,11 +32,11 @@ export function willingness(state, p) {
   const userTier = state.clubs.user.tier;
   const club = state.clubs[p.clubId];
   if (club.tier <= userTier - 2) {
-    return { ok: false, reason: `Spielt in der ${LEAGUE_INFO[club.tier].name} und will nicht zwei Ligen tiefer wechseln.` };
+    return { ok: false, reason: t('market.no.twoDown', { league: LEAGUE_INFO[club.tier].name }) };
   }
-  if (p.injury) return { ok: false, reason: 'Ist verletzt und kann nicht wechseln.' };
+  if (p.injury) return { ok: false, reason: t('market.no.injured') };
   if (club.tier === userTier - 1 && p.ovr >= LEAGUE_INFO[club.tier].baseOvr + 6) {
-    return { ok: false, reason: 'Ist Leistungsträger in einer höheren Liga und will nicht absteigen.' };
+    return { ok: false, reason: t('market.no.keyPlayer') };
   }
   return { ok: true };
 }
@@ -80,16 +81,16 @@ function refillAiClub(rng, state, club, position) {
 export function buyPlayer(state, playerId) {
   const p = state.players[playerId];
   const user = state.clubs.user;
-  if (!p || p.clubId === 'user') return { error: 'Spieler nicht verfügbar.' };
+  if (!p || p.clubId === 'user') return { error: t('err.notAvailable') };
   const will = willingness(state, p);
   if (!will.ok) return { error: will.reason };
-  if (user.playerIds.length >= MAX_SQUAD) return { error: `Kader voll (${MAX_SQUAD}). Gib zuerst einen Spieler ab.` };
+  if (user.playerIds.length >= MAX_SQUAD) return { error: t('err.squadFull', { max: MAX_SQUAD }) };
   const price = askingPrice(state, p);
-  if (user.coins < price) return { error: 'Nicht genug Münzen.' };
+  if (user.coins < price) return { error: t('err.coins') };
   const seller = state.clubs[p.clubId];
 
   user.coins -= price;
-  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label: `Transfer: ${displayName(p)}`, amount: -price });
+  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label: 'ledger.buy', lp: { name: displayName(p) }, amount: -price });
   seller.coins += price;
   seller.playerIds = seller.playerIds.filter(id => id !== p.id);
   p.clubId = 'user';
@@ -98,7 +99,7 @@ export function buyPlayer(state, playerId) {
   user.playerIds.push(p.id);
   withRng(state, rng => refillAiClub(rng, state, seller, p.position));
   state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
-  return { ok: true, price, message: `${displayName(p)} wechselt für ${price.toLocaleString('de-DE')} Münzen zu dir.` };
+  return { ok: true, price, message: t('market.bought', { name: displayName(p), price: fmtNum(price) }) };
 }
 
 /**
@@ -125,12 +126,12 @@ export function acceptOffer(state, playerId, clubId) {
   const offer = getOffers(state, playerId).find(o => o.clubId === clubId);
   const p = state.players[playerId];
   const user = state.clubs.user;
-  if (!offer || !p) return { error: 'Das Angebot gilt nicht mehr.' };
-  if (user.playerIds.length <= MIN_SQUAD) return { error: `Mindestens ${MIN_SQUAD} Spieler müssen im Kader bleiben.` };
+  if (!offer || !p) return { error: t('err.offerGone') };
+  if (user.playerIds.length <= MIN_SQUAD) return { error: t('err.minSquad') };
   const buyer = state.clubs[clubId];
   user.playerIds = user.playerIds.filter(id => id !== playerId);
   user.coins += offer.amount;
-  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label: `Verkauf: ${displayName(p)}`, amount: offer.amount });
+  state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label: 'ledger.sell', lp: { name: displayName(p) }, amount: offer.amount });
   p.clubId = clubId;
   buyer.playerIds.push(p.id);
   // Käufer gibt seinen schwächsten Spieler dieser Positionsgruppe ab (beendet seine Laufbahn)
@@ -143,7 +144,7 @@ export function acceptOffer(state, playerId, clubId) {
     delete state.players[weakest.id];
   }
   if (state.user.setup) state.user.setup = repairLineup(state, 'user', state.user.setup);
-  return { ok: true, message: `${displayName(p)} wechselt für ${offer.amount.toLocaleString('de-DE')} Münzen zu ${buyer.name}.` };
+  return { ok: true, message: t('market.sold', { name: displayName(p), price: fmtNum(offer.amount), club: buyer.name }) };
 }
 
 /** Am Saisonende: Vereine höherer Ligen holen sich Talente aus tieferen Ligen (Tausch) */

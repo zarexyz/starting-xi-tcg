@@ -464,3 +464,50 @@ test('Elfmeterschießen liefert jeden Schuss und ein eindeutiges Ergebnis', () =
   }
   assert.ok(shootouts > 0);
 });
+
+test('Sprachen: Deutsch und Englisch haben dieselben Schlüssel, Spieltexte sind vollständig', async () => {
+  const { de } = await import('../src/i18n/de.js');
+  const { en } = await import('../src/i18n/en.js');
+  const I = await import('../src/i18n/index.js');
+  assert.deepEqual(Object.keys(de).sort(), Object.keys(en).sort());
+  const s = newStartedGame(44);
+  let res = null;
+  for (let i = 0; i < 6 && !res; i++) res = playDay(s);
+  for (const lang of ['de', 'en']) {
+    I.setLang(lang);
+    for (const item of res.result.ticker) {
+      const text = I.t(item.k, item.p);
+      assert.ok(text && !text.startsWith('tick.') && !/\{\w+\}/.test(text), `${lang}: ${item.k} → ${text}`);
+    }
+    for (const r of res.analysis) assert.ok(!/\{\w+\}/.test(I.t(r.k, r.p)), `${lang}: ${r.k}`);
+    for (const n of s.inbox) {
+      const tt = I.t(`${n.k}.t`, n.p);
+      const xx = I.t(`${n.k}.x`, n.p);
+      assert.ok(!tt.startsWith('news.') && !/\{\w+\}/.test(xx), `${lang}: ${n.k}`);
+    }
+  }
+  I.setLang('de');
+});
+
+test('Internationale Welt: viele Länder, Heimatland prägt den Kader, Derbys', async () => {
+  const { rivalry } = await import('../src/engine/world.js');
+  const s = newStartedGame(45);
+  const ai = Object.values(s.clubs).filter(c => !c.isUser);
+  const countries = new Set(ai.map(c => c.country));
+  assert.ok(countries.size >= 20, `nur ${countries.size} Länder`);
+  for (const c of ai) {
+    const squad = c.playerIds.map(id => s.players[id]);
+    const home = squad.filter(p => p.nation === c.country).length / squad.length;
+    assert.ok(home >= 0.25, `${c.name}: nur ${Math.round(home * 100)} % aus ${c.country}`);
+  }
+  const madrid = ai.filter(c => c.city === 'Madrid');
+  assert.equal(rivalry(madrid[0], madrid[1]), 'derby');
+});
+
+test('Internationale Welt: im Schnitt stammt gut die Hälfte des Kaders aus dem Heimatland', () => {
+  const s = newStartedGame(46);
+  const ai = Object.values(s.clubs).filter(c => !c.isUser);
+  let home = 0, all = 0;
+  for (const c of ai) for (const id of c.playerIds) { all++; if (s.players[id].nation === c.country) home++; }
+  assert.ok(home / all > 0.55 && home / all < 0.8, `${Math.round((home / all) * 100)} %`);
+});

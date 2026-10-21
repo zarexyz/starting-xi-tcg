@@ -16,6 +16,9 @@ import { createRng } from '../../engine/rng.js';
 import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { computeTable } from '../../engine/schedule.js';
 import { familiarity } from '../../engine/player.js';
+import { t } from '../../i18n/index.js';
+import { POS_LABEL } from '../../engine/constants.js';
+import { banReason } from '../text.js';
 
 export function expectedOpponentSetup(game, oppId) {
   const opp = game.clubs[oppId];
@@ -41,21 +44,21 @@ function warnings(game, setup) {
   for (const [slotId, pid] of Object.entries(setup.lineup)) {
     const p = game.players[pid];
     if (!p) continue;
-    if (p.condition < 70) list.push({ icon: 'battery', text: `${p.last} ist müde (${p.condition} %).`, tone: 'warn' });
+    if (p.condition < 70) list.push({ icon: 'battery', text: t('prep.w.tired', { name: p.last, cond: p.condition }), tone: 'warn' });
   }
   const team = buildTeam(game, 'user', setup);
   for (const s of team.slots) {
-    if (s.player && familiarity(s.player, s.pos) < 0.93) list.push({ icon: 'swap', text: `${s.player.last} spielt fremd als ${s.pos}.`, tone: 'warn' });
-    if (!s.player) list.push({ icon: 'alert', text: `Position ${s.pos} ist nicht besetzt.`, tone: 'loss' });
+    if (s.player && familiarity(s.player, s.pos) < 0.93) list.push({ icon: 'swap', text: t('prep.w.offPos', { name: s.player.last, pos: POS_LABEL[s.pos] }), tone: 'warn' });
+    if (!s.player) list.push({ icon: 'alert', text: t('prep.w.empty', { pos: POS_LABEL[s.pos] }), tone: 'loss' });
   }
   const injuredOut = clubPlayers(game, 'user').filter(p => p.injury).length;
-  if (injuredOut) list.push({ icon: 'medical', text: `${injuredOut} Spieler fehlen verletzt.`, tone: 'muted' });
+  if (injuredOut) list.push({ icon: 'medical', text: t('prep.w.injured', { n: injuredOut }), tone: 'muted' });
   for (const p of clubPlayers(game, 'user').filter(x => x.suspension)) {
-    list.push({ icon: 'alert', text: `${p.last} ist gesperrt (${p.suspension.reason}).`, tone: 'muted' });
+    list.push({ icon: 'alert', text: t('prep.w.banned', { name: p.last, reason: banReason(p.suspension) }), tone: 'muted' });
   }
   for (const pid of Object.values(setup.lineup)) {
     const p = game.players[pid];
-    if (p && p.yellowCount === 4) list.push({ icon: 'alert', text: `${p.last} hat 4 Gelbe: Bei der nächsten ist er gesperrt.`, tone: 'warn' });
+    if (p && p.yellowCount === 4) list.push({ icon: 'alert', text: t('prep.w.yellow4', { name: p.last }), tone: 'warn' });
   }
   return list;
 }
@@ -87,65 +90,65 @@ export function prepFlow(game, ui) {
 
   return `<div class="fullscreen"><main class="screen prep">
     <header class="prep__head">
-      <button class="icon-btn" data-action="close-flow" aria-label="Zurück">${icon('chevronLeft')}</button>
-      <div><div class="h3">Spielvorbereitung</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? 'Heimspiel' : 'Auswärtsspiel'}</div></div>
-      ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}Derby</span>` : ''}
+      <button class="icon-btn" data-action="close-flow" aria-label="${t('w.back')}">${icon('chevronLeft')}</button>
+      <div><div class="h3">${t('prep.title')}</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? t('w.home') : t('w.away')}</div></div>
+      ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
     </header>
 
     <section class="scout" data-action="open-club" data-id="${opp.id}" role="button">
       ${crestSvg(opp, 56)}
       <div class="scout__body">
         <div class="h3">${esc(opp.name)}</div>
-        <div class="small muted">${LEAGUE_INFO[opp.tier].short}${oppRow ? `, Platz ${oppRow.pos}` : ''}, Stärke ${clubStrength(game, oppId)}</div>
+        <div class="small muted">${LEAGUE_INFO[opp.tier].short}${oppRow ? `, ${t('prep.place', { pos: oppRow.pos })}` : ''}, ${t('w.rating')} ${clubStrength(game, oppId)}</div>
         ${oppRow ? formHtml(oppRow.form) : ''}
       </div>
       ${icon('chevronRight', 'row__chev')}
     </section>
     <div class="scout__report">
-      <div class="scout__line">${icon('strategy')}<span>${opp.coach ? `Trainer <b>${esc(opp.coach.name)}</b> setzt fast immer auf <b>${oppStyle.name}</b>` : `Spielt fast immer <b>${oppStyle.name}</b>`}, meist im <b>${opp.preferredFormation}</b>.</span></div>
-      ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>Gefährlichster Spieler:</b> ${esc(star.first)} ${esc(star.last)}, ${star.position}, Stärke ${star.ovr}.</p></div>` : ''}
+      <div class="scout__line">${icon('strategy')}<span>${opp.coach ? t('prep.coach', { coach: `<b>${esc(opp.coach.name)}</b>`, style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` }) : t('prep.noCoach', { style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` })}</span></div>
+      ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
 
     <section class="section">
-      <div class="section__head"><h2 class="section__title">Dein Spielstil</h2></div>
+      <div class="section__head"><h2 class="section__title">${t('prep.style')}</h2></div>
       <div class="style-grid">${styleTiles}</div>
     </section>
 
     <section class="section">
-      <div class="section__head"><h2 class="section__title">Formation</h2></div>
+      <div class="section__head"><h2 class="section__title">${t('w.formation')}</h2></div>
       <div class="segmented">${FORMATION_KEYS.map(k => `<button data-action="set-formation" data-value="${k}" aria-pressed="${setup.formation === k}">${k}</button>`).join('')}</div>
       ${autoToggle(game)}
       <div class="prep__lineup-actions">
-        <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}Automatisch aufstellen</button>
+        <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}${t('prep.auto')}</button>
       </div>
-      <p class="hint small">Tippe auf einen Spieler und dann auf den, mit dem er tauschen soll.</p>
+      <p class="hint small">${t('prep.swapHint')}</p>
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
-      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos">${icon('check')}Aufstellung ohne Schwachstellen.</p>`}
+      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
 
     <section class="section">
-      <div class="section__head"><h2 class="section__title">Vor dem Anpfiff</h2></div>
+      <div class="section__head"><h2 class="section__title">${t('prep.before')}</h2></div>
       <div class="prep__items">
-        ${game.user.matchBoost ? `<span class="chip chip--pitch">${icon('clipboard')}Taktiktafel aktiv: Mittelfeld +3</span>` :
-          tactic ? `<button class="btn btn--sm btn--secondary" data-action="use-tactic" data-id="${tactic.id}">${icon('clipboard')}Taktiktafel einsetzen</button>` : ''}
-        ${fitness ? `<button class="btn btn--sm btn--secondary" data-action="open-items">${icon('battery')}Fitness (${fitness})</button>` : ''}
-        ${!tactic && !fitness && !game.user.matchBoost ? '<p class="small muted">Keine passenden Gegenstände im Spind.</p>' : ''}
+        ${game.user.matchBoost ? `<span class="chip chip--pitch">${icon('clipboard')}${t('prep.tacticOn')}</span>` :
+          tactic ? `<button class="btn btn--sm btn--secondary" data-action="use-tactic" data-id="${tactic.id}">${icon('clipboard')}${t('prep.useTactic')}</button>` : ''}
+        ${fitness ? `<button class="btn btn--sm btn--secondary" data-action="open-items">${icon('battery')}${t('w.fitness')} (${fitness})</button>` : ''}
+        ${!tactic && !fitness && !game.user.matchBoost ? `<p class="small muted">${t('prep.noItems')}</p>` : ''}
       </div>
     </section>
 
     <section class="section prognosis">
-      <div class="section__head"><h2 class="section__title">Prognose</h2><span class="small muted">mit diesem Plan</span></div>
+      <div class="section__head"><h2 class="section__title">${t('prep.forecast')}</h2><span class="small muted">${t('prep.withPlan')}</span></div>
       <div class="prob">
-        <span class="prob__w" style="flex:${pred.win || 1}"><b>${pred.win} %</b>Sieg</span>
-        <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b>Remis</span>
-        <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b>Niederl.</span>
+        <span class="prob__w" style="flex:${pred.win || 1}"><b>${pred.win} %</b>${t('prep.win')}</span>
+        <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b>${t('cp.draws')}</span>
+        <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b>${t('prep.loss')}</span>
       </div>
-      <p class="xsmall muted">Die Prognose geht davon aus, dass der Gegner wie meistens spielt. Welcher Stil gegen welchen hilft, findest du selbst heraus: Der Spielbericht verrät es dir.</p>
+      <p class="xsmall muted">${t('prep.forecastHint')}</p>
     </section>
 
     <div class="prep__cta">
-      ${ui.selected ? selectionBar(game, ui.selected) : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}Anpfiff</button>
-      <button class="btn btn--ghost btn--block" data-action="kickoff-instant">Direkt zum Ergebnis</button>`}
+      ${ui.selected ? selectionBar(game, ui.selected) : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}${t('prep.kickoff')}</button>
+      <button class="btn btn--ghost btn--block" data-action="kickoff-instant">${t('prep.instant')}</button>`}
     </div>
   </main></div>`;
 }

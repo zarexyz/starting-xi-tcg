@@ -2,11 +2,12 @@
 // Spielerkarte (Pocket-Stil): großes Porträt, Talentklassen-Rahmen, Holo bei Gold/Ikone
 // =============================================================================
 
-import { CARD_ATTRS, ATTR_LABELS, TIERS, OVR_WEIGHTS } from '../../engine/constants.js';
+import { CARD_ATTRS, ATTR_LABELS, TIERS, OVR_WEIGHTS, POS_LABEL } from '../../engine/constants.js';
 import { portraitSvg } from './portrait.js';
 import { flagSvg } from './flag.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
+import { t } from '../../i18n/index.js';
 
 /** Potenzial als 1–5 Sterne (Scout-Einschätzung, nicht der exakte Wert) */
 export function potentialStars(p) {
@@ -18,7 +19,7 @@ export function potentialStars(p) {
 export function starsHtml(n, max = 5) {
   let s = '';
   for (let i = 0; i < max; i++) s += `<span class="${i < n ? 'on' : ''}">★</span>`;
-  return `<span class="stars" aria-label="${n} von ${max} Sternen">${s}</span>`;
+  return `<span class="stars" aria-label="${t('card.stars', { n, max })}">${s}</span>`;
 }
 
 function conditionClass(c) {
@@ -38,13 +39,13 @@ export function cardHtml(p, opts = {}) {
   const attrs = CARD_ATTRS[isGk ? 'gk' : 'field'];
   const tag = opts.action ? 'button' : 'div';
   const actionAttrs = opts.action ? `type="button" data-action="${opts.action}" data-id="${p.id}"${opts.data || ''}` : '';
-  const injured = p.injury ? `<span class="card__badge card__badge--injury" title="Verletzt">${icon('medical')}</span>` :
-    p.suspension ? `<span class="card__badge card__badge--red" title="Gesperrt"><i></i></span>` : '';
+  const injured = p.injury ? `<span class="card__badge card__badge--injury" title="${t('w.injured')}">${icon('medical')}</span>` :
+    p.suspension ? `<span class="card__badge card__badge--red" title="${t('w.suspended')}"><i></i></span>` : '';
   const sel = opts.selected ? ' is-selected' : '';
   const style = `--club:${colors.primary};--club2:${colors.secondary}`;
 
   if (size === 'xs') {
-    return `<${tag} class="card card--xs tier-${p.tier}${sel}" style="${style}" ${actionAttrs} aria-label="${esc(p.first)} ${esc(p.last)}, ${p.position}, Stärke ${p.ovr}">
+    return `<${tag} class="card card--xs tier-${p.tier}${sel}" style="${style}" ${actionAttrs} aria-label="${esc(p.first)} ${esc(p.last)}, ${POS_LABEL[p.position]}, ${t('w.rating')} ${p.ovr}">
       <span class="card__art">${portraitSvg(p, { colors })}</span>
       <span class="card__ovr">${p.ovr}</span>
       ${injured}
@@ -59,13 +60,13 @@ export function cardHtml(p, opts = {}) {
     const v = boosted ? Math.min(99, p.attrs[a] + p.tempBoost.amount) : p.attrs[a];
     return `<span class="card__stat${weights[a] ? ' is-key' : ''}${boosted ? ' is-boost' : ''}"><b>${v}</b><i>${ATTR_LABELS[a]}</i></span>`;
   }).join('');
-  return `<${tag} class="card card--${size} tier-${p.tier}${sel}" style="${style}" ${actionAttrs} aria-label="${esc(p.first)} ${esc(p.last)}, ${p.position}, Stärke ${p.ovr}, ${TIERS[p.tier].name}">
+  return `<${tag} class="card card--${size} tier-${p.tier}${sel}" style="${style}" ${actionAttrs} aria-label="${esc(p.first)} ${esc(p.last)}, ${POS_LABEL[p.position]}, ${t('w.rating')} ${p.ovr}, ${TIERS[p.tier].name}">
     <span class="card__frame">
       <span class="card__art">
         ${portraitSvg(p, { colors })}
         <span class="card__corner">
           <span class="card__ovr">${p.ovr}</span>
-          <span class="card__pos">${p.position}</span>
+          <span class="card__pos">${POS_LABEL[p.position]}</span>
         </span>
         <span class="card__meta">${flagSvg(p.nation, size === 'sm' ? 16 : 20)}<span class="card__tier">${TIERS[p.tier].name}</span></span>
         ${injured}
@@ -75,7 +76,7 @@ export function cardHtml(p, opts = {}) {
         ${size === 'sm' ? '' : `<span class="card__stats">${stats}</span>`}
         <span class="card__foot">
           ${starsHtml(potentialStars(p))}
-          <span>${p.age} J.</span>
+          <span>${t('w.ageShort', { age: p.age })}</span>
         </span>
       </span>
       ${opts.showCondition ? `<span class="bar card__cond ${conditionClass(p.condition)}"><span style="width:${p.condition}%"></span></span>` : ''}

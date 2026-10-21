@@ -1,3 +1,5 @@
+import { t, tmap } from '../i18n/index.js';
+
 // =============================================================================
 // Spielregeln als Daten: Positionen, Formationen, Spielstile, Talentklassen
 // =============================================================================
@@ -7,24 +9,9 @@ export const ATTRS = ['tem', 'sch', 'pas', 'dri', 'abw', 'phy', 'men', 'tor'];
 export const FIELD_ATTRS = ATTRS;
 export const ALL_ATTRS = ATTRS;
 
-export const ATTR_LABELS = {
-  tem: 'TEM', sch: 'SCH', pas: 'PAS', dri: 'DRI', abw: 'ABW', phy: 'PHY', men: 'MEN', tor: 'TOR'
-};
-
-export const ATTR_NAMES = {
-  tem: 'Tempo', sch: 'Schuss', pas: 'Passspiel', dri: 'Dribbling', abw: 'Abwehr', phy: 'Physis', men: 'Mental', tor: 'Torwart'
-};
-
-export const ATTR_HINTS = {
-  tem: 'Antritt und Laufduelle',
-  sch: 'Abschluss und Elfmeter',
-  pas: 'Spielaufbau, Vorlagen',
-  dri: 'Durchsetzen im Eins gegen Eins',
-  abw: 'Zweikämpfe und Stellungsspiel',
-  phy: 'Robustheit, ermüdet langsamer',
-  men: 'Nerven in großen Spielen, bei Rückstand und im Elfmeterschießen',
-  tor: 'Reflexe, Halten, Herauslaufen'
-};
+export const ATTR_LABELS = tmap('attr.');
+export const ATTR_NAMES = tmap('attrName.');
+export const ATTR_HINTS = tmap('attrHint.');
 
 /** Reihenfolge der acht Werte auf der Karte (4 × 2) */
 export const CARD_ATTRS = {
@@ -34,11 +21,9 @@ export const CARD_ATTRS = {
 
 export const POSITIONS = ['TW', 'IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST'];
 
-export const POSITION_NAMES = {
-  TW: 'Torwart', IV: 'Innenverteidiger', LV: 'Linksverteidiger', RV: 'Rechtsverteidiger',
-  ZDM: 'Defensives Mittelfeld', ZM: 'Zentrales Mittelfeld', ZOM: 'Offensives Mittelfeld',
-  LM: 'Linkes Mittelfeld', RM: 'Rechtes Mittelfeld', LF: 'Linksaußen', RF: 'Rechtsaußen', ST: 'Stürmer'
-};
+export const POSITION_NAMES = tmap('posName.');
+/** Positionskürzel in der aktiven Sprache (TW → GK) */
+export const POS_LABEL = tmap('pos.');
 
 export const POSITION_GROUP = {
   TW: 'GK', IV: 'DEF', LV: 'DEF', RV: 'DEF',
@@ -170,28 +155,33 @@ export const FORMATION_KEYS = Object.keys(FORMATIONS);
  */
 export const STYLES = {
   AUSGEWOGEN: {
-    key: 'AUSGEWOGEN', name: 'Ausgewogen', beats: null,
-    desc: 'Kein besonderer Schwerpunkt, keine besondere Schwäche.',
+    key: 'AUSGEWOGEN', beats: null,
+    get name() { return t('style.AUSGEWOGEN.name'); },
+    get desc() { return t('style.AUSGEWOGEN.desc'); },
     midBonus: 0, chanceMult: 1, qualityMult: 1, defBonus: 0, fatigue: 0
   },
   BALLBESITZ: {
-    key: 'BALLBESITZ', name: 'Ballbesitz', beats: 'MAUERN',
-    desc: 'Kontrolle im Mittelfeld, geduldiger Aufbau, hochwertige Chancen.',
+    key: 'BALLBESITZ', beats: 'MAUERN',
+    get name() { return t('style.BALLBESITZ.name'); },
+    get desc() { return t('style.BALLBESITZ.desc'); },
     midBonus: 3, chanceMult: 0.95, qualityMult: 1.1, defBonus: 0, fatigue: 0
   },
   KONTER: {
-    key: 'KONTER', name: 'Konter', beats: 'PRESSING',
-    desc: 'Wenig Ballbesitz, schnelle Gegenstöße, etwas sicherer hinten.',
+    key: 'KONTER', beats: 'PRESSING',
+    get name() { return t('style.KONTER.name'); },
+    get desc() { return t('style.KONTER.desc'); },
     midBonus: -3, chanceMult: 0.9, qualityMult: 1.22, defBonus: 2, fatigue: 0
   },
   PRESSING: {
-    key: 'PRESSING', name: 'Pressing', beats: 'BALLBESITZ',
-    desc: 'Früh stören, Bälle erobern. Viele Chancen, kostet aber Kraft.',
+    key: 'PRESSING', beats: 'BALLBESITZ',
+    get name() { return t('style.PRESSING.name'); },
+    get desc() { return t('style.PRESSING.desc'); },
     midBonus: 2, chanceMult: 1.15, qualityMult: 1, defBonus: -2, fatigue: 6
   },
   MAUERN: {
-    key: 'MAUERN', name: 'Mauern', beats: 'KONTER',
-    desc: 'Tief stehen, Räume schließen. Wenig Chancen auf beiden Seiten.',
+    key: 'MAUERN', beats: 'KONTER',
+    get name() { return t('style.MAUERN.name'); },
+    get desc() { return t('style.MAUERN.desc'); },
     midBonus: -4, chanceMult: 0.75, qualityMult: 0.92, defBonus: 6, fatigue: -2
   }
 };
@@ -210,10 +200,10 @@ export function styleMatchup(a, b) {
  * softCap: Ab hier wächst der Spieler nur noch sehr langsam.
  */
 export const TIERS = {
-  bronze: { key: 'bronze', name: 'Bronze', potMin: 50, potMax: 66, softCap: 66, order: 0 },
-  silver: { key: 'silver', name: 'Silber', potMin: 66, potMax: 76, softCap: 76, order: 1 },
-  gold: { key: 'gold', name: 'Gold', potMin: 76, potMax: 87, softCap: 87, order: 2 },
-  icon: { key: 'icon', name: 'Ikone', potMin: 87, potMax: 95, softCap: 95, order: 3 }
+  bronze: { key: 'bronze', get name() { return t('tier.bronze'); }, potMin: 50, potMax: 66, softCap: 66, order: 0 },
+  silver: { key: 'silver', get name() { return t('tier.silver'); }, potMin: 66, potMax: 76, softCap: 76, order: 1 },
+  gold: { key: 'gold', get name() { return t('tier.gold'); }, potMin: 76, potMax: 87, softCap: 87, order: 2 },
+  icon: { key: 'icon', get name() { return t('tier.icon'); }, potMin: 87, potMax: 95, softCap: 95, order: 3 }
 };
 
 export const TIER_KEYS = ['bronze', 'silver', 'gold', 'icon'];

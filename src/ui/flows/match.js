@@ -8,6 +8,8 @@ import { cardHtml } from '../components/card.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
 import { playSound } from '../sound.js';
+import { t } from '../../i18n/index.js';
+import { txt } from '../text.js';
 
 const TICK_ICON = { goal: 'ball', chance: 'target', tackle: 'shield', injury: 'medical', sub: 'swap', half: 'whistle', end: 'whistle', kickoff: 'whistle', pens: 'target' };
 const tickIcon = type => type === 'yellow' ? '<i class="yellowcard"></i>' : type === 'red' ? '<i class="redcard"></i>' : icon(TICK_ICON[type] || 'info');
@@ -33,8 +35,8 @@ export function matchFlow(game, flow) {
     <div class="timeline" aria-hidden="true"><span id="mf-progress"></span><i style="left:50%"></i></div>
     <ol class="ticker" id="mf-ticker" aria-live="polite"></ol>
     <div class="matchflow__controls" id="mf-controls">
-      <button class="btn btn--sm btn--secondary" data-action="match-speed" id="mf-speed">${icon('forward')}Schneller</button>
-      <button class="btn btn--sm btn--ghost" data-action="match-skip">Zum Ergebnis</button>
+      <button class="btn btn--sm btn--secondary" data-action="match-speed" id="mf-speed">${icon('forward')}${t('mf.faster')}</button>
+      <button class="btn btn--sm btn--ghost" data-action="match-skip">${t('mf.skip')}</button>
     </div>
     <div id="mf-scene"></div>
   </main></div>`;
@@ -71,20 +73,20 @@ export function startMatch(game, flow, settings, onDone) {
 
   const $ = id => document.getElementById(id);
 
-  function addTick(t) {
+  function addTick(tk) {
     const list = $('mf-ticker');
     if (!list) return;
-    const sideCls = t.side === 'home' ? 'tick--home' : t.side === 'away' ? 'tick--away' : 'tick--neutral';
-    const mine = t.side === side;
+    const sideCls = tk.side === 'home' ? 'tick--home' : tk.side === 'away' ? 'tick--away' : 'tick--neutral';
+    const mine = tk.side === side;
     const li = document.createElement('li');
-    li.className = `tick tick--${t.type} ${sideCls} ${mine ? 'tick--mine' : ''}`;
-    li.innerHTML = `<span class="tick__min">${t.minute > 90 ? '90+' : t.minute}'</span><span class="tick__icon">${tickIcon(t.type)}</span><span class="tick__text">${esc(t.text)}</span>`;
+    li.className = `tick tick--${tk.type} ${sideCls} ${mine ? 'tick--mine' : ''}`;
+    li.innerHTML = `<span class="tick__min">${tk.minute > 90 ? '90+' : tk.minute}'</span><span class="tick__icon">${tickIcon(tk.type)}</span><span class="tick__text">${esc(txt(tk))}</span>`;
     list.prepend(li);
-    if (t.type === 'goal' && (state.score[0] !== t.score[0] || state.score[1] !== t.score[1])) {
-      setScore(t.score, mine);
+    if (tk.type === 'goal' && (state.score[0] !== tk.score[0] || state.score[1] !== tk.score[1])) {
+      setScore(tk.score, mine);
     }
-    if (t.type === 'red' && mine) buzz(80);
-    if (t.type === 'half' || t.type === 'end') playSound('whistle', settings);
+    if (tk.type === 'red' && mine) buzz(80);
+    if (tk.type === 'half' || tk.type === 'end') playSound('whistle', settings);
   }
 
   function setScore(score, mine) {
@@ -108,19 +110,19 @@ export function startMatch(game, flow, settings, onDone) {
     const attClub = game.clubs[scene.side === 'home' ? r.homeId : r.awayId];
     const defClub = game.clubs[scene.side === 'home' ? r.awayId : r.homeId];
     const mine = scene.side === side;
-    const stamp = scene.outcome === 'GOAL' ? 'Tor!' : scene.outcome === 'SAVE' ? 'Gehalten!' : 'Abgewehrt!';
+    const stamp = scene.outcome === 'GOAL' ? t('mf.goal') : scene.outcome === 'SAVE' ? t('mf.saved') : t('mf.blocked');
     const [p1, p2] = scene.phases;
     const phaseHtml = (ph, n, defName) => `
       <div class="phase phase--${n} ${ph.skipped ? 'is-skipped' : ''}">
-        <div class="phase__head"><b>${n === 1 ? 'Durchbruch' : 'Abschluss'}</b><span>${ph.skipped ? 'kam nicht dazu' : `${ph.chance} % Chance`}</span></div>
+        <div class="phase__head"><b>${n === 1 ? t('phase.break') : t('phase.finish')}</b><span>${ph.skipped ? t('mf.skipped') : t('mf.chance', { n: ph.chance })}</span></div>
         <div class="phase__duel">
-          <span>${esc(ph.att.label)} <b>${ph.att.value}</b></span>
+          <span>${esc(t(ph.att.label))} <b>${ph.att.value}</b></span>
           <span class="phase__bar"><span style="--w:${ph.skipped ? 0 : ph.chance}%"></span></span>
           <span><b>${ph.def.value}</b> ${esc(defName)}</span>
         </div>
         ${ph.skipped ? '' : `<span class="phase__res ${ph.success ? 'is-win' : 'is-loss'}">${icon(ph.success ? 'check' : 'close')}</span>`}
       </div>`;
-    el.innerHTML = `<div class="scene ${mine ? 'scene--mine' : 'scene--theirs'} scene--${scene.outcome.toLowerCase()}" data-action="scene-continue" role="dialog" aria-label="Schlüsselszene">
+    el.innerHTML = `<div class="scene ${mine ? 'scene--mine' : 'scene--theirs'} scene--${scene.outcome.toLowerCase()}" data-action="scene-continue" role="dialog" aria-label="${t('mf.scene')}">
       <div class="scene__head" style="--club:${attClub.colors.primary}">
         <span class="scene__min display">${scene.minute}'</span>
         <div class="scene__attack">
@@ -128,8 +130,8 @@ export function startMatch(game, flow, settings, onDone) {
           <span class="scene__arrow">${icon('arrowRight')}</span>
           ${crestSvg(defClub, 34)}
         </div>
-        <div class="scene__who"><b>${esc(attClub.name)}</b> greift an</div>
-        <span class="scene__tag">${mine ? 'Deine Mannschaft' : 'Gegner'}</span>
+        <div class="scene__who">${t('mf.attacks', { club: `<b>${esc(attClub.name)}</b>` })}</div>
+        <span class="scene__tag">${mine ? t('mf.yourTeam') : t('mf.opponent')}</span>
       </div>
       <div class="scene__cards">
         <div class="scene__card scene__card--att">${att ? cardHtml(att, { size: 'sm', colors: attClub.colors }) : ''}</div>
@@ -144,8 +146,8 @@ export function startMatch(game, flow, settings, onDone) {
         ${phaseHtml(p2, 2, keeper ? keeper.last : p2.def.label)}
       </div>
       <div class="scene__stamp display">${stamp}</div>
-      <p class="scene__tap small">Tippen zum Weiterspielen</p>
-      <button class="btn btn--sm btn--ghost scene__skip" data-action="match-skip">Zum Ergebnis</button>
+      <p class="scene__tap small">${t('mf.tapContinue')}</p>
+      <button class="btn btn--sm btn--ghost scene__skip" data-action="match-skip">${t('mf.skip')}</button>
     </div>`;
     playSound('card', settings);
     const node = el.firstElementChild;
@@ -191,13 +193,13 @@ export function startMatch(game, flow, settings, onDone) {
       ${crestSvg(club, 28)}<span class="pens__name">${esc(club.short)}</span>
       <span class="pens__dots">${Array.from({ length: perSide }, (_, i) => `<i class="pens__dot" data-k="${key}${i}"></i>`).join('')}</span>
     </div>`;
-    el.innerHTML = `<div class="scene scene--pens" data-action="scene-continue" role="dialog" aria-label="Elfmeterschießen">
-      <div class="pens__title display">Elfmeterschießen</div>
+    el.innerHTML = `<div class="scene scene--pens" data-action="scene-continue" role="dialog" aria-label="${t('mf.pens')}">
+      <div class="pens__title display">${t('mf.pens')}</div>
       <div class="pens__score display" id="pen-score">0:0</div>
       <div class="pens__board">${row(home, 'h')}${row(away, 'a')}</div>
       <div class="pens__kick" id="pen-kick"></div>
-      <p class="scene__tap small" id="pen-tap">Tippen für den nächsten Schuss</p>
-      <button class="btn btn--sm btn--ghost scene__skip" data-action="match-skip">Zum Ergebnis</button>
+      <p class="scene__tap small" id="pen-tap">${t('mf.nextKick')}</p>
+      <button class="btn btn--sm btn--ghost scene__skip" data-action="match-skip">${t('mf.skip')}</button>
     </div>`;
     playSound('whistle', settings);
     const counts = { home: 0, away: 0 };
@@ -237,7 +239,7 @@ export function startMatch(game, flow, settings, onDone) {
             <div class="pens__vs display">vs</div>
             <div class="pens__card">${keeper ? cardHtml(keeper, { size: 'sm', colors: keeperClub.colors }) : ''}</div>
           </div>
-          <div class="pens__result display ${k.scored ? 'is-in' : 'is-out'}">${k.scored ? 'Drin!' : 'Gehalten!'}</div>`;
+          <div class="pens__result display ${k.scored ? 'is-in' : 'is-out'}">${k.scored ? t('mf.in') : t('mf.saved')}</div>`;
       }
       pending = k;
       state.penTimer = setTimeout(reveal, 900 * f);
@@ -248,9 +250,9 @@ export function startMatch(game, flow, settings, onDone) {
       if (sc) sc.textContent = `${r.pens.h}:${r.pens.a}`;
       const won = (side === 'home') === (r.pens.h > r.pens.a);
       const tap = $('pen-tap');
-      if (tap) tap.textContent = 'Tippen zum Spielbericht';
+      if (tap) tap.textContent = t('mf.toReport');
       const box = $('pen-kick');
-      if (box) box.innerHTML = `<div class="pens__final display ${won ? 'is-in' : 'is-out'}">${won ? 'Gewonnen!' : 'Ausgeschieden'}</div>`;
+      if (box) box.innerHTML = `<div class="pens__final display ${won ? 'is-in' : 'is-out'}">${won ? t('mf.won') : t('mf.out')}</div>`;
       if (won) buzz([60, 40, 160]);
     };
     state.penNext = () => { if (state.pensDone) finish(); else if (pending) reveal(); else shoot(); };
@@ -290,13 +292,13 @@ export function startMatch(game, flow, settings, onDone) {
     clearInterval(state.timer);
     while (state.tickIdx < ticker.length) addTick(ticker[state.tickIdx++]);
     const sc = $('sb-score');
-    if (sc) sc.innerHTML = `${r.hg}:${r.ag}${r.pens ? `<small class="scoreboard__pens">${r.pens.h}:${r.pens.a} i.E.</small>` : ''}`;
+    if (sc) sc.innerHTML = `${r.hg}:${r.ag}${r.pens ? `<small class="scoreboard__pens">${r.pens.h}:${r.pens.a} ${t('w.pens')}</small>` : ''}`;
     const mn = $('sb-min');
-    if (mn) mn.textContent = 'Ende';
+    if (mn) mn.textContent = t('mf.end');
     const pr = $('mf-progress');
     if (pr) pr.style.width = '100%';
     const c = $('mf-controls');
-    if (c) c.innerHTML = `<button class="btn btn--primary btn--block" data-action="match-report">${icon('list')}Spielbericht</button>`;
+    if (c) c.innerHTML = `<button class="btn btn--primary btn--block" data-action="match-report">${icon('list')}${t('mf.report')}</button>`;
     continueAfterScene();
   }
   state.finish = finish;
@@ -306,13 +308,13 @@ export function startMatch(game, flow, settings, onDone) {
     state.minute += minPerStep * state.speedMul;
     const m = Math.min(93, state.minute);
     while (state.tickIdx < ticker.length && ticker[state.tickIdx].minute <= m && ticker[state.tickIdx].type !== 'end' && ticker[state.tickIdx].type !== 'pens') {
-      const t = ticker[state.tickIdx];
+      const tk = ticker[state.tickIdx];
       // Schlüsselszene vor dem passenden Tickereintrag zeigen
       if (state.sceneIdx < scenes.length && scenes[state.sceneIdx].minute <= t.minute) {
         showScene(scenes[state.sceneIdx++]);
         return;
       }
-      addTick(t);
+      addTick(tk);
       state.tickIdx++;
     }
     if (state.sceneIdx < scenes.length && scenes[state.sceneIdx].minute <= m) {
@@ -327,7 +329,7 @@ export function startMatch(game, flow, settings, onDone) {
       if (r.pens?.kicks?.length && !state.inPens) {
         while (state.tickIdx < ticker.length && ticker[state.tickIdx].type !== 'pens') addTick(ticker[state.tickIdx++]);
         const mn = $('sb-min');
-        if (mn) mn.textContent = 'Elfm.';
+        if (mn) mn.textContent = t('mf.pensShort');
         showPens();
       } else if (!state.inPens) finish();
     }

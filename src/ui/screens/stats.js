@@ -9,28 +9,30 @@ import { icon } from '../icons.js';
 import { esc } from '../html.js';
 import { LEAGUE_INFO, clubPlayers } from '../../engine/world.js';
 import { avgRating } from '../../engine/player.js';
+import { t } from '../../i18n/index.js';
+import { POS_LABEL } from '../../engine/constants.js';
+import { nf1 } from '../text.js';
 
-const nf1 = x => x.toFixed(1).replace('.', ',');
 
 export const PLAYER_CATS = [
-  ['goals', 'Tore', p => p.stats.goals],
-  ['assists', 'Vorlagen', p => p.stats.assists],
-  ['scorer', 'Scorer', p => p.stats.goals + p.stats.assists],
-  ['rating', 'Ø Note', p => (p.stats.apps >= 4 ? avgRating(p.stats) : null), nf1],
-  ['motm', 'Spieler des Spiels', p => p.stats.motm],
-  ['clean', 'Zu null', p => (p.position === 'TW' ? p.stats.cleanSheets || 0 : null)],
-  ['cards', 'Karten', p => (p.stats.yellows || 0) + (p.stats.reds || 0) * 3, null, p => `${p.stats.yellows || 0} Gelb, ${p.stats.reds || 0} Rot`]
+  ['goals', 'st.goals', p => p.stats.goals],
+  ['assists', 'st.assists', p => p.stats.assists],
+  ['scorer', 'st.scorer', p => p.stats.goals + p.stats.assists],
+  ['rating', 'st.rating', p => (p.stats.apps >= 4 ? avgRating(p.stats) : null), nf1],
+  ['motm', 'st.motm', p => p.stats.motm],
+  ['clean', 'st.clean', p => (p.position === 'TW' ? p.stats.cleanSheets || 0 : null)],
+  ['cards', 'st.cards', p => (p.stats.yellows || 0) + (p.stats.reds || 0) * 3, null, p => t('st.cardsSub', { y: p.stats.yellows || 0, r: p.stats.reds || 0 })]
 ];
 
 export const CLUB_CATS = [
-  ['home', 'Heimtabelle'],
-  ['away', 'Auswärtstabelle'],
-  ['form', 'Formtabelle'],
-  ['attack', 'Tore'],
-  ['defense', 'Gegentore'],
-  ['poss', 'Ballbesitz'],
-  ['xg', 'Erwartete Tore'],
-  ['cards', 'Fairness']
+  ['home', 'st.home'],
+  ['away', 'st.away'],
+  ['form', 'st.form'],
+  ['attack', 'st.goals'],
+  ['defense', 'st.against'],
+  ['poss', 'st.poss'],
+  ['xg', 'st.xg'],
+  ['cards', 'st.fair']
 ];
 
 function tierPicker(game, tier) {
@@ -38,7 +40,7 @@ function tierPicker(game, tier) {
 }
 
 function catPicker(cats, active, action) {
-  return `<div class="cat-picker">${cats.map(([k, l]) => `<button class="chip ${k === active ? 'chip--pitch' : ''}" data-action="${action}" data-value="${k}" aria-pressed="${k === active}">${l}</button>`).join('')}</div>`;
+  return `<div class="cat-picker">${cats.map(([k, l]) => `<button class="chip ${k === active ? 'chip--pitch' : ''}" data-action="${action}" data-value="${k}" aria-pressed="${k === active}">${t(l)}</button>`).join('')}</div>`;
 }
 
 function playerStats(game, tier, cat) {
@@ -50,20 +52,20 @@ function playerStats(game, tier, cat) {
     .filter(x => x.v != null && x.v > 0)
     .sort((a, b) => b.v - a.v || b.p.stats.apps - a.p.stats.apps)
     .slice(0, 15);
-  if (!list.length) return `<div class="empty"><p>Noch keine Werte in dieser Saison.</p></div>`;
+  if (!list.length) return `<div class="empty"><p>${t('st.noValues')}</p></div>`;
   return `<ol class="list panel panel--flush statlist">${list.map((x, i) => {
     const c = game.clubs[x.p.clubId];
     return `<li><div class="row statrow ${x.p.clubId === 'user' ? 'is-me' : ''}">
       <span class="statrow__rank">${i + 1}</span>
       <button class="statrow__player" data-action="open-player" data-id="${x.p.id}">
         <span class="prow__face tier-${x.p.tier}" style="--club:${c.colors.primary}">${portraitSvg(x.p, { colors: c.colors })}</span>
-        <span class="row__main"><span class="row__title">${esc(x.p.first[0])}. ${esc(x.p.last)}</span><span class="row__sub">${x.p.position}, ${x.p.stats.apps} Spiele${sub ? `, ${esc(sub(x.p))}` : ''}</span></span>
+        <span class="row__main"><span class="row__title">${esc(x.p.first[0])}. ${esc(x.p.last)}</span><span class="row__sub">${POS_LABEL[x.p.position]}, ${t('w.gamesN', { n: x.p.stats.apps })}${sub ? `, ${esc(sub(x.p))}` : ''}</span></span>
       </button>
       <button class="statrow__club" data-action="open-club" data-id="${c.id}" aria-label="${esc(c.name)}">${crestSvg(c, 24)}</button>
       <b class="statrow__val display">${fmtFn ? fmtFn(x.v) : x.v}</b>
     </div></li>`;
   }).join('')}</ol>
-  <p class="xsmall muted">${esc(label)}, alle Wettbewerbe dieser Saison${cat === 'rating' ? ', ab 4 Spielen' : ''}.</p>`;
+  <p class="xsmall muted">${t(cat === 'rating' ? 'st.footRating' : 'st.foot', { label: t(label) })}</p>`;
 }
 
 /** Heim-, Auswärts- oder Formtabelle aus den Ligaspielen */
@@ -90,7 +92,7 @@ function clubStats(game, tier, cat) {
   if (cat === 'home' || cat === 'away' || cat === 'form') {
     const rows = splitTable(game, tier, cat);
     return `<div class="panel panel--flush"><table class="table table--full">
-      <thead><tr><th>#</th><th>Verein</th><th class="num">Sp</th><th class="num">S-U-N</th><th class="num">Tore</th><th class="num">Pkt</th></tr></thead>
+      <thead><tr><th>#</th><th>${t('tbl.club')}</th><th class="num">${t('tbl.p')}</th><th class="num">${t('tbl.wdl')}</th><th class="num">${t('st.goals')}</th><th class="num">${t('tbl.pts')}</th></tr></thead>
       <tbody>${rows.map((r, i) => {
         const c = game.clubs[r.id];
         return `<tr class="${r.id === 'user' ? 'is-me' : ''}" data-action="open-club" data-id="${r.id}">
@@ -98,20 +100,20 @@ function clubStats(game, tier, cat) {
           <td class="num">${r.p}</td><td class="num t-wdl">${r.w}-${r.d}-${r.l}</td><td class="num">${r.gf}:${r.ga}</td><td class="num t-pts"><b>${r.pts}</b></td>
         </tr>`;
       }).join('')}</tbody></table></div>
-      <p class="xsmall muted">${cat === 'form' ? 'Nur die letzten 5 Ligaspiele.' : 'Nur Ligaspiele.'}</p>`;
+      <p class="xsmall muted">${cat === 'form' ? t('st.last5') : t('st.leagueOnly')}</p>`;
   }
   const metric = {
-    attack: [cs => cs.gf, 'Tore', true, v => v],
-    defense: [cs => cs.ga, 'Gegentore', false, v => v],
-    poss: [cs => (cs.games ? cs.poss / cs.games : 0), 'Ø Ballbesitz', true, v => `${Math.round(v)} %`],
-    xg: [cs => cs.xg, 'Erwartete Tore', true, v => nf1(v)],
-    cards: [cs => cs.yellows + cs.reds * 3, 'Kartenpunkte (Rot zählt 3)', false, v => v]
+    attack: [cs => cs.gf, 'st.goals', true, v => v],
+    defense: [cs => cs.ga, 'st.against', false, v => v],
+    poss: [cs => (cs.games ? cs.poss / cs.games : 0), 'st.possAvg', true, v => `${Math.round(v)} %`],
+    xg: [cs => cs.xg, 'st.xg', true, v => nf1(v)],
+    cards: [cs => cs.yellows + cs.reds * 3, 'st.cardPts', false, v => v]
   }[cat];
   const [get, label, desc, show] = metric;
   const rows = game.leagues[tier].clubIds.map(id => ({ id, cs: game.clubs[id].seasonStats })).filter(x => x.cs && x.cs.games)
     .map(x => ({ ...x, v: get(x.cs) }))
     .sort((a, b) => (desc ? b.v - a.v : a.v - b.v));
-  if (!rows.length) return `<div class="empty"><p>Noch keine Spiele in dieser Saison.</p></div>`;
+  if (!rows.length) return `<div class="empty"><p>${t('st.noGames')}</p></div>`;
   const max = Math.max(...rows.map(r => r.v), 1);
   return `<ol class="list panel panel--flush statlist">${rows.map((r, i) => {
     const c = game.clubs[r.id];
@@ -122,7 +124,7 @@ function clubStats(game, tier, cat) {
       <b class="statrow__val display">${show(r.v)}</b>
     </button></li>`;
   }).join('')}</ol>
-  <p class="xsmall muted">${esc(label)}, alle Wettbewerbe dieser Saison.</p>`;
+  <p class="xsmall muted">${t('st.foot', { label: t(label) })}</p>`;
 }
 
 function myClubStats(game) {
@@ -133,29 +135,29 @@ function myClubStats(game) {
   const h = game.history || [];
   const titles = h.filter(x => x.champion).length;
   const ups = h.filter(x => x.promoted).length;
-  const cups = h.filter(x => x.cup === 'Sieger').length;
+  const cups = h.filter(x => x.cup === 'W' || x.cup === 'Sieger').length;
   const log = game.matchLog || [];
   const recRow = (r, val) => {
     const alive = game.players[r.id];
     return `<li><${alive ? `button class="row statrow" data-action="open-player" data-id="${r.id}"` : 'div class="row statrow"'}>
-      <span class="row__main"><span class="row__title">${esc(r.name)}${alive && alive.clubId === 'user' ? '' : ' <small class="muted">(ehemalig)</small>'}</span><span class="row__sub">${r.pos}, ${r.apps} Spiele, ${r.goals} Tore</span></span>
+      <span class="row__main"><span class="row__title">${esc(r.name)}${alive && alive.clubId === 'user' ? '' : ` <small class="muted">(${t('st.former')})</small>`}</span><span class="row__sub">${POS_LABEL[r.pos]}, ${t('w.gamesN', { n: r.apps })}, ${t('w.goalsN', { n: r.goals })}</span></span>
       <b class="statrow__val display">${val(r)}</b>
     </${alive ? 'button' : 'div'}></li>`;
   };
   return `
     <dl class="facts facts--3">
-      <div><dt>Meistertitel</dt><dd class="display">${titles}</dd></div>
-      <div><dt>Aufstiege</dt><dd class="display">${ups}</dd></div>
-      <div><dt>Pokalsiege</dt><dd class="display">${cups}</dd></div>
+      <div><dt>${t('st.titles')}</dt><dd class="display">${titles}</dd></div>
+      <div><dt>${t('st.ups')}</dt><dd class="display">${ups}</dd></div>
+      <div><dt>${t('st.cups')}</dt><dd class="display">${cups}</dd></div>
     </dl>
     <dl class="facts facts--2">
-      <div><dt>Höchster Sieg</dt><dd>${rec.bestWin ? `<b class="display">${rec.bestWin.score}</b><small class="muted"> gegen ${esc(rec.bestWin.oppName || '')}, Saison ${rec.bestWin.season}</small>` : '–'}</dd></div>
-      <div><dt>Höchste Niederlage</dt><dd>${rec.worstLoss ? `<b class="display">${rec.worstLoss.score}</b><small class="muted"> gegen ${esc(rec.worstLoss.oppName || '')}, Saison ${rec.worstLoss.season}</small>` : '–'}</dd></div>
+      <div><dt>${t('st.bestWin')}</dt><dd>${rec.bestWin ? `<b class="display">${rec.bestWin.score}</b><small class="muted"> ${t('st.vsSeason', { opp: esc(rec.bestWin.oppName || ''), season: rec.bestWin.season })}</small>` : '–'}</dd></div>
+      <div><dt>${t('st.worstLoss')}</dt><dd>${rec.worstLoss ? `<b class="display">${rec.worstLoss.score}</b><small class="muted"> ${t('st.vsSeason', { opp: esc(rec.worstLoss.oppName || ''), season: rec.worstLoss.season })}</small>` : '–'}</dd></div>
     </dl>
-    ${byApps.length ? `<section class="section section--tight"><h3 class="h3">Rekordspieler</h3><ul class="list panel panel--flush">${byApps.map(r => recRow(r, x => x.apps)).join('')}</ul></section>` : ''}
-    ${byGoals.length ? `<section class="section section--tight"><h3 class="h3">Rekordtorschützen</h3><ul class="list panel panel--flush">${byGoals.map(r => recRow(r, x => x.goals)).join('')}</ul></section>` : ''}
-    ${!all.length ? '<div class="empty"><p>Rekorde entstehen mit jedem Spiel. Spiel deinen ersten Spieltag!</p></div>' : ''}
-    <p class="xsmall muted">${log.length ? `Gezählt seit Einführung der Vereinsstatistik.` : ''}</p>`;
+    ${byApps.length ? `<section class="section section--tight"><h3 class="h3">${t('st.recApps')}</h3><ul class="list panel panel--flush">${byApps.map(r => recRow(r, x => x.apps)).join('')}</ul></section>` : ''}
+    ${byGoals.length ? `<section class="section section--tight"><h3 class="h3">${t('st.recGoals')}</h3><ul class="list panel panel--flush">${byGoals.map(r => recRow(r, x => x.goals)).join('')}</ul></section>` : ''}
+    ${!all.length ? `<div class="empty"><p>${t('st.noRecords')}</p></div>` : ''}
+    <p class="xsmall muted">${log.length ? t('st.since') : ''}</p>`;
 }
 
 export function statsView(game, ui) {
@@ -171,6 +173,6 @@ export function statsView(game, ui) {
   } else {
     body = myClubStats(game);
   }
-  return `${segmented([['players', 'Spieler'], ['clubs', 'Vereine'], ['mine', 'Dein Verein']], scope, 'stats-scope')}
+  return `${segmented([['players', t('st.players')], ['clubs', t('st.clubs')], ['mine', t('st.mine')]], scope, 'stats-scope')}
     <div class="stats-body">${body}</div>`;
 }

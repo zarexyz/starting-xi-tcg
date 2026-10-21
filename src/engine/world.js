@@ -5,6 +5,7 @@
 import { createPlayer } from './player.js';
 import { STYLE_KEYS, FORMATION_KEYS, AI_SQUAD_SIZE } from './constants.js';
 import { generateName, pickNation } from './names.js';
+import { t } from '../i18n/index.js';
 
 /** Trainer mit fester Philosophie. Ein neuer Trainer bringt meist einen anderen Stil mit. */
 export function newCoach(rng, avoidStyle = null, home = null) {
@@ -15,13 +16,14 @@ export function newCoach(rng, avoidStyle = null, home = null) {
   return { name: `${first} ${last}`, nation, style, age: rng.int(36, 64) };
 }
 
+const league = (n, name, baseOvr) => ({ name, baseOvr, get short() { return t('league.short', { n }); } });
 export const LEAGUE_INFO = {
-  1: { name: 'Apex Premier', short: 'Liga 1', baseOvr: 74 },
-  2: { name: 'Pro Division', short: 'Liga 2', baseOvr: 69 },
-  3: { name: 'Championship', short: 'Liga 3', baseOvr: 65 },
-  4: { name: 'Contender League', short: 'Liga 4', baseOvr: 61 },
-  5: { name: 'Regional League', short: 'Liga 5', baseOvr: 57 },
-  6: { name: 'Amateur League', short: 'Liga 6', baseOvr: 53 }
+  1: league(1, 'Apex Premier', 74),
+  2: league(2, 'Pro Division', 69),
+  3: league(3, 'Championship', 65),
+  4: league(4, 'Contender League', 61),
+  5: league(5, 'Regional League', 57),
+  6: league(6, 'Amateur League', 53)
 };
 
 /**
@@ -108,7 +110,7 @@ export const FOUNDING_COUNTRIES = ['GER', 'ENG', 'ESP', 'ITA', 'FRA', 'NED', 'PO
 
 /** Wie stark das Heimatland den Kader prägt: oben internationaler, unten heimischer */
 export function homeBiasFor(tier) {
-  return [0, 0.5, 0.55, 0.6, 0.62, 0.65, 0.7][tier] ?? 0.6;
+  return [0, 0.58, 0.6, 0.62, 0.64, 0.66, 0.7][tier] ?? 0.6;
 }
 
 /** Rivalität zweier Vereine: 'derby' (gleiche Stadt), 'national' (gleiches Land) oder null */

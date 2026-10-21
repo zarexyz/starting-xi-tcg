@@ -6,70 +6,71 @@
 
 import { createPlayer } from './player.js';
 import { TIERS, ATTR_NAMES, OVR_WEIGHTS } from './constants.js';
+import { t } from '../i18n/index.js';
 import { nextId, LEAGUE_INFO } from './world.js';
 import { clamp } from './rng.js';
 
 export const CONSUMABLES = {
   FITNESS: {
-    name: 'Frischzellenkur', icon: 'battery', rarity: 'bronze', target: 'player',
-    desc: '+35 Fitness für einen Spieler.'
+    get name() { return t('item.FITNESS.name'); }, get desc() { return t('item.FITNESS.desc'); },
+    icon: 'battery', rarity: 'bronze', target: 'player',
   },
   REGEN: {
-    name: 'Regenerationstag', icon: 'spa', rarity: 'silver', target: 'team',
-    desc: '+12 Fitness für den ganzen Kader.'
+    get name() { return t('item.REGEN.name'); }, get desc() { return t('item.REGEN.desc'); },
+    icon: 'spa', rarity: 'silver', target: 'team',
   },
   MEDICAL: {
-    name: 'Reha-Spezialist', icon: 'medical', rarity: 'silver', target: 'injured',
-    desc: 'Verkürzt eine Verletzung um 4 Spieltage.'
+    get name() { return t('item.MEDICAL.name'); }, get desc() { return t('item.MEDICAL.desc'); },
+    icon: 'medical', rarity: 'silver', target: 'injured',
   },
   TRAIN: {
-    name: 'Training', icon: 'dumbbell', rarity: 'bronze', target: 'player', perAttr: true,
-    desc: '+1 auf einen Wert, dauerhaft.'
+    get name() { return t('item.TRAIN.name'); }, get desc() { return t('item.TRAIN.desc'); },
+    icon: 'dumbbell', rarity: 'bronze', target: 'player', perAttr: true,
   },
   TRAIN_PLUS: {
-    name: 'Intensivtraining', icon: 'flame', rarity: 'gold', target: 'player', perAttr: true,
-    desc: '+2 auf einen Wert, dauerhaft.'
+    get name() { return t('item.TRAIN_PLUS.name'); }, get desc() { return t('item.TRAIN_PLUS.desc'); },
+    icon: 'flame', rarity: 'gold', target: 'player', perAttr: true,
   },
   BOOST: {
-    name: 'Matchplan', icon: 'up', rarity: 'bronze', target: 'player', perAttr: true,
-    desc: '+6 auf einen Wert, nur im nächsten Spiel.'
+    get name() { return t('item.BOOST.name'); }, get desc() { return t('item.BOOST.desc'); },
+    icon: 'up', rarity: 'bronze', target: 'player', perAttr: true,
   },
   MORALE: {
-    name: 'Kabinenansprache', icon: 'megaphone', rarity: 'bronze', target: 'team',
-    desc: '+15 Moral für den ganzen Kader.'
+    get name() { return t('item.MORALE.name'); }, get desc() { return t('item.MORALE.desc'); },
+    icon: 'megaphone', rarity: 'bronze', target: 'team',
   },
   TACTIC: {
-    name: 'Taktiktafel', icon: 'clipboard', rarity: 'silver', target: 'match',
-    desc: 'Nächstes Spiel: Mittelfeld +3. Perfekt gegen Favoriten.'
+    get name() { return t('item.TACTIC.name'); }, get desc() { return t('item.TACTIC.desc'); },
+    icon: 'clipboard', rarity: 'silver', target: 'match',
   },
   RETRAIN: {
-    name: 'Umschulung', icon: 'swap', rarity: 'gold', target: 'player',
-    desc: 'Spieler lernt eine verwandte Position als Nebenposition.'
+    get name() { return t('item.RETRAIN.name'); }, get desc() { return t('item.RETRAIN.desc'); },
+    icon: 'swap', rarity: 'gold', target: 'player'
   }
 };
 
 export const PACKS = {
   talent: {
-    key: 'talent', name: 'Talent-Pack', price: 900, kind: 'draft',
-    desc: 'Drei junge Talente (16–20). Wenig Stärke, viel Potenzial.',
+    key: 'talent', get name() { return t('pack.talent.name'); }, price: 900, kind: 'draft',
+    get desc() { return t('pack.talent.desc'); },
     tiers: { bronze: 64, silver: 32, gold: 4, icon: 0 },
     ages: [16, 20], veteranChance: 0
   },
   scout: {
-    key: 'scout', name: 'Scout-Pack', price: 2200, kind: 'draft',
-    desc: 'Drei Spieler aller Altersklassen – sofortige Verstärkung oder Zukunft?',
+    key: 'scout', get name() { return t('pack.scout.name'); }, price: 2200, kind: 'draft',
+    get desc() { return t('pack.scout.desc'); },
     tiers: { bronze: 30, silver: 52, gold: 16, icon: 2 },
     ages: [18, 26], veteranChance: 0.45
   },
   elite: {
-    key: 'elite', name: 'Elite-Pack', price: 6500, kind: 'draft',
-    desc: 'Drei Hochkaräter. Gold garantiert, Ikonen möglich.',
+    key: 'elite', get name() { return t('pack.elite.name'); }, price: 6500, kind: 'draft',
+    get desc() { return t('pack.elite.desc'); },
     tiers: { bronze: 0, silver: 0, gold: 92, icon: 8 },
     ages: [18, 27], veteranChance: 0.35
   },
   gear: {
-    key: 'gear', name: 'Ausrüstungs-Pack', price: 700, kind: 'items',
-    desc: 'Drei Verbrauchsgegenstände: Fitness, Training, Taktik.',
+    key: 'gear', get name() { return t('pack.gear.name'); }, price: 700, kind: 'items',
+    get desc() { return t('pack.gear.desc'); },
     count: 3
   }
 };
@@ -147,9 +148,9 @@ export function itemDef(item) {
   const attr = typeof item === 'object' && item.attr;
   if (!base.perAttr || !attr) return { ...base, type };
   const n = ATTR_NAMES[attr];
-  const name = type === 'BOOST' ? `Matchplan ${n}` : type === 'TRAIN_PLUS' ? `Intensiv: ${n}` : `${n}-Training`;
   const amount = type === 'BOOST' ? 6 : type === 'TRAIN_PLUS' ? 2 : 1;
-  const desc = type === 'BOOST' ? `+${amount} ${n}, nur im nächsten Spiel.` : `+${amount} ${n}, dauerhaft.`;
+  const name = t(`item.${type}.named`, { attr: n });
+  const desc = t(type === 'BOOST' ? 'item.descTemp' : 'item.descPerm', { amount, attr: n });
   return { ...base, type, attr, name, desc, amount };
 }
 

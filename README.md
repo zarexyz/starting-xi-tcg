@@ -6,7 +6,10 @@ Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wähls
 
 ## Was drin ist
 
-- **Welt:** 60 fiktive Vereine in 6 Ligen, jeder Spieler existiert genau einmal
+- **Welt:** 60 fiktive Vereine aus 24 Ländern in 6 Ligen, Derbys und Rivalitäten, jeder Spieler existiert genau einmal
+- **Sprachen:** Deutsch und Englisch (umschaltbar in den Optionen)
+- **Statistik:** Torjäger, Vorlagen, Noten, Zu-null-Spiele, Heim-/Auswärts-/Formtabelle, Vereinschronik und Rekorde
+- **Alles anklickbar:** jeder Verein und jeder Spieler öffnet seine Seite, mit Karrierestationen und Direktvergleich
 - **Spieltag:** Vorbereitung mit Gegneranalyse, Spielstil (Konter-Kreislauf) und Formation, Siegprognose
 - **Live-Spiel:** Ticker, Schlüsselszenen in Stufen (Durchbruch, Abschluss), Elfmeterschießen Schuss für Schuss, Gelbe und Rote Karten mit Sperren, Spielbericht mit Erklärung
 - **Spielstand sichern:** Export und Import als Datei

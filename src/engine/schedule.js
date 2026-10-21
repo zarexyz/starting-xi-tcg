@@ -1,3 +1,4 @@
+import { tmap } from '../i18n/index.js';
 // =============================================================================
 // Spielplan: Liga (Hin- und Rückrunde), Saisonkalender, Pokal, Final Four, Tabelle
 // =============================================================================
@@ -43,14 +44,7 @@ export function buildCalendar() {
   return days;
 }
 
-export const CUP_ROUND_NAMES = {
-  1: '1. Runde',
-  2: 'Sechzehntelfinale',
-  3: 'Achtelfinale',
-  4: 'Viertelfinale',
-  5: 'Halbfinale',
-  6: 'Finale'
-};
+export const CUP_ROUND_NAMES = tmap('cup.');
 
 /**
  * Pokal-Auslosung. Runde 1: 4 Freilose für die besten Erstligisten, 56 Teams spielen.

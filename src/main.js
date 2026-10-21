@@ -32,6 +32,7 @@ import { playSound } from './ui/sound.js';
 import { icon } from './ui/icons.js';
 import { esc } from './ui/html.js';
 import { loadLocalFonts } from './fonts.js';
+import { t, setLang, getLang, deviceLang } from './i18n/index.js';
 
 loadLocalFonts();
 
@@ -50,7 +51,7 @@ function confirmSheet(c) {
   return sheet(c.title, `
     <p>${esc(c.text)}</p>
     <div class="confirm-actions">
-      <button class="btn btn--secondary" data-action="close-sheet">Abbrechen</button>
+      <button class="btn btn--secondary" data-action="close-sheet">${t('w.cancel')}</button>
       <button class="btn ${c.danger ? 'btn--danger' : 'btn--primary'}" data-action="confirm-yes">${esc(c.yes)}</button>
     </div>`);
 }
@@ -70,7 +71,7 @@ function sheetHtml(game, ui) {
   if (s.type === 'inbox') return inboxSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
-  if (s.type === 'offers') return sheet('Angebote', offersSheetBody(game, s.id));
+  if (s.type === 'offers') return sheet(t('tm.offersTitle'), offersSheetBody(game, s.id));
   return '';
 }
 
@@ -139,6 +140,7 @@ function renderToast() {
   if (store.ui.toast) app.insertAdjacentHTML('beforeend', `<div class="toast" role="status">${esc(store.ui.toast)}</div>`);
 }
 
+setLang(store.settings.lang || deviceLang());
 subscribe(render);
 
 // -----------------------------------------------------------------------------
@@ -161,7 +163,7 @@ function openDetail(type, id) {
   const cur = store.ui.sheet;
   if (cur && cur.type === type && cur.id === id) return;
   const prev = cur && ['player', 'club', 'news'].includes(cur.type) ? cur : null;
-  if (type === 'player' && !store.game?.players[id]) { toast('Dieser Spieler hat seine Karriere beendet.'); return; }
+  if (type === 'player' && !store.game?.players[id]) { toast(t('toast.retired')); return; }
   setUi({ sheet: { type, id, prev } });
 }
 
@@ -195,7 +197,7 @@ function simDay() {
   if (res && !res.error) {
     kickoffResultToast(res);
   } else {
-    toast('Spieltag gespielt.');
+    toast(t('toast.dayPlayed'));
   }
 }
 
@@ -219,8 +221,8 @@ function lineupTap({ slot, id, from }) {
   if (from === 'reserve' && !inSquad(sel)) { setUi({ selected: tapped }); return; }
   const target = tapped ? { playerId: tapped } : from === 'slot' ? { slot } : { bench: true };
   const res = act(swapPlayers, sel, target);
-  if (res && res.ok === false && res.reason === 'injured') toast('Verletzte Spieler können nicht spielen.');
-  if (res && res.ok === false && res.reason === 'suspended') toast('Gesperrte Spieler können nicht spielen.');
+  if (res && res.ok === false && res.reason === 'injured') toast(t('toast.injuredCant'));
+  if (res && res.ok === false && res.reason === 'suspended') toast(t('toast.bannedCant'));
   setUi({ selected: null });
   if (res?.ok) playSound('tap', store.settings);
 }
@@ -250,8 +252,8 @@ const handlers = {
   'export-save': async () => {
     if (!store.game) return;
     const res = await exportSave(store.game);
-    if (res === 'downloaded') toast('Sicherung gespeichert. Du findest sie in deinen Downloads.');
-    else if (res === 'shared') toast('Sicherung geteilt.');
+    if (res === 'downloaded') toast(t('toast.backupSaved'));
+    else if (res === 'shared') toast(t('toast.backupShared'));
     else if (res !== 'cancelled') toast(res);
   },
   'import-save': async d => {
@@ -262,10 +264,10 @@ const handlers = {
     if (res.error) { toast(res.error); return; }
     startGame(slot, res.game);
     setUi({ screen: 'app', tab: 'home', slotPicker: false, sheet: null, flow: null });
-    toast(`${res.game.clubs.user.name} geladen, Saison ${res.game.season}.`);
+    toast(t('toast.loaded', { club: res.game.clubs.user.name, season: res.game.season }));
   },
   'load-slot': d => { if (resumeGame(Number(d.slot))) setUi({ screen: 'app', tab: 'home', slotPicker: false }); },
-  'delete-slot': d => askConfirm('Spielstand löschen?', `Spielstand ${d.slot} wird endgültig gelöscht.`, 'Löschen', () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
+  'delete-slot': d => askConfirm(t('confirm.delete'), t('confirm.deleteX', { n: d.slot }), t('confirm.deleteBtn'), () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
   'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0, country: defaultCountry() } }),
   'back-title': () => setUi({ screen: 'title' }),
   'found-set': d => {
@@ -337,7 +339,7 @@ const handlers = {
     const wasStar = store.game.pending.source === 'star';
     act(pickDraft, i);
     playSound('pick', store.settings);
-    toast(`${p.first} ${p.last} ist jetzt in deinem Kader.`);
+    toast(t('toast.joined', { name: `${p.first} ${p.last}` }));
     setUi({ flow: null, pack: null, tab: wasStar ? 'home' : store.ui.tab });
     window.scrollTo(0, 0);
   },
@@ -348,23 +350,24 @@ const handlers = {
   'bench-tap': d => lineupTap({ id: d.id, from: 'bench' }),
   'reserve-tap': d => lineupTap({ id: d.id, from: 'reserve' }),
   deselect: () => setUi({ selected: null }),
-  'auto-lineup': () => { act(autoLineup); toast('Beste verfügbare Elf aufgestellt.'); },
-  'pick-for-lineup': d => { setUi({ sheet: null, tab: 'squad', selected: d.id, view: { ...store.ui.view, squad: 'lineup' } }); toast('Tippe auf die Position, die er übernehmen soll.'); },
+  'auto-lineup': () => { act(autoLineup); toast(t('toast.autoXI')); },
+  'pick-for-lineup': d => { setUi({ sheet: null, tab: 'squad', selected: d.id, view: { ...store.ui.view, squad: 'lineup' } }); toast(t('toast.pickPos')); },
   'to-bench': d => { act(placePlayer, d.id, { bench: true }); setUi({ sheet: null }); },
   release: d => {
     const p = store.game.players[d.id];
-    askConfirm(`${p.first} ${p.last} entlassen?`, 'Der Spieler verlässt den Verein sofort und beendet seine Laufbahn. Das lässt sich nicht rückgängig machen.', 'Entlassen', () => {
+    askConfirm(t('confirm.release', { name: `${p.first} ${p.last}` }), t('confirm.releaseX'), t('ps.release'), () => {
       const res = act(releasePlayer, d.id);
-      if (res?.ok) toast(`${p.last} hat den Verein verlassen.`);
+      if (res?.ok) toast(t('toast.left', { name: p.last }));
     });
   },
 
-  'toggle-auto': () => { const on = !store.game.user.autoLineup; act(setAutoLineup, on); toast(on ? 'Der Co-Trainer stellt ab jetzt die Elf auf.' : 'Du stellst ab jetzt selbst auf.'); },
+  'toggle-auto': () => { const on = !store.game.user.autoLineup; act(setAutoLineup, on); toast(on ? t('toast.autoOn') : t('toast.autoOff')); },
 
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
   'set-speed': d => updateSettings({ speed: d.value }),
+  'set-lang': d => { setLang(d.value); updateSettings({ lang: d.value }); },
 
   // Spieltag
   'open-prep': () => { if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' }, selected: null }); },
