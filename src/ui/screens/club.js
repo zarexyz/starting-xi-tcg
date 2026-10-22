@@ -11,6 +11,7 @@ import { weeklyWages, wageCap, TIER_INCOME } from '../../engine/economy.js';
 import { t, LANGS, getLang } from '../../i18n/index.js';
 import { ledgerLabel, ffStageText, cupText } from '../text.js';
 import { trophiesView } from './trophies.js';
+import { APP_VERSION } from '../../config.js';
 
 function overview(game) {
   const club = game.clubs.user;
@@ -110,7 +111,12 @@ export function settingsBody(store) {
     ${group(t('set.g.about'), `
       <li class="row">
         <span class="alert-dot">${icon('info')}</span>
-        <div class="row__main"><div class="row__title">${t('set.version', { v: '1.6' })}</div><div class="row__sub">${t('set.fiction')}</div></div>
+        <div class="row__main"><div class="row__title">${t('set.version', { v: APP_VERSION.replace(/\.0$/, '') })}</div><div class="row__sub">${t('set.fiction')}</div></div>
+      </li>
+      <li class="row row--button" data-action="open-feedback">
+        <span class="alert-dot">${icon('mail')}</span>
+        <div class="row__main"><div class="row__title">${t('fb.row')}</div><div class="row__sub">${t('fb.rowHint')}</div></div>
+        <span class="news-links__chev">${icon('chevronRight')}</span>
       </li>
       <li class="row">
         <span class="alert-dot">${icon('shield')}</span>

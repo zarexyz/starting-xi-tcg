@@ -183,7 +183,7 @@ export function contractSheetBody(game, playerId) {
   return `
     <dl class="facts facts--2">
       <div><dt>${t('ct.current')}</dt><dd class="display">${fmt(c.wage)}</dd></div>
-      <div><dt>${t('ct.until')}</dt><dd class="display">S${c.until}</dd></div>
+      <div><dt>${t('ct.until')}</dt><dd class="display">${t('ct.endOf', { s: c.until })}</dd></div>
     </dl>
     <p class="small muted">${t('ct.intro', { name: esc(p.last) })}</p>
     ${p.contractDiscount ? `<p class="small pos">${icon('clipboard')}${t('ct.discount')}</p>` : ''}

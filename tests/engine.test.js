@@ -610,3 +610,40 @@ test('Erfolge: Stufen werden aus dem Spielstand ermittelt und nur einmal freiges
   assert.equal(evaluateAchievements(s, profile).length, 0, 'kein zweites Mal');
   assert.ok(s.user.record.wins >= 0);
 });
+
+// --- v1.7: Rückennummern, Kapitän ---
+import { ensureIdentity, setNumber, setArmband, characterOf } from '../src/engine/identity.js';
+import { clubPlayers } from '../src/engine/world.js';
+import { releasePlayer } from '../src/engine/game.js';
+
+test('Identität: eindeutige Nummern, Kapitän und Vize vorhanden', () => {
+  const s = newStartedGame(11);
+  ensureIdentity(s);
+  const squad = clubPlayers(s, 'user');
+  const nums = squad.map(p => p.number);
+  assert.ok(nums.every(n => n >= 1 && n <= 99));
+  assert.equal(new Set(nums).size, nums.length);
+  assert.ok(s.players[s.user.captain] && s.players[s.user.vice]);
+  assert.notEqual(s.user.captain, s.user.vice);
+  const gk = squad.find(p => p.position === 'TW');
+  assert.ok(gk.number === 1 || gk.number >= 12);
+});
+
+test('Identität: Nummer tauschen, Binde tauschen, Abgang des Kapitäns', () => {
+  const s = newStartedGame(12);
+  ensureIdentity(s);
+  const [a, b] = clubPlayers(s, 'user');
+  const na = a.number, nb = b.number;
+  assert.ok(setNumber(s, a.id, nb).ok);
+  assert.equal(a.number, nb);
+  assert.equal(b.number, na);
+  const cap = s.user.captain, vice = s.user.vice;
+  setArmband(s, vice, 'C');
+  assert.equal(s.user.captain, vice);
+  assert.equal(s.user.vice, cap);
+  releasePlayer(s, vice);
+  ensureIdentity(s);
+  assert.equal(s.user.captain, cap);
+  assert.ok(s.user.vice && s.user.vice !== cap && s.players[s.user.vice].clubId === 'user');
+  assert.ok(characterOf(a).key.startsWith('ch.'));
+});

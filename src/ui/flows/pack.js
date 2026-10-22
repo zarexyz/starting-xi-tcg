@@ -10,6 +10,7 @@ import { TIERS, POSITION_NAMES, POS_LABEL } from '../../engine/constants.js';
 import { t } from '../../i18n/index.js';
 import { pendingTitle } from '../text.js';
 import { clubPlayers } from '../../engine/world.js';
+import { meetFlow } from '../screens/identity.js';
 
 const PACK_LOOK = {
   starter: { a: '#1f7a4d', b: '#0b3b24', sub: 'packart.starter' },
@@ -47,6 +48,8 @@ export function packFlow(game, ui) {
   const club = game.clubs.user;
   const colors = club.colors;
 
+  if (p.stage === 'meet') return meetFlow(game, ui);
+
   if (p.stage === 'sealed' && pending.type !== 'items') {
     return `<div class="fullscreen packflow"><main class="screen screen--bare packflow__stage">
       <p class="packflow__hint">${pending.type === 'starter' ? t('pf.needPlayers') : t('pf.newPack')}</p>
@@ -66,7 +69,8 @@ export function packFlow(game, ui) {
       <div class="packflow__grid">
         ${players.map((pl, i) => `<div class="flip is-flipped" style="--d:${i * 70}ms">${cardHtml(pl, { size: 'sm', colors })}</div>`).join('')}
       </div>
-      <button class="btn btn--primary btn--block" data-action="pack-next">${t('pf.toStar')}</button>
+      <button class="btn btn--primary btn--block" data-action="meet-go" data-value="0">${icon('squad')}${t('meet.btn')}</button>
+      <button class="btn btn--ghost btn--block" data-action="pack-next">${t('pf.toStar')}</button>
     </main></div>`;
   }
 

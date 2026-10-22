@@ -121,7 +121,10 @@ export function resultFlow(game, flow, ui = {}) {
       <ul class="list panel panel--flush">${finance.map(f => `<li class="row"><span class="row__main">${esc(ledgerLabel(f))}</span><b class="num ${f.amount >= 0 ? 'pos' : 'neg'}">${f.amount >= 0 ? '+' : '−'}${fmt(Math.abs(f.amount))}</b></li>`).join('')}</ul>
     </section>` : ''}
 
-    <div class="report__cta"><button class="btn btn--primary btn--block" data-action="result-continue">${t('w.continue')}</button></div>
+    <div class="report__cta">
+      <button class="btn btn--secondary btn--block" data-action="share-result">${icon('share')}${t('share.btn')}</button>
+      <button class="btn btn--primary btn--block" data-action="result-continue">${t('w.continue')}</button>
+    </div>
   </main></div>`;
 }
 

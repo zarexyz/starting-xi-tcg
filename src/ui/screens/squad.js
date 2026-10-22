@@ -20,6 +20,7 @@ import { NATIONS } from '../../engine/names.js';
 import { historyChart } from '../flows/develop.js';
 import { t, tmap } from '../../i18n/index.js';
 import { nf1, injuryLabel, banReason } from '../text.js';
+import { armbandBadge, numberTag, captainPanel } from './identity.js';
 
 const GROUP_ORDER = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
 const GROUP_NAMES = tmap('group.');
@@ -37,7 +38,8 @@ export function lineupPitch(game, setup, selected, opts = {}) {
       return `<div class="pitch__slot" style="left:${slot.x}%;top:${slot.y}%">
         ${p ? cardHtml(p, { size: 'xs', colors, action: 'slot-tap', data: ` data-slot="${slot.id}"`, selected: selected === p.id, showCondition: true }) :
           `<button class="pitch__empty" data-action="slot-tap" data-slot="${slot.id}" aria-label="${t('sq.freePos', { pos: POS_LABEL[slot.pos] })}">${icon('plus')}</button>`}
-        <span class="pitch__pos ${off ? 'is-off' : ''}">${POS_LABEL[slot.pos]}${off ? ' !' : ''}</span>
+        ${p ? armbandBadge(game, p.id) : ''}
+        <span class="pitch__pos ${off ? 'is-off' : ''}">${p?.number ? `${p.number} · ` : ''}${POS_LABEL[slot.pos]}${off ? ' !' : ''}</span>
       </div>`;
     }).join('')}
   </div>`;
@@ -173,7 +175,7 @@ export function playerRow(game, p, opts = {}) {
   return `<li><button class="row row--button prow ${opts.selected ? 'is-selected' : ''}" data-action="${opts.action || 'open-player'}" data-id="${p.id}">
     <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
     <span class="row__main">
-      <span class="row__title">${esc(p.first[0])}. ${esc(p.last)}${contractMarks(game, p)}</span>
+      <span class="row__title">${numberTag(p)}${esc(p.first[0])}. ${esc(p.last)}${armbandBadge(game, p.id)}${contractMarks(game, p)}</span>
       <span class="row__sub">${opts.extra ? esc(opts.extra) : `${POS_LABEL[p.position]}${p.secondary.length ? ` (${p.secondary.map(s => POS_LABEL[s]).join(', ')})` : ''}, ${t('w.ageShort', { age: p.age })}${noteText(p)}`}</span>
     </span>
     ${status}
@@ -187,6 +189,7 @@ function listView(game) {
   squad.forEach(p => { (groups[POSITION_GROUP[p.position]] ||= []).push(p); });
   return `
     <p class="small muted">${t('sq.slots', { n: squad.length, max: MAX_SQUAD })}</p>
+    ${captainPanel(game)}
     ${GROUP_KEYS.map(g => groups[g]?.length ? `
       <section class="section section--tight">
         <div class="section__head"><h2 class="section__title">${GROUP_NAMES[g]}</h2><span class="small muted">${groups[g].length}</span></div>
@@ -237,6 +240,8 @@ export function playerSheet(game, id, opts = {}) {
         ${!p.suspension && p.yellowCount >= 3 ? `<span class="chip chip--warn"><i class="yellowcard"></i>${t('ps.yellows', { n: p.yellowCount })}</span>` : ''}
         ${own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? t('ps.starting') : onBench ? t('sq.bench') : t('sq.out')}</span>` : `<button class="chip chip--link" data-action="open-club" data-id="${club.id}">${crestSvg(club, 16)}${esc(club.name)}</button>`}
         <span class="chip">${flagSvg(p.nation, 16)}${esc(NATIONS[p.nation]?.name || p.nation)}</span>
+        ${own && p.number ? `<button class="chip chip--link" data-action="open-number" data-id="${p.id}" title="${t('num.change')}">#${p.number}</button>` : ''}
+        ${own && armbandBadge(game, p.id) ? `<span class="chip chip--warn">${armbandBadge(game, p.id)}${game.user.captain === p.id ? t('cap.captain') : t('cap.vice')}</span>` : ''}
       </div>
 
       <dl class="facts facts--4">
@@ -293,7 +298,7 @@ export function playerSheet(game, id, opts = {}) {
         <h3 class="h3">${t('ct.title')}</h3>
         <dl class="facts facts--3">
           <div><dt>${t('ps.wage')}</dt><dd class="display">${fmt(wageOf(p))}</dd></div>
-          <div><dt>${t('ct.until')}</dt><dd class="display">S${ensureContract(game, p).until}</dd></div>
+          <div><dt>${t('ct.until')}</dt><dd class="display">${t('ct.endOf', { s: ensureContract(game, p).until })}</dd></div>
           <div><dt>${t('ps.value')}</dt><dd class="display">${fmt(marketValue(p))}</dd></div>
         </dl>
         ${own && p.wantsRaise ? `<p class="small warn-text">${icon('alert')}${t('ct.wantsRaise', { n: fmt(salaryFor(p.ovr)) })}</p>` : ''}
@@ -305,6 +310,8 @@ export function playerSheet(game, id, opts = {}) {
       ${own ? `<div class="pdetail__actions">
         ${inLineup ? `<button class="btn btn--secondary" data-action="to-bench" data-id="${p.id}">${icon('bench')}${t('ps.toBench')}</button>` : `<button class="btn btn--secondary" data-action="pick-for-lineup" data-id="${p.id}" ${p.injury || p.suspension ? 'disabled' : ''}>${icon('pitch')}${t('ps.toXI')}</button>`}
         <button class="btn btn--secondary" data-action="open-items" data-player="${p.id}">${icon('clipboard')}${t('ps.useItem')}</button>
+        <button class="btn btn--secondary" data-action="open-number" data-id="${p.id}">${icon('user')}${t('num.change')}</button>
+        <button class="btn btn--secondary" data-action="open-captain">${icon('star')}${t('cap.sheetTitle')}</button>
         ${transferButtons(game, p)}
         <button class="btn btn--danger" data-action="release" data-id="${p.id}">${icon('trash')}${t('ps.release')}</button>
       </div>` : foreignActions(game, p)}

@@ -3,7 +3,11 @@
 // =============================================================================
 
 import { store, subscribe, notify, act, setUi, setView, toast, startGame, resumeGame, updateSettings, setAfterAct } from './state/store.js';
-import { loadProfile, saveProfile } from './state/profile.js';
+import { loadProfile, saveProfile, bump } from './state/profile.js';
+import { deliverFile, deliverText } from './state/sharefile.js';
+import { buildResultCard, resultCardName } from './ui/shareCard.js';
+import { feedbackBody, feedbackDefaults, feedbackMessage } from './ui/screens/feedback.js';
+import { FEEDBACK_MAIL } from './config.js';
 import { evaluateAchievements, ACH_REWARD } from './engine/achievements.js';
 import { deleteGame } from './state/storage.js';
 import { exportSave, pickSaveFile, parseSave } from './state/backup.js';
@@ -27,6 +31,8 @@ import { severance } from './engine/contracts.js';
 import { feedItems } from './engine/news.js';
 import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
+import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
+import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
 import { buildMatchday, matchdayFlow } from './ui/flows/matchday.js';
@@ -47,6 +53,7 @@ setTransferRenderers(transferSheetButtons, foreignPlayerActions);
 // Erfolge prüfen nach jeder Spielaktion; Belohnung wird im laufenden Spielstand gebucht
 setAfterAct(st => {
   if (!st.game || st.game.pending?.type === 'starter') return;
+  ensureIdentity(st.game);
   const profile = loadProfile();
   const unlocks = evaluateAchievements(st.game, profile);
   if (!unlocks.length) { saveProfile(profile); return; }
@@ -98,6 +105,9 @@ function sheetHtml(game, ui) {
   if (s.type === 'items') return itemsSheet(game, ui);
   if (s.type === 'feed') return feedSheet(game, ui);
   if (s.type === 'settings') return sheet(t('set.title'), settingsBody(store));
+  if (s.type === 'feedback') return sheet(t('fb.title'), feedbackBody(game, ui));
+  if (s.type === 'captain') return sheet(t('cap.sheetTitle'), captainSheetBody(game));
+  if (s.type === 'number') return sheet(t('num.title'), numberSheetBody(game, s.id));
   if (s.type === 'peek') return sheet(t('pf.viewSquad'), squadPeekBody(game, s.pos || []));
   if (s.type === 'sell') return sheet(t('tm.sellTitle', { name: game.players[s.id]?.last || '' }), sellSheetBody(game, s.id));
   if (s.type === 'contract') return sheet(t('ct.sheetTitle', { name: game.players[s.id]?.last || '' }), contractSheetBody(game, s.id));
@@ -210,6 +220,7 @@ function kickoff(instant) {
   const snapshot = snapshotPlayers(pre, [entry.m.home, entry.m.away]);
   const res = act(playDay);
   if (!res || res.error) return;
+  bump('matches');
   let matchday = null;
   try { matchday = buildMatchday(pre, store.game); } catch (e) { console.warn(e); }
   const data = { ...res, snapshot, matchday };
@@ -227,6 +238,7 @@ function kickoff(instant) {
 function simDay() {
   const res = act(playDay);
   if (res && !res.error) {
+    bump('matches');
     kickoffResultToast(res);
   } else {
     toast(t('toast.dayPlayed'));
@@ -279,7 +291,7 @@ function useItemAction(itemId, playerId = null) {
 
 const handlers = {
   // Titel & Gründung
-  continue: () => { if (resumeGame()) setUi({ screen: 'app', tab: 'home' }); else setUi({ slotPicker: true }); },
+  continue: () => { if (resumeGame()) { act(ensureIdentity); setUi({ screen: 'app', tab: 'home' }); } else setUi({ slotPicker: true }); },
   'show-slots': () => setUi({ slotPicker: true }),
   'export-save': async () => {
     if (!store.game) return;
@@ -295,10 +307,11 @@ const handlers = {
     const res = parseSave(text);
     if (res.error) { toast(res.error); return; }
     startGame(slot, res.game);
+    act(ensureIdentity);
     setUi({ screen: 'app', tab: 'home', slotPicker: false, sheet: null, flow: null });
     toast(t('toast.loaded', { club: res.game.clubs.user.name, season: res.game.season }));
   },
-  'load-slot': d => { if (resumeGame(Number(d.slot))) setUi({ screen: 'app', tab: 'home', slotPicker: false }); },
+  'load-slot': d => { if (resumeGame(Number(d.slot))) { act(ensureIdentity); setUi({ screen: 'app', tab: 'home', slotPicker: false }); } },
   'delete-slot': d => askConfirm(t('confirm.delete'), t('confirm.deleteX', { n: d.slot }), t('confirm.deleteBtn'), () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
   'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0, country: defaultCountry() } }),
   'back-title': () => setUi({ screen: 'title' }),
@@ -346,6 +359,45 @@ const handlers = {
   'feed-filter': d => setUi({ feedFilter: d.value }),
   'squad-peek': d => setUi({ sheet: { type: 'peek', pos: (d.pos || '').split(',').filter(Boolean) } }),
   'open-player': d => openDetail('player', d.id),
+  'open-feedback': () => setUi({ sheet: { type: 'feedback' }, fb: store.ui.fb || feedbackDefaults() }),
+  'fb-kind': d => setUi({ fb: { ...store.ui.fb, kind: d.value } }),
+  'fb-info': () => setUi({ fb: { ...store.ui.fb, info: !store.ui.fb.info } }),
+  'fb-send': async () => {
+    const f = store.ui.fb;
+    if (!f.text.trim()) { toast(t('fb.empty')); return; }
+    const msg = feedbackMessage(store.game, f);
+    if (FEEDBACK_MAIL) {
+      location.href = `mailto:${FEEDBACK_MAIL}?subject=${encodeURIComponent(msg.subject)}&body=${encodeURIComponent(msg.body)}`;
+      return;
+    }
+    const res = await deliverText(`${msg.subject}\n\n${msg.body}`, msg.subject);
+    if (res === 'copied') toast(t('fb.copied'));
+    if (res === 'shared') setUi({ fb: feedbackDefaults(), sheet: null });
+    if (res === 'error') toast(t('share.failed'));
+  },
+  'share-result': async () => {
+    const data = store.ui.flow?.data;
+    if (!data) return;
+    try {
+      const blob = await buildResultCard(store.game, data);
+      if (!blob) { toast(t('share.failed')); return; }
+      const res = await deliverFile(blob, resultCardName(store.game, data), 'Starting XI');
+      if (res === 'downloaded') toast(t('share.done'));
+      else if (res === 'shared') toast(t('share.shared'));
+      else if (res === 'error') toast(t('share.failed'));
+    } catch (e) { console.warn(e); toast(t('share.failed')); }
+  },
+  'open-captain': () => setUi({ sheet: { type: 'captain' } }),
+  'open-number': d => setUi({ sheet: { type: 'number', id: d.id } }),
+  'set-armband': d => {
+    act(setArmband, d.id, d.role);
+    if (store.ui.flow?.type !== 'pack') toast(t(d.role === 'C' ? 'toast.captain' : 'toast.vice', { name: store.game.players[d.id].last }));
+  },
+  'set-number': d => {
+    const res = act(setNumber, d.id, Number(d.n));
+    if (res?.ok) { toast(t('toast.numSet', { name: store.game.players[d.id].last, n: d.n })); setUi({ sheet: store.ui.sheet?.prev || { type: 'player', id: d.id } }); }
+  },
+  'meet-go': d => setUi({ pack: { ...store.ui.pack, stage: 'meet', meet: Number(d.value) } }),
   'open-club': d => openDetail('club', d.id),
   'sheet-back': () => setUi({ sheet: store.ui.sheet?.prev || null }),
   'stats-scope': d => setUi({ statsScope: d.value }),
@@ -379,6 +431,7 @@ const handlers = {
     const p = store.game.pending.candidates[i];
     const wasStar = store.game.pending.source === 'star';
     act(pickDraft, i);
+    bump('packs');
     playSound('pick', store.settings);
     toast(t('toast.joined', { name: `${p.first} ${p.last}` }));
     setUi({ flow: null, pack: null, tab: wasStar ? 'home' : store.ui.tab });
@@ -437,7 +490,7 @@ const handlers = {
   },
   'dismiss-tips': () => act(dismissTips),
   'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
-  'season-continue': () => { store.ui.sePage = 0; act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
+  'season-continue': () => { bump('seasons'); store.ui.sePage = 0; act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
   'season-page': d => { setUi({ sePage: Number(d.value) }); document.querySelector('.fullscreen > .screen')?.scrollTo(0, 0); },
 
   ...transferHandlers({ act, setUi, toast, askConfirm, store })
@@ -496,6 +549,7 @@ document.addEventListener('click', ev => {
 document.addEventListener('input', ev => {
   const el = ev.target;
   const key = el.dataset?.input;
+  if (key === 'fb-text') { store.ui.fb = { ...store.ui.fb, text: el.value }; return; }
   if (key === 'found-name') {
     store.ui.found.name = el.value;
     notify();
@@ -548,6 +602,7 @@ document.addEventListener('keydown', ev => {
 // -----------------------------------------------------------------------------
 
 store.ui.screen = 'title';
+bump('starts');
 render();
 
 // Nur für lokale Tests: Zugriff auf den Store aus der Browser-Konsole
