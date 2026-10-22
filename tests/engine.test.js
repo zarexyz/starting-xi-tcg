@@ -710,3 +710,15 @@ test('v1.9: Mehrere Saisons laufen sauber, Akademie bleibt im Rahmen', () => {
   assert.ok(prospects(s).every(p => p.age <= 19));
   assert.ok(s.clubs.user.playerIds.length >= 16);
 });
+
+test('Spielstile: jeder schlägt zwei, verliert gegen zwei, Rest neutral', async () => {
+  const { STYLE_KEYS, styleMatchup } = await import('../src/engine/constants.js');
+  assert.equal(STYLE_KEYS.length, 8);
+  for (const a of STYLE_KEYS) {
+    const r = STYLE_KEYS.map(b => styleMatchup(a, b));
+    if (a === 'AUSGEWOGEN') { assert.ok(r.every(x => x === 0)); continue; }
+    assert.equal(r.filter(x => x === 1).length, 2, a);
+    assert.equal(r.filter(x => x === -1).length, 2, a);
+    for (const b of STYLE_KEYS) assert.equal(styleMatchup(a, b) + styleMatchup(b, a), 0);
+  }
+});

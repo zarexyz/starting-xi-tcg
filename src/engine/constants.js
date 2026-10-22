@@ -150,48 +150,36 @@ export const FORMATIONS = {
 export const FORMATION_KEYS = Object.keys(FORMATIONS);
 
 /**
- * Spielstile. Kreislauf: Pressing schlägt Ballbesitz, Ballbesitz schlägt Mauern,
- * Mauern schlägt Konter, Konter schlägt Pressing. Ausgewogen ist neutral.
+ * Spielstile. Sieben Stile bilden einen Kreis: jeder schlägt die zwei folgenden,
+ * verliert gegen die zwei davor und ist gegen die zwei übrigen neutral.
+ * Ausgewogen ist gegen alle neutral.
+ * Kreis: Pressing > Ballbesitz, Flügelspiel > Mauern, Direktspiel > Konter, Hohe Linie > Pressing
  */
+const CYCLE = ['PRESSING', 'BALLBESITZ', 'FLUEGEL', 'MAUERN', 'DIREKT', 'KONTER', 'HOCHLINIE'];
+const def = (key, beats, p) => ({
+  key, beats,
+  get name() { return t(`style.${key}.name`); },
+  get desc() { return t(`style.${key}.desc`); },
+  ...p
+});
+const beatsOf = key => { const i = CYCLE.indexOf(key); return i < 0 ? [] : [CYCLE[(i + 1) % 7], CYCLE[(i + 2) % 7]]; };
 export const STYLES = {
-  AUSGEWOGEN: {
-    key: 'AUSGEWOGEN', beats: null,
-    get name() { return t('style.AUSGEWOGEN.name'); },
-    get desc() { return t('style.AUSGEWOGEN.desc'); },
-    midBonus: 0, chanceMult: 1, qualityMult: 1, defBonus: 0, fatigue: 0
-  },
-  BALLBESITZ: {
-    key: 'BALLBESITZ', beats: 'MAUERN',
-    get name() { return t('style.BALLBESITZ.name'); },
-    get desc() { return t('style.BALLBESITZ.desc'); },
-    midBonus: 3, chanceMult: 0.95, qualityMult: 1.1, defBonus: 0, fatigue: 0
-  },
-  KONTER: {
-    key: 'KONTER', beats: 'PRESSING',
-    get name() { return t('style.KONTER.name'); },
-    get desc() { return t('style.KONTER.desc'); },
-    midBonus: -3, chanceMult: 0.9, qualityMult: 1.22, defBonus: 2, fatigue: 0
-  },
-  PRESSING: {
-    key: 'PRESSING', beats: 'BALLBESITZ',
-    get name() { return t('style.PRESSING.name'); },
-    get desc() { return t('style.PRESSING.desc'); },
-    midBonus: 2, chanceMult: 1.15, qualityMult: 1, defBonus: -2, fatigue: 6
-  },
-  MAUERN: {
-    key: 'MAUERN', beats: 'KONTER',
-    get name() { return t('style.MAUERN.name'); },
-    get desc() { return t('style.MAUERN.desc'); },
-    midBonus: -4, chanceMult: 0.75, qualityMult: 0.92, defBonus: 6, fatigue: -2
-  }
+  AUSGEWOGEN: def('AUSGEWOGEN', [], { midBonus: 0, chanceMult: 1, qualityMult: 1, defBonus: 0, fatigue: 0 }),
+  BALLBESITZ: def('BALLBESITZ', beatsOf('BALLBESITZ'), { midBonus: 2, chanceMult: 0.95, qualityMult: 1.05, defBonus: 0, fatigue: 0 }),
+  KONTER: def('KONTER', beatsOf('KONTER'), { midBonus: -3, chanceMult: 0.92, qualityMult: 1.3, defBonus: 2, fatigue: 0 }),
+  PRESSING: def('PRESSING', beatsOf('PRESSING'), { midBonus: 2, chanceMult: 1.12, qualityMult: 1, defBonus: -2, fatigue: 6 }),
+  MAUERN: def('MAUERN', beatsOf('MAUERN'), { midBonus: -3, chanceMult: 0.8, qualityMult: 1.0, defBonus: 6, fatigue: -2 }),
+  FLUEGEL: def('FLUEGEL', beatsOf('FLUEGEL'), { midBonus: 0, chanceMult: 1.05, qualityMult: 1, defBonus: -1, fatigue: 2 }),
+  DIREKT: def('DIREKT', beatsOf('DIREKT'), { midBonus: -2, chanceMult: 1, qualityMult: 1.08, defBonus: 0, fatigue: 1 }),
+  HOCHLINIE: def('HOCHLINIE', beatsOf('HOCHLINIE'), { midBonus: 2, chanceMult: 1.05, qualityMult: 1, defBonus: -3, fatigue: 3 })
 };
 
 export const STYLE_KEYS = Object.keys(STYLES);
 
 /** +1: a schlägt b, -1: b schlägt a, 0: neutral */
 export function styleMatchup(a, b) {
-  if (STYLES[a]?.beats === b) return 1;
-  if (STYLES[b]?.beats === a) return -1;
+  if (STYLES[a]?.beats.includes(b)) return 1;
+  if (STYLES[b]?.beats.includes(a)) return -1;
   return 0;
 }
 

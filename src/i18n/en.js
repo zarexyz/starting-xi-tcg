@@ -1162,4 +1162,10 @@ export const en = {
   "se.goalMissed": "Missed. The board's trust drops.",
   "news.coachStart.t": "{coach} takes over {club}",
   "news.coachStart.x": "The new manager of {club} stands for {style}.",
+  "style.FLUEGEL.name": "Wing play",
+  "style.FLUEGEL.desc": "Attack down the flanks with crosses and pace. Strong against a low block, weak against pressing.",
+  "style.DIREKT.name": "Direct play",
+  "style.DIREKT.desc": "Long balls and quick routes forward. Beats the high line, little possession.",
+  "style.HOCHLINIE.name": "High line",
+  "style.HOCHLINIE.desc": "The whole team pushes up and plays offside. Risky against counters and long balls.",
 };

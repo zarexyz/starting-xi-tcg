@@ -1169,4 +1169,10 @@ export const de = {
   "se.goalMissed": "Verfehlt. Das Vertrauen des Vorstands sinkt.",
   "news.coachStart.t": "{coach} übernimmt {club}",
   "news.coachStart.x": "Der neue Trainer von {club} steht für {style}.",
+  "style.FLUEGEL.name": "Flügelspiel",
+  "style.FLUEGEL.desc": "Über außen kommen, Flanken und Tempo. Stark gegen Mauern, anfällig gegen Pressing.",
+  "style.DIREKT.name": "Direktspiel",
+  "style.DIREKT.desc": "Lange Bälle, schnelle Wege nach vorn. Überspielt die Hohe Linie, wenig Ballbesitz.",
+  "style.HOCHLINIE.name": "Hohe Linie",
+  "style.HOCHLINIE.desc": "Ganze Mannschaft schiebt hoch, Abseitsfalle. Riskant gegen Konter und lange Bälle.",
 };
