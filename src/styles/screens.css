@@ -1138,3 +1138,9 @@ tr[data-action] { cursor: pointer; }
 .prospect:first-child { border-top: 0; }
 .prospect__actions { display: flex; gap: 0.5rem; padding: 0 1rem 0.8rem; justify-content: flex-end; }
 .btn[aria-disabled='true'] { opacity: 0.55; }
+
+/* Standardschützen */
+.sp-row { display: grid; gap: 6px; margin-bottom: var(--s-3); }
+.sp-row .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip--btn { cursor: pointer; border: 1px solid var(--line); background: var(--paper); min-height: 36px; padding: 6px 12px; font: inherit; font-size: var(--t-sm); border-radius: 999px; }
+.chip--btn.is-active { border-color: var(--pitch-dark); background: var(--pitch-soft); color: var(--pitch-dark); font-weight: 600; }

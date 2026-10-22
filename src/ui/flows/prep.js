@@ -21,7 +21,7 @@ import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
 import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
-import { weatherFor, INTERVIEW_KEYS, interviewAvailable } from '../../engine/extras.js';
+import { weatherFor, INTERVIEW_KEYS, interviewAvailable, SP_ROLES, spCandidates } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 
 /** Training der Woche: ein Schwerpunkt mit Vor- und Nachteil */
@@ -70,6 +70,21 @@ function interviewSection(game, entry) {
     <div class="section__head"><h2 class="section__title">${t('iv.title')}</h2></div>
     <div class="style-grid plan-grid">${tiles}</div>
     <p class="xsmall muted">${t('iv.hint')}</p>
+  </section>`;
+}
+
+function setPieceSection(game, setup) {
+  const rows = SP_ROLES.map(role => {
+    const cur = setup.setPieces?.[role] || null;
+    const chips = [`<button class="chip chip--btn ${cur ? '' : 'is-active'}" data-action="set-piece" data-role="${role}" data-value="" aria-pressed="${!cur}">${t('sp.auto')}</button>`]
+      .concat(spCandidates(game, setup, role).slice(0, 4).map(p =>
+        `<button class="chip chip--btn ${cur === p.id ? 'is-active' : ''}" data-action="set-piece" data-role="${role}" data-value="${p.id}" aria-pressed="${cur === p.id}">${esc(p.last)}</button>`));
+    return `<div class="sp-row"><div class="small"><b>${t('sp.' + role)}</b></div><div class="chips">${chips.join('')}</div></div>`;
+  }).join('');
+  return `<section class="section">
+    <div class="section__head"><h2 class="section__title">${t('sp.title')}</h2></div>
+    ${rows}
+    <p class="xsmall muted">${t('sp.hint')}</p>
   </section>`;
 }
 
@@ -163,6 +178,8 @@ export function prepFlow(game, ui) {
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
+
+    ${setPieceSection(game, setup)}
 
     ${interviewSection(game, entry)}
 

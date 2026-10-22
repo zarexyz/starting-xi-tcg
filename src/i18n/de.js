@@ -1203,4 +1203,10 @@ export const de = {
   "iv.FANS": "Das machen wir für unsere Fans.",
   "iv.FANS.d": "Fans sofort +2. Sieg: Team +3 Stimmung.",
   "iv.done": "Antwort gegeben. Die Reporter notieren eifrig.",
+  "sp.title": "Standards",
+  "sp.auto": "Auto",
+  "sp.pen": "Elfmeter und Elfmeterschießen",
+  "sp.fk": "Freistöße",
+  "sp.corner": "Ecken",
+  "sp.hint": "Wer hier steht, schießt. Auto nimmt immer den Besten auf dem Platz. Ein guter Schütze lohnt sich bei Elfmetern, Freistößen und Ecken.",
 };

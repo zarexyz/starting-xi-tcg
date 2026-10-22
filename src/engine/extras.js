@@ -59,3 +59,28 @@ export function resolveInterview(state, outcome) {
   }
   return `news.iv.${iv.key}.${outcome}`;
 }
+
+// Standardschützen ---------------------------------------------------------------
+export const SP_ROLES = ['pen', 'fk', 'corner'];
+const SP_SCORE = {
+  pen: p => p.attrs.sch + p.attrs.men * 0.5,
+  fk: p => p.attrs.sch * 0.6 + p.attrs.pas * 0.4,
+  corner: p => p.attrs.pas
+};
+export const spScore = (role, p) => SP_SCORE[role](p);
+
+/** Beste Kandidaten der Elf und Bank für eine Rolle (für die Auswahl) */
+export function spCandidates(state, setup, role) {
+  const ids = [...Object.values(setup.lineup), ...(setup.bench || [])];
+  return ids.map(id => state.players[id]).filter(p => p && p.position !== 'TW')
+    .sort((a, b) => spScore(role, b) - spScore(role, a)).slice(0, 6);
+}
+
+export function setSetPiece(state, role, playerId) {
+  if (!SP_ROLES.includes(role)) return { ok: false, code: 'bad' };
+  const setup = state.user.setup;
+  if (!setup) return { ok: false, code: 'nosetup' };
+  if (playerId && state.players[playerId]?.clubId !== 'user') return { ok: false, code: 'bad' };
+  setup.setPieces = { ...(setup.setPieces || {}), [role]: playerId || null };
+  return { ok: true };
+}

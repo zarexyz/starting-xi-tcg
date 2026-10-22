@@ -1196,4 +1196,10 @@ export const en = {
   "iv.FANS": "We're doing this for our fans.",
   "iv.FANS.d": "Fans +2 now. Win: team +3 mood.",
   "iv.done": "Answer given. The reporters are scribbling.",
+  "sp.title": "Set pieces",
+  "sp.auto": "Auto",
+  "sp.pen": "Penalties and shootouts",
+  "sp.fk": "Free kicks",
+  "sp.corner": "Corners",
+  "sp.hint": "Whoever is chosen takes it. Auto always picks the best player on the pitch. A good taker pays off on penalties, free kicks and corners.",
 };

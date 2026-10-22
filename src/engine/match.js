@@ -7,7 +7,7 @@
 import { FORMATIONS, STYLES, POSITION_GROUP, styleMatchup } from './constants.js';
 import { effectiveRating, familiarity, shortName, fitnessFactor, attrOf } from './player.js';
 import { clamp } from './rng.js';
-import { weatherMid } from './extras.js';
+import { weatherMid, spScore } from './extras.js';
 
 /** Formationsbedingte Verschiebung der Mannschaftsteile */
 const FORMATION_SHAPE = {
@@ -61,6 +61,7 @@ export function buildTeam(state, clubId, setup) {
     style,
     slots,
     bench: (setup.bench || []).map(id => state.players[id]).filter(Boolean),
+    setPieces: setup.setPieces || {},
     lines: { gk, def, mid, att },
     midControl: mid * 0.7 + def * 0.12 + att * 0.18 + (boosts.mid || 0),
     attackPower: att * 0.65 + mid * 0.35 + (boosts.att || 0),
@@ -211,10 +212,27 @@ export function simulateMatch(rng, home, away, opts = {}) {
   for (const { side, minute } of attacks) {
     const attSlots = { slots: slotsAt(side.team, side.key, minute) };
     const defSlots = { slots: slotsAt(side.opp, side.key === 'home' ? 'away' : 'home', minute) };
-    const shooter = pickShooter(rng, attSlots);
+    // Standardsituationen: Elfmeter, Freistoß, Ecke – hier zählen die Schützen
+    const roll = rng.float(0, 1);
+    const kind = roll < 0.005 ? 'pen' : roll < 0.075 ? 'fk' : roll < 0.19 ? 'corner' : 'play';
+    const takerOf = role => {
+      const set = side.team.setPieces?.[role];
+      const onPitch = attSlots.slots.filter(s => s.player && s.group !== 'GK');
+      return onPitch.find(s => s.player.id === set) ||
+        onPitch.slice().sort((a, b) => spScore(role, b.player) - spScore(role, a.player))[0] || null;
+    };
+    let shooter = pickShooter(rng, attSlots);
+    let setAssister;
+    if (kind === 'pen' || kind === 'fk') shooter = takerOf(kind === 'pen' ? 'pen' : 'fk') || shooter;
+    if (kind === 'corner') {
+      const heads = attSlots.slots.filter(s => s.player && s.group !== 'GK');
+      shooter = rng.weighted(heads.map(s => ({ value: s, weight: ({ ATT: 2.2, DEF: 1.2, MID: 0.6 }[s.group]) * Math.max(1, attrOf(s.player, 'phy') - 25) })));
+      setAssister = takerOf('corner');
+      if (setAssister === shooter) setAssister = null;
+    }
     const defender = pickDefender(rng, defSlots);
     const keeper = defSlots.slots.find(sl => sl.group === 'GK') || null;
-    const assister = rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
+    const assister = kind === 'corner' ? setAssister : kind === 'pen' || kind === 'fk' ? null : rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
     const sp = shooter.player;
     const dp = defender.player;
 
@@ -230,7 +248,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
     // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
     const shooterBreak = ((attrOf(sp, 'tem') + attrOf(sp, 'dri')) / 2) * familiarity(sp, shooter.pos);
     const defenderHold = (attrOf(dp, 'abw') * 0.65 + attrOf(dp, 'phy') * 0.35) * familiarity(dp, defender.pos);
-    const p1 = clamp(sigmoid(
+    let p1 = clamp(sigmoid(
       (side.team.attackPower - side.opp.defensePower) / 24 +
       (shooterBreak - defenderHold) / 60 +
       side.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve + manEdge - 0.15
@@ -239,14 +257,22 @@ export function simulateMatch(rng, home, away, opts = {}) {
     // Phase 2: Abschluss – Schuss gegen Torwart
     const finish = attrOf(sp, 'sch') * familiarity(sp, shooter.pos) * fitnessFactor(sp.condition);
     const keep = keeper?.rating ?? 30;
-    const p2 = clamp(0.3 * side.team.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
+    let p2 = clamp(0.3 * side.team.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
 
+    if (kind === 'corner' && assister) p1 = clamp(p1 + (attrOf(assister.player, 'pas') - 50) / 400, 0.12, 0.88);
+    if (kind === 'pen') {
+      p1 = 1;
+      p2 = clamp(0.74 + (finish - keep) / 180 + (attrOf(sp, 'men') - 55) / 300, 0.55, 0.92);
+    } else if (kind === 'fk') {
+      p1 = clamp(p1 * 0.7, 0.1, 0.7);
+      p2 = clamp(0.22 * Math.exp((attrOf(sp, 'sch') * 0.6 + attrOf(sp, 'pas') * 0.4 - keep) / 40), 0.05, 0.5);
+    }
     const broke = rng.chance(p1);
     const scored = broke && rng.chance(p2);
     if (scored) score[side.key]++;
     chances.push({
       side: side.key,
-      minute,
+      minute, kind,
       shooter, assister, defender, keeper,
       p1, p2, broke, scored,
       xg: p1 * p2,
@@ -268,6 +294,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
       side: c.side,
       scorerId: c.shooter.player.id,
       assistId: c.assister?.player.id || null,
+      kind: c.kind,
       score: [hg, ag]
     });
   }
@@ -325,10 +352,10 @@ export function simulateMatch(rng, home, away, opts = {}) {
  * Rückgabe: { h, a, kicks: [{ side, takerId, keeperId, scored, score: [h, a] }] }
  */
 function penaltyShootout(rng, home, away, homeSlots, awaySlots) {
-  const order = slots => slots.filter(s => s.player && s.group !== 'GK')
-    .sort((a, b) => (attrOf(b.player, 'sch') + attrOf(b.player, 'men') * 0.5) - (attrOf(a.player, 'sch') + attrOf(a.player, 'men') * 0.5));
-  const hs = order(homeSlots);
-  const as = order(awaySlots);
+  const order = (slots, team) => slots.filter(s => s.player && s.group !== 'GK')
+    .sort((a, b) => (b.player.id === team.setPieces?.pen) - (a.player.id === team.setPieces?.pen) || (attrOf(b.player, 'sch') + attrOf(b.player, 'men') * 0.5) - (attrOf(a.player, 'sch') + attrOf(a.player, 'men') * 0.5));
+  const hs = order(homeSlots, home);
+  const as = order(awaySlots, away);
   const hk = homeSlots.find(s => s.group === 'GK') || null;
   const ak = awaySlots.find(s => s.group === 'GK') || null;
   // Schuss gegen Torwart, die Nerven des Schützen entscheiden mit
@@ -416,6 +443,7 @@ function pickKeyScenes(chances) {
     defenderPos: c.defender.pos,
     keeperId: c.keeper?.player?.id || null,
     assistId: c.assister?.player.id || null,
+    kind: c.kind,
     outcome: c.scored ? 'GOAL' : c.broke ? 'SAVE' : 'TACKLE',
     phases: [
       { label: 'phase.break', att: c.att, def: c.def, chance: pct(c.p1), success: c.broke },
