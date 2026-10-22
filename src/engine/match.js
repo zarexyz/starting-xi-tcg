@@ -6,7 +6,7 @@
 
 import { FORMATIONS, STYLES, POSITION_GROUP, styleMatchup } from './constants.js';
 import { effectiveRating, familiarity, shortName, fitnessFactor, attrOf } from './player.js';
-import { clamp } from './rng.js';
+import { clamp, createRng } from './rng.js';
 import { weatherMid, spScore } from './extras.js';
 
 /** Formationsbedingte Verschiebung der Mannschaftsteile */
@@ -19,6 +19,9 @@ const FORMATION_SHAPE = {
 };
 
 const BASE_ATTACKS = 20; // Angriffe beider Teams zusammen
+
+/** Minute der Pausenwechsel; Angriffe der ersten Hälfte liegen davor */
+export const HALF_SUB_MINUTE = 46;
 
 /** Stil-Vorteil: halbiert gegenüber v1.0, entspricht etwa 2–3 Stärkepunkten */
 const EDGE_MID = 0.75;
@@ -106,44 +109,101 @@ const pct = p => Math.round(p * 100);
  * opts: { neutral, knockout, big }  big = Pokal, Final Four: Mental zählt mehr
  */
 export function simulateMatch(rng, home, away, opts = {}) {
+  // Eigene Zufallsströme je Abschnitt: erste Hälfte, zweite Hälfte, Karten und
+  // Verletzungen, Nachbereitung. So bleibt die erste Hälfte exakt gleich, egal
+  // was zur Pause entschieden wird (Vorschau und echtes Spiel stimmen überein).
+  const seedOf = () => rng.int(1, 2147483646);
+  const rA = createRng(seedOf());
+  const rB = createRng(seedOf());
+  const rC = createRng(seedOf());
+  const rD = createRng(seedOf());
+  const ht = opts.halftime || null; // { side, style?, mode?: 'allOut'|'hold', subs?: [{ outId, inId }] }
+
   const homeAdv = opts.neutral ? 0 : 1.6;
-  const edge = styleMatchup(home.style.key, away.style.key); // +1 Heim kontert, -1 Gast kontert
   const bigH = opts.big ? mentalEdge(home) * 1.2 : 0;
   const bigA = opts.big ? mentalEdge(away) * 1.2 : 0;
+  const styleIn = (team, key, half) => (half === 2 && ht && ht.side === key && STYLES[ht.style]) || team.style;
+  const modeIn = (key, half) => (half === 2 && ht && ht.side === key ? ht.mode || null : null);
 
-  const wH = weatherMid(home.style.key, opts.weather);
-  const wA = weatherMid(away.style.key, opts.weather);
-  const midH = home.midControl + home.style.midBonus + homeAdv + edge * EDGE_MID + bigH + wH;
-  const midA = away.midControl + away.style.midBonus - edge * EDGE_MID + bigA + wA;
-  const possession = clamp(sigmoid((midH - midA) / 13), 0.3, 0.7);
-
-  const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
-  let lamH = BASE_ATTACKS * possession * home.style.chanceMult * concede(away.style);
-  let lamA = BASE_ATTACKS * (1 - possession) * away.style.chanceMult * concede(home.style);
-  if (edge > 0) { lamH *= EDGE_ATTACK_UP; lamA *= EDGE_ATTACK_DOWN; }
-  if (edge < 0) { lamA *= EDGE_ATTACK_UP; lamH *= EDGE_ATTACK_DOWN; }
+  /** Kräfteverhältnis einer Halbzeit */
+  const halfParams = half => {
+    const hs = styleIn(home, 'home', half);
+    const as = styleIn(away, 'away', half);
+    const edge = styleMatchup(hs.key, as.key); // +1 Heim kontert, -1 Gast kontert
+    const midH = home.midControl + hs.midBonus + homeAdv + edge * EDGE_MID + bigH + weatherMid(hs.key, opts.weather);
+    const midA = away.midControl + as.midBonus - edge * EDGE_MID + bigA + weatherMid(as.key, opts.weather);
+    const possession = clamp(sigmoid((midH - midA) / 13), 0.3, 0.7);
+    const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
+    let lamH = BASE_ATTACKS * possession * hs.chanceMult * concede(as);
+    let lamA = BASE_ATTACKS * (1 - possession) * as.chanceMult * concede(hs);
+    if (edge > 0) { lamH *= EDGE_ATTACK_UP; lamA *= EDGE_ATTACK_DOWN; }
+    if (edge < 0) { lamA *= EDGE_ATTACK_UP; lamH *= EDGE_ATTACK_DOWN; }
+    // Halbzeit-Ansage: alles nach vorn öffnet beide Seiten, Ergebnis halten schließt beide
+    const mH = modeIn('home', half);
+    const mA = modeIn('away', half);
+    const modeMul = (own, other) => (own === 'allOut' ? 1.25 : own === 'hold' ? 0.75 : 1) * (other === 'allOut' ? 1.12 : other === 'hold' ? 0.88 : 1);
+    lamH *= modeMul(mH, mA);
+    lamA *= modeMul(mA, mH);
+    const defAdj = (team, st, m) => (st.defBonus - team.style.defBonus) + (m === 'allOut' ? -3 : m === 'hold' ? 3 : 0);
+    return {
+      possession,
+      home: { edge, style: hs, lam: lamH / 2, def: defAdj(home, hs, mH) },
+      away: { edge: -edge, style: as, lam: lamA / 2, def: defAdj(away, as, mA) }
+    };
+  };
+  const P = [null, halfParams(1), halfParams(2)];
+  const possession = (P[1].possession + P[2].possession) / 2;
+  const edge = P[1].home.edge;
 
   const sides = [
-    { key: 'home', team: home, opp: away, attacks: rng.poisson(lamH), edge, adv: homeAdv, big: bigH },
-    { key: 'away', team: away, opp: home, attacks: rng.poisson(lamA), edge: -edge, adv: 0, big: bigA }
+    { key: 'home', team: home, opp: away, adv: homeAdv, big: bigH },
+    { key: 'away', team: away, opp: home, adv: 0, big: bigA }
   ];
+  const teamOf = key => (key === 'home' ? home : away);
 
   // Verletzungen zuerst festlegen, damit spätere Szenen den Einwechselspieler zeigen
-  const injuries = [];
+  const injuriesAll = [];
   for (const side of sides) {
     for (const sl of side.team.slots) {
       if (!sl.player) continue;
       const p = 0.009 * (1 + (100 - sl.player.condition) / 35) * (sl.player.age > 31 ? 1.3 : 1);
-      if (rng.chance(p)) {
-        injuries.push({ side: side.key, playerId: sl.player.id, minute: rng.int(5, 88), slotPos: sl.pos });
+      if (rC.chance(p)) {
+        injuriesAll.push({ side: side.key, playerId: sl.player.id, minute: rC.int(5, 88), slotPos: sl.pos });
       }
     }
   }
-  injuries.sort((a, b) => a.minute - b.minute);
+  injuriesAll.sort((a, b) => a.minute - b.minute);
+
+  // Wechsel zur Pause (nur gültige: Spieler steht noch auf dem Platz, Ersatz sitzt auf der Bank)
+  const MAX_SUBS = 5;
   const subs = [];
-  for (const inj of injuries) {
-    const team = inj.side === 'home' ? home : away;
-    const used = new Set(subs.map(x => x.inId));
+  const injuries = [];
+  const firstHalfOut = new Set(injuriesAll.filter(x => x.minute < HALF_SUB_MINUTE).map(x => x.side + x.playerId));
+  const htSubs = [];
+  if (ht?.subs?.length) {
+    const team = teamOf(ht.side);
+    const used = new Set();
+    for (const s of ht.subs.slice(0, 3)) {
+      const onPitch = team.slots.some(sl => sl.player?.id === s.outId) && !firstHalfOut.has(ht.side + s.outId);
+      const benchP = team.bench.find(b => b.id === s.inId && !b.injury && !b.suspension);
+      if (!onPitch || !benchP || used.has(s.inId) || used.has(s.outId)) continue;
+      used.add(s.inId); used.add(s.outId);
+      htSubs.push({ side: ht.side, outId: s.outId, inId: s.inId, minute: HALF_SUB_MINUTE, halftime: true });
+    }
+  }
+  // Ereignisse in zeitlicher Reihenfolge: Verletzungswechsel vor der Pause, Pausenwechsel, Verletzungen danach
+  const events = [...injuriesAll.map(x => ({ inj: x, minute: x.minute, order: x.minute < HALF_SUB_MINUTE ? 0 : 2 })),
+    ...htSubs.map(x => ({ sub: x, minute: x.minute, order: 1 }))]
+    .sort((a, b) => a.minute - b.minute || a.order - b.order);
+  for (const ev of events) {
+    if (ev.sub) { subs.push(ev.sub); continue; }
+    const inj = ev.inj;
+    // Wer zur Pause ausgewechselt wurde, verletzt sich danach nicht mehr
+    if (subs.some(x => x.side === inj.side && x.outId === inj.playerId && x.minute <= inj.minute)) continue;
+    injuries.push(inj);
+    const team = teamOf(inj.side);
+    const used = new Set(subs.filter(x => x.side === inj.side).flatMap(x => [x.inId, x.outId]));
+    if (subs.filter(x => x.side === inj.side).length >= MAX_SUBS) continue;
     const cand = team.bench
       .filter(p => !used.has(p.id) && !p.injury)
       .sort((a, b) => effectiveRating(b, inj.slotPos) - effectiveRating(a, inj.slotPos))[0];
@@ -153,40 +213,49 @@ export function simulateMatch(rng, home, away, opts = {}) {
   const cards = [];
   const sentOff = (sideKey, id, minute) => cards.some(c => c.side === sideKey && c.playerId === id && c.type !== 'Y' && c.minute < minute);
 
-  /** Aufstellung zu einer bestimmten Minute (Verletzte raus, Einwechselspieler rein, Platzverweise fehlen) */
+  /** Aufstellung zu einer bestimmten Minute: Wechsel (auch Ketten), Verletzte ohne Ersatz und Platzverweise fehlen */
   const slotsAt = (team, sideKey, minute) => team.slots.map(sl => {
     if (!sl.player) return sl;
-    const inj = injuries.find(x => x.side === sideKey && x.playerId === sl.player.id && x.minute < minute);
-    if (!inj) return sentOff(sideKey, sl.player.id, minute) ? { ...sl, player: null } : sl;
-    const sub = subs.find(x => x.side === sideKey && x.outId === sl.player.id);
-    const subPlayer = sub && team.bench.find(b => b.id === sub.inId);
-    if (!subPlayer || sentOff(sideKey, subPlayer.id, minute)) return { ...sl, player: null };
-    return { ...sl, player: subPlayer, rating: effectiveRating(subPlayer, sl.pos) };
+    let p = sl.player;
+    let rating = sl.rating;
+    for (const s of subs) {
+      if (s.side !== sideKey || s.minute >= minute || s.outId !== p.id) continue;
+      const np = team.bench.find(b => b.id === s.inId);
+      if (!np) { p = null; break; }
+      p = np;
+      rating = effectiveRating(np, sl.pos);
+    }
+    if (p && injuries.some(x => x.side === sideKey && x.playerId === p.id && x.minute < minute)) p = null;
+    if (!p || sentOff(sideKey, p.id, minute)) return { ...sl, player: null };
+    return p === sl.player ? sl : { ...sl, player: p, rating };
   }).filter(sl => sl.player);
 
   // Gelbe und Rote Karten: Pressing foult mehr, Abwehrspieler eher als Stürmer
   const foulRate = st => (st.key === 'PRESSING' ? 1.3 : st.key === 'MAUERN' ? 1.15 : st.key === 'BALLBESITZ' ? 0.85 : 1);
   const cardEvents = [];
   for (const side of sides) {
-    const nYellow = rng.poisson(1.7 * foulRate(side.team.style));
-    for (let i = 0; i < nYellow; i++) cardEvents.push({ side: side.key, team: side.team, minute: rng.int(8, 90), kind: 'Y' });
-    if (rng.chance(0.07 * foulRate(side.team.style))) cardEvents.push({ side: side.key, team: side.team, minute: rng.int(10, 88), kind: 'R' });
+    const nYellow = rC.poisson(1.7 * foulRate(side.team.style));
+    for (let i = 0; i < nYellow; i++) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(8, 90), kind: 'Y' });
+    if (rC.chance(0.07 * foulRate(side.team.style))) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(10, 88), kind: 'R' });
   }
   cardEvents.sort((a, b) => a.minute - b.minute);
   const groupWeight = { DEF: 1.6, MID: 1.25, ATT: 0.7, GK: 0.12 };
   for (const ev of cardEvents) {
     const onPitch = slotsAt(ev.team, ev.side, ev.minute);
+    // Zufall immer gleich oft ziehen, damit spätere Karten nicht von Pausenwechseln abhängen
+    const roll = rC.float(0, 1);
+    const roll2 = rC.float(0, 1);
     if (!onPitch.length) continue;
-    const pick = rng.weighted(onPitch.map(sl => ({
-      value: sl,
-      weight: groupWeight[sl.group] * (1 + Math.max(0, 60 - attrOf(sl.player, 'men')) / 60)
-    })));
+    const weights = onPitch.map(sl => groupWeight[sl.group] * (1 + Math.max(0, 60 - attrOf(sl.player, 'men')) / 60));
+    let acc = roll * weights.reduce((s, w) => s + w, 0);
+    let pick = onPitch[onPitch.length - 1];
+    for (let i = 0; i < onPitch.length; i++) { acc -= weights[i]; if (acc <= 0) { pick = onPitch[i]; break; } }
     const id = pick.player.id;
     if (ev.kind === 'R') { cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'R' }); continue; }
     const hasYellow = cards.some(c => c.side === ev.side && c.playerId === id && c.type === 'Y');
     if (hasYellow) {
       // Zweite Gelbe nur selten: Spieler halten sich meist zurück
-      if (rng.chance(0.35)) cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'YR' });
+      if (roll2 < 0.35) cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'YR' });
     } else {
       cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'Y' });
     }
@@ -194,26 +263,33 @@ export function simulateMatch(rng, home, away, opts = {}) {
   /** Wie viele Spieler fehlen einer Seite zur Minute durch Platzverweis */
   const redsBefore = (sideKey, minute) => cards.filter(c => c.side === sideKey && c.type !== 'Y' && c.minute < minute).length;
 
-  // Angriffe auf Minuten verteilen, dann der Reihe nach ausspielen (Spielstand zählt für Mental)
-  const usedMinutes = new Set();
+  // Angriffe je Halbzeit auf Minuten verteilen (eigener Zufall pro Hälfte)
   const attacks = [];
-  for (const side of sides) {
-    for (let i = 0; i < side.attacks; i++) {
-      let minute;
-      do { minute = rng.int(2, 93); } while (usedMinutes.has(minute) && usedMinutes.size < 90);
-      usedMinutes.add(minute);
-      attacks.push({ side, minute });
+  for (const [half, r, from, to] of [[1, rA, 2, HALF_SUB_MINUTE - 1], [2, rB, HALF_SUB_MINUTE, 93]]) {
+    const used = new Set();
+    for (const side of sides) {
+      const n = r.poisson(P[half][side.key].lam);
+      for (let i = 0; i < n; i++) {
+        let minute;
+        do { minute = r.int(from, to); } while (used.has(minute) && used.size < to - from + 1);
+        used.add(minute);
+        attacks.push({ side, minute, half });
+      }
     }
   }
   attacks.sort((a, b) => a.minute - b.minute);
 
   const chances = [];
   const score = { home: 0, away: 0 };
-  for (const { side, minute } of attacks) {
+  for (const { side, minute, half } of attacks) {
+    const r = half === 1 ? rA : rB;
+    const hp = P[half][side.key];
+    const op = P[half][side.key === 'home' ? 'away' : 'home'];
     const attSlots = { slots: slotsAt(side.team, side.key, minute) };
     const defSlots = { slots: slotsAt(side.opp, side.key === 'home' ? 'away' : 'home', minute) };
+    if (!attSlots.slots.some(s => s.player && s.group !== 'GK') || !defSlots.slots.length) continue;
     // Standardsituationen: Elfmeter, Freistoß, Ecke – hier zählen die Schützen
-    const roll = rng.float(0, 1);
+    const roll = r.float(0, 1);
     const kind = roll < 0.005 ? 'pen' : roll < 0.075 ? 'fk' : roll < 0.19 ? 'corner' : 'play';
     const takerOf = role => {
       const set = side.team.setPieces?.[role];
@@ -221,18 +297,18 @@ export function simulateMatch(rng, home, away, opts = {}) {
       return onPitch.find(s => s.player.id === set) ||
         onPitch.slice().sort((a, b) => spScore(role, b.player) - spScore(role, a.player))[0] || null;
     };
-    let shooter = pickShooter(rng, attSlots);
+    let shooter = pickShooter(r, attSlots);
     let setAssister;
-    if (kind === 'pen' || kind === 'fk') shooter = takerOf(kind === 'pen' ? 'pen' : 'fk') || shooter;
+    if (kind === 'pen' || kind === 'fk') shooter = takerOf(kind) || shooter;
     if (kind === 'corner') {
       const heads = attSlots.slots.filter(s => s.player && s.group !== 'GK');
-      shooter = rng.weighted(heads.map(s => ({ value: s, weight: ({ ATT: 2.2, DEF: 1.2, MID: 0.6 }[s.group]) * Math.max(1, attrOf(s.player, 'phy') - 25) })));
+      shooter = r.weighted(heads.map(s => ({ value: s, weight: ({ ATT: 2.2, DEF: 1.2, MID: 0.6 }[s.group]) * Math.max(1, attrOf(s.player, 'phy') - 25) })));
       setAssister = takerOf('corner');
       if (setAssister === shooter) setAssister = null;
     }
-    const defender = pickDefender(rng, defSlots);
+    const defender = pickDefender(r, defSlots) || defSlots.slots[0];
     const keeper = defSlots.slots.find(sl => sl.group === 'GK') || null;
-    const assister = kind === 'corner' ? setAssister : kind === 'pen' || kind === 'fk' ? null : rng.chance(0.75) ? pickAssister(rng, attSlots, shooter) : null;
+    const assister = kind === 'corner' ? setAssister : kind === 'pen' || kind === 'fk' ? null : r.chance(0.75) ? pickAssister(r, attSlots, shooter) : null;
     const sp = shooter.player;
     const dp = defender.player;
 
@@ -242,22 +318,22 @@ export function simulateMatch(rng, home, away, opts = {}) {
     const manEdge = manDiff * 0.32;
 
     // Mental bei Rückstand: starke Köpfe bäumen sich auf, schwache verkrampfen
-    const behind = score[side.key] < score[side.key === 'home' ? 'away' : 'home'];
+    const behind = score[side.key] < score[oppKey];
     const nerve = behind && minute > 55 ? mentalEdge(side.team) * 0.25 : 0;
 
     // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
     const shooterBreak = ((attrOf(sp, 'tem') + attrOf(sp, 'dri')) / 2) * familiarity(sp, shooter.pos);
     const defenderHold = (attrOf(dp, 'abw') * 0.65 + attrOf(dp, 'phy') * 0.35) * familiarity(dp, defender.pos);
     let p1 = clamp(sigmoid(
-      (side.team.attackPower - side.opp.defensePower) / 24 +
+      (side.team.attackPower - (side.opp.defensePower + op.def)) / 24 +
       (shooterBreak - defenderHold) / 60 +
-      side.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve + manEdge - 0.15
+      hp.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve + manEdge - 0.15
     ), 0.12, 0.85);
 
     // Phase 2: Abschluss – Schuss gegen Torwart
     const finish = attrOf(sp, 'sch') * familiarity(sp, shooter.pos) * fitnessFactor(sp.condition);
     const keep = keeper?.rating ?? 30;
-    let p2 = clamp(0.3 * side.team.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
+    let p2 = clamp(0.3 * hp.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
 
     if (kind === 'corner' && assister) p1 = clamp(p1 + (attrOf(assister.player, 'pas') - 50) / 400, 0.12, 0.88);
     if (kind === 'pen') {
@@ -267,12 +343,12 @@ export function simulateMatch(rng, home, away, opts = {}) {
       p1 = clamp(p1 * 0.7, 0.1, 0.7);
       p2 = clamp(0.22 * Math.exp((attrOf(sp, 'sch') * 0.6 + attrOf(sp, 'pas') * 0.4 - keep) / 40), 0.05, 0.5);
     }
-    const broke = rng.chance(p1);
-    const scored = broke && rng.chance(p2);
+    const broke = r.chance(p1);
+    const scored = broke && r.chance(p2);
     if (scored) score[side.key]++;
     chances.push({
       side: side.key,
-      minute, kind,
+      minute, kind, half,
       shooter, assister, defender, keeper,
       p1, p2, broke, scored,
       xg: p1 * p2,
@@ -282,6 +358,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
       gk: { label: 'duel.keeper', value: Math.round(keep) }
     });
   }
+  rng = rD; // Ab hier (Elfmeterschießen, Noten) eigener Strom
 
   let hg = 0;
   let ag = 0;
@@ -320,6 +397,8 @@ export function simulateMatch(rng, home, away, opts = {}) {
       ]
     },
     styles: [home.style.key, away.style.key],
+    styles2: [P[2].home.style.key, P[2].away.style.key],
+    halftime: ht,
     formations: [home.formation, away.formation],
     goals,
     injuries,
@@ -424,15 +503,20 @@ function rateplayers(rng, result, home, away, chances) {
   return ratings;
 }
 
-/** 3–5 Schlüsselszenen: alle Tore plus die größten vergebenen Chancen */
+/** Schlüsselszenen je Halbzeit: alle Tore plus die größten vergebenen Chancen.
+ * Pro Hälfte getrennt gewählt, damit die erste Hälfte nicht von der zweiten abhängt. */
 function pickKeyScenes(chances) {
-  const goals = chances.filter(c => c.scored);
-  const misses = chances.filter(c => c.broke && !c.scored).sort((a, b) => b.xg - a.xg);
-  const tackles = chances.filter(c => !c.broke).sort((a, b) => b.p1 - a.p1);
-  let picked = [...goals];
-  for (const m of misses) { if (picked.length >= 4) break; picked.push(m); }
-  for (const t of tackles) { if (picked.length >= 3) break; picked.push(t); }
-  picked = picked.slice(0, Math.max(3, Math.min(6, goals.length + 2)));
+  let picked = [];
+  for (const half of [1, 2]) {
+    const hc = chances.filter(c => (c.half || 1) === half);
+    const goals = hc.filter(c => c.scored);
+    const misses = hc.filter(c => c.broke && !c.scored).sort((a, b) => b.xg - a.xg);
+    const tackles = hc.filter(c => !c.broke).sort((a, b) => b.p1 - a.p1);
+    let p = [...goals];
+    for (const m of misses) { if (p.length >= 2) break; p.push(m); }
+    for (const t of tackles) { if (p.length >= 1) break; p.push(t); }
+    picked.push(...p.slice(0, Math.max(1, Math.min(3, goals.length + 1))));
+  }
   picked.sort((a, b) => a.minute - b.minute);
   return picked.map(c => ({
     minute: c.minute,
@@ -461,7 +545,12 @@ const VARIANTS = { goal: 4, goalSolo: 3, save: 4, tackle: 3, injury: 2, sub: 1, 
 
 /** Tickereintrag als Schlüssel plus Platzhalter, damit er in jeder Sprache lesbar bleibt */
 function tick(rng, type, vars) {
-  return { k: `tick.${type}.${rng.int(0, VARIANTS[type] - 1)}`, p: vars };
+  // Variante aus dem Inhalt ableiten statt aus dem Zufall: gleiche Szene, gleicher Text
+  const key = `${type}|${vars.s || vars.p || vars.i || ''}|${vars.d || vars.o || ''}|${vars.min || 0}`;
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  void rng;
+  return { k: `tick.${type}.${(h >>> 0) % VARIANTS[type]}`, p: vars };
 }
 
 function buildTicker(rng, result, home, away, chances) {
@@ -473,8 +562,9 @@ function buildTicker(rng, result, home, away, chances) {
   const items = [{ minute: 0, type: 'kickoff', k: 'tick.kickoff', p: { home: home.club.name, away: away.club.name } }];
 
   const goalChances = chances.filter(c => c.scored);
-  const bigMisses = chances.filter(c => c.broke && !c.scored).sort((a, b) => b.xg - a.xg).slice(0, 3);
-  const tackles = chances.filter(c => !c.broke).sort((a, b) => b.p1 - a.p1).slice(0, 2);
+  const perHalf = (fn, n) => [1, 2].flatMap(h => fn(chances.filter(c => (c.half || 1) === h)).slice(0, n));
+  const bigMisses = perHalf(cs => cs.filter(c => c.broke && !c.scored).sort((a, b) => b.xg - a.xg), 2);
+  const tackles = perHalf(cs => cs.filter(c => !c.broke).sort((a, b) => b.p1 - a.p1), 1);
   const shown = [...goalChances, ...bigMisses, ...tackles].sort((a, b) => a.minute - b.minute);
   let hg = 0;
   let ag = 0;
@@ -508,7 +598,7 @@ function buildTicker(rng, result, home, away, chances) {
     items.push({ minute: c.minute, type: c.type === 'Y' ? 'yellow' : 'red', side: c.side, playerId: c.playerId, ...tick(rng, kind, { p: name(c.playerId) }) });
   }
   items.push({ minute: 45, type: 'half', k: 'tick.half' });
-  items.sort((a, b) => a.minute - b.minute || (a.type === 'half' ? -1 : 1));
+  items.sort((a, b) => a.minute - b.minute || (a.type === 'half' ? 1 : b.type === 'half' ? -1 : 0));
   items.push({ minute: 90, type: 'end', k: 'tick.end', p: { score: `${result.hg}:${result.ag}` } });
   if (result.pens) {
     items.push({ minute: 120, type: 'pens', k: 'tick.pens', p: { score: `${result.pens.h}:${result.pens.a}` } });

@@ -10,6 +10,7 @@ import { esc } from '../html.js';
 import { playSound } from '../sound.js';
 import { t } from '../../i18n/index.js';
 import { txt } from '../text.js';
+import { STYLES, STYLE_KEYS } from '../../engine/constants.js';
 
 const TICK_ICON = { goal: 'ball', chance: 'target', tackle: 'shield', injury: 'medical', sub: 'swap', half: 'whistle', end: 'whistle', kickoff: 'whistle', pens: 'target' };
 const tickIcon = type => type === 'yellow' ? '<i class="yellowcard"></i>' : type === 'red' ? '<i class="redcard"></i>' : icon(TICK_ICON[type] || 'info');
@@ -50,12 +51,14 @@ let ctrl = null;
 
 const DURATION = { slow: 46000, normal: 30000, fast: 16000 };
 
-export function startMatch(game, flow, settings, onDone) {
+export function startMatch(game, flow, settings, hooks = {}) {
   stopMatch();
-  const r = flow.data.result;
+  // Mit Halbzeit: zuerst läuft die Vorschau (erste Hälfte ist identisch mit dem echten Spiel).
+  // Zur Pause wird entschieden, dann kommt das echte Ergebnis per hooks.commit(decision).
+  let r = flow.data.result;
   const side = flow.data.side;
-  const ticker = [...r.ticker];
-  const scenes = [...r.keyScenes];
+  let ticker = [...r.ticker];
+  let scenes = [...r.keyScenes];
   const state = {
     minute: 0,
     tickIdx: 0,
@@ -64,7 +67,8 @@ export function startMatch(game, flow, settings, onDone) {
     speedMul: 1,
     score: [0, 0],
     done: false,
-    timer: null
+    timer: null,
+    phase: flow.data.preview && hooks.commit ? 'first' : 'full'
   };
   ctrl = state;
   const total = DURATION[settings.speed] || DURATION.normal;
@@ -287,8 +291,81 @@ export function startMatch(game, flow, settings, onDone) {
   }
   state.continueAfterScene = continueAfterScene;
 
+  /** Echtes Ergebnis holen und die zweite Hälfte daraus abspielen */
+  function commit(decision) {
+    if (state.phase !== 'first') return true;
+    const data = hooks.commit(decision);
+    if (!data) return false;
+    r = data.result;
+    ticker = [...r.ticker];
+    scenes = [...r.keyScenes];
+    // Die erste Hälfte ist in beiden Tickern gleich, also passt der Index weiter
+    state.sceneIdx = scenes.findIndex(s => s.minute >= 46);
+    if (state.sceneIdx < 0) state.sceneIdx = scenes.length;
+    state.phase = 'full';
+    return true;
+  }
+
+  /** Halbzeitpause: Stil, Ansage, Wechsel */
+  function showHalftime() {
+    state.paused = true;
+    const el = $('mf-scene');
+    if (!el) { commit(null); state.paused = false; return; }
+    const mine = side === 'home' ? 0 : 1;
+    const diff = state.score[mine] - state.score[1 - mine];
+    const tip = diff < 0 ? t('ht.tipBehind') : diff > 0 ? t('ht.tipAhead') : t('ht.tipLevel');
+    const setup = game.user.setup || { lineup: {}, bench: [] };
+    const gone = new Set([
+      ...r.subs.filter(x => x.side === side && x.minute < 46).map(x => x.outId),
+      ...r.cards.filter(x => x.side === side && x.type !== 'Y' && x.minute < 46).map(x => x.playerId),
+      ...r.injuries.filter(x => x.side === side && x.minute < 46).map(x => x.playerId)
+    ]);
+    const usedIn = new Set(r.subs.filter(x => x.side === side && x.minute < 46).map(x => x.inId));
+    const onPitch = [...r.lineups[side].map(l => l.playerId), ...usedIn].filter(id => id && !gone.has(id));
+    const bench = (setup.bench || []).filter(id => !usedIn.has(id) && game.players[id] && !game.players[id].injury);
+    const nm = id => { const p = game.players[id] || flow.data.snapshot?.[id]; return p ? esc(`${p.last} (${p.position})`) : '?'; };
+    const cur = r.styles[mine];
+    const dec = { style: null, mode: null, subs: [] };
+    const subRow = i => `<div class="ht__sub">
+        <select data-ht-out="${i}" aria-label="${t('ht.out')}"><option value="">${t('ht.out')}</option>${onPitch.map(id => `<option value="${id}">${nm(id)}</option>`).join('')}</select>
+        <span aria-hidden="true">${icon('swap')}</span>
+        <select data-ht-in="${i}" aria-label="${t('ht.in')}"><option value="">${t('ht.in')}</option>${bench.map(id => `<option value="${id}">${nm(id)}</option>`).join('')}</select>
+      </div>`;
+    el.innerHTML = `<div class="scene scene--ht" role="dialog" aria-label="${t('ht.title')}">
+      <div class="ht__head"><div class="ht__title display">${t('ht.title')}</div><div class="ht__score display">${state.score[0]}:${state.score[1]}</div></div>
+      <p class="small ht__tip">${icon('clipboard')}<span>${tip}</span></p>
+      <div class="ht__block"><div class="small"><b>${t('ht.style')}</b></div>
+        <div class="ht__chips">${STYLE_KEYS.map(k => `<button class="chip chip--btn ${k === cur ? 'is-active' : ''}" data-ht-style="${k}" aria-pressed="${k === cur}">${STYLES[k].name}</button>`).join('')}</div></div>
+      <div class="ht__block"><div class="small"><b>${t('ht.mode')}</b></div>
+        <div class="ht__chips">${['', 'allOut', 'hold'].map(k => `<button class="chip chip--btn ${k === '' ? 'is-active' : ''}" data-ht-mode="${k}" aria-pressed="${k === ''}">${t('ht.mode.' + (k || 'none'))}</button>`).join('')}</div>
+        <p class="xsmall muted">${t('ht.modeHint')}</p></div>
+      ${bench.length && onPitch.length ? `<div class="ht__block"><div class="small"><b>${t('ht.subs')}</b></div>${[0, 1, 2].map(subRow).join('')}</div>` : ''}
+      <button class="btn btn--primary btn--block" data-ht-go="1">${icon('play')}${t('ht.go')}</button>
+    </div>`;
+    const node = el.firstElementChild;
+    const press = (sel, attr, val) => node.querySelectorAll(sel).forEach(b => { const on = b.getAttribute(attr) === val; b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on); });
+    node.addEventListener('click', ev => {
+      const b = ev.target.closest('button');
+      if (!b) return;
+      ev.stopPropagation();
+      if (b.dataset.htStyle) { dec.style = b.dataset.htStyle === r.styles[mine] ? null : b.dataset.htStyle; press('[data-ht-style]', 'data-ht-style', b.dataset.htStyle); }
+      else if (b.hasAttribute('data-ht-mode')) { dec.mode = b.dataset.htMode || null; press('[data-ht-mode]', 'data-ht-mode', b.dataset.htMode); }
+      else if (b.dataset.htGo) {
+        const subs = [0, 1, 2].map(i => ({ outId: node.querySelector(`[data-ht-out="${i}"]`)?.value, inId: node.querySelector(`[data-ht-in="${i}"]`)?.value }))
+          .filter(x => x.outId && x.inId);
+        const decision = { style: dec.style, mode: dec.mode, subs };
+        const any = decision.style || decision.mode || subs.length;
+        if (!commit(any ? decision : null)) { finish(); return; }
+        el.innerHTML = '';
+        playSound('whistle', settings);
+        state.paused = false;
+      }
+    });
+  }
+
   function finish() {
     if (state.done) return;
+    if (state.phase === 'first') commit(null);
     state.done = true;
     state.inPens = false;
     clearTimeout(state.penTimer);
@@ -319,6 +396,7 @@ export function startMatch(game, flow, settings, onDone) {
       }
       addTick(tk);
       state.tickIdx++;
+      if (tk.type === 'half' && state.phase === 'first') { showHalftime(); return; }
     }
     if (state.sceneIdx < scenes.length && scenes[state.sceneIdx].minute <= m) {
       showScene(scenes[state.sceneIdx++]);
@@ -338,7 +416,6 @@ export function startMatch(game, flow, settings, onDone) {
     }
   }, stepMs);
 
-  void onDone;
   playSound('whistle', settings);
 }
 
@@ -359,6 +436,6 @@ export function matchControl(action) {
     const b = document.getElementById('mf-speed');
     if (b) b.setAttribute('aria-pressed', ctrl.speedMul > 1);
   }
-  if (action === 'skip') ctrl.finish();
+  if (action === 'skip') { const el = document.getElementById('mf-scene'); if (el) el.innerHTML = ''; ctrl.finish(); }
   if (action === 'continue') (ctrl.tapScene || ctrl.continueAfterScene)();
 }

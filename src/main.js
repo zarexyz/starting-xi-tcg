@@ -13,7 +13,7 @@ import { deleteGame } from './state/storage.js';
 import { exportSave, pickSaveFile, parseSave } from './state/backup.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, markFeedRead, userMatch, ensureUserSetup
+  placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, markFeedRead, userMatch, ensureUserSetup, previewUserMatch, setHalftime
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -234,21 +234,43 @@ function kickoff(instant) {
   const entry = userMatch(pre);
   if (!entry) return;
   const snapshot = snapshotPlayers(pre, [entry.m.home, entry.m.away]);
-  const res = act(playDay);
-  if (!res || res.error) return;
-  bump('matches');
-  let matchday = null;
-  try { matchday = buildMatchday(pre, store.game); } catch (e) { console.warn(e); }
-  const data = { ...res, snapshot, matchday };
-  if (instant) {
-    setUi({ flow: { type: 'result', data }, repSide: 'mine' });
-    window.scrollTo(0, 0);
+  /** Spieltag wirklich spielen (optional mit Halbzeit-Entscheidung) */
+  const commit = decision => {
+    if (decision) act(setHalftime, decision);
+    const res = act(playDay);
+    if (!res || res.error) return null;
+    bump('matches');
+    let matchday = null;
+    try { matchday = buildMatchday(pre, store.game); } catch (e) { console.warn(e); }
+    return { ...res, snapshot, matchday };
+  };
+  if (instant || store.settings.halftime === false) {
+    const data = commit(null);
+    if (!data) return;
+    if (instant) {
+      setUi({ flow: { type: 'result', data }, repSide: 'mine' });
+      window.scrollTo(0, 0);
+      return;
+    }
+    store.ui.flow = { type: 'match', data };
+    document.querySelector('.matchflow')?.remove();
+    notify();
+    startMatch(store.game, store.ui.flow, store.settings);
     return;
   }
-  store.ui.flow = { type: 'match', data };
+  // Vorschau der ersten Hälfte (verändert den Spielstand nicht)
+  const preview = previewUserMatch(pre);
+  if (!preview) return;
+  store.ui.flow = { type: 'match', data: { ...preview, snapshot, preview: true } };
   document.querySelector('.matchflow')?.remove();
   notify();
-  startMatch(store.game, store.ui.flow, store.settings);
+  startMatch(pre, store.ui.flow, store.settings, {
+    commit: decision => {
+      const data = commit(decision);
+      if (data) store.ui.flow = { type: 'match', data };
+      return data;
+    }
+  });
 }
 
 function simDay() {
@@ -510,6 +532,7 @@ const handlers = {
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
+  'toggle-halftime': () => updateSettings({ halftime: store.settings.halftime === false }),
   'set-speed': d => updateSettings({ speed: d.value }),
   'set-text': d => { updateSettings({ textSize: d.value }); applyA11y(store.settings); },
   'toggle-cb': () => { updateSettings({ colorblind: !store.settings.colorblind }); applyA11y(store.settings); },

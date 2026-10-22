@@ -722,3 +722,59 @@ test('Spielstile: jeder schlägt zwei, verliert gegen zwei, Rest neutral', async
     for (const b of STYLE_KEYS) assert.equal(styleMatchup(a, b) + styleMatchup(b, a), 0);
   }
 });
+
+// --- v1.10: Halbzeit ---------------------------------------------------------
+import { previewUserMatch, setHalftime, userMatch as userMatchOf, ensureUserSetup as ensureSetupOf } from '../src/engine/game.js';
+
+const firstHalf = r => JSON.stringify({
+  goals: r.goals.filter(g => g.minute < 46),
+  cards: r.cards.filter(c => c.minute < 46),
+  injuries: r.injuries.filter(c => c.minute < 46),
+  subs: r.subs.filter(c => c.minute < 46),
+  ticker: r.ticker.filter(x => x.minute <= 45),
+  scenes: r.keyScenes.filter(x => x.minute < 46)
+});
+
+test('Halbzeit: erste Hälfte bleibt gleich, egal was zur Pause entschieden wird', () => {
+  for (const seed of [3, 9, 21, 44]) {
+    const s = newStartedGame(seed);
+    s.pending = null;
+    const setup = ensureSetupOf(s);
+    const pre = previewUserMatch(s);
+    assert.ok(pre && pre.result, 'Vorschau liefert ein Ergebnis');
+    const bench = setup.bench.slice(0, 2);
+    const outs = Object.values(setup.lineup).filter(id => s.players[id].position !== 'TW').slice(0, 2);
+    for (const decision of [
+      null,
+      { style: 'PRESSING', mode: 'allOut' },
+      { style: 'MAUERN', mode: 'hold', subs: outs.map((o, i) => ({ outId: o, inId: bench[i] })) }
+    ]) {
+      const copy = structuredClone(s);
+      setHalftime(copy, decision);
+      const real = playDay(copy);
+      assert.equal(firstHalf(real.result), firstHalf(pre.result), `Saat ${seed}, Entscheidung ${JSON.stringify(decision)}`);
+      assert.equal(copy.user.halftime, null, 'Entscheidung wird verbraucht');
+      if (decision?.subs) {
+        const ht = real.result.subs.filter(x => x.halftime);
+        assert.ok(ht.length >= 1 && ht.every(x => x.minute === 46), 'Pausenwechsel in Minute 46');
+        for (const x of ht) assert.ok(!real.result.injuries.some(i => i.playerId === x.outId && i.minute >= 46));
+      }
+    }
+  }
+});
+
+test('Halbzeit: „alles nach vorn“ bringt im Schnitt mehr Tore als „Ergebnis halten“', () => {
+  const s = newStartedGame(5);
+  const id = s.leagues[1].clubIds[0];
+  const { lineup, bench } = bestLineup(s, id, '4-3-3', { minCondition: 0 });
+  const team = () => buildTeam(s, id, { formation: '4-3-3', style: 'AUSGEWOGEN', lineup, bench, boosts: {} });
+  const rng = createRng(77);
+  let open = 0, hold = 0;
+  for (let i = 0; i < 400; i++) {
+    const a = simulateMatch(rng, team(), team(), { neutral: true, halftime: { side: 'home', mode: 'allOut' } });
+    const b = simulateMatch(rng, team(), team(), { neutral: true, halftime: { side: 'home', mode: 'hold' } });
+    open += a.goals.filter(g => g.minute >= 46).length;
+    hold += b.goals.filter(g => g.minute >= 46).length;
+  }
+  assert.ok(open > hold * 1.2, `offen ${open}, halten ${hold}`);
+});

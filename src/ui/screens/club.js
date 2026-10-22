@@ -84,6 +84,11 @@ export function settingsBody(store) {
         <div class="row__main"><div class="row__title">${t('set.autoScenes')}</div><div class="row__sub">${t('set.autoScenesHint')}</div></div>
         <button class="toggle" role="switch" aria-checked="${!!s.autoScenes}" data-action="toggle-auto-scenes"><span></span></button>
       </li>
+      <li class="row">
+        <span class="alert-dot">${icon('whistle')}</span>
+        <div class="row__main"><div class="row__title">${t('set.halftime')}</div><div class="row__sub">${t('set.halftimeHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${s.halftime !== false}" data-action="toggle-halftime"><span></span></button>
+      </li>
       ${game ? `<li class="row">
         <span class="alert-dot">${icon('auto')}</span>
         <div class="row__main"><div class="row__title">${t('set.coach')}</div><div class="row__sub">${t('set.coachHint')}</div></div>

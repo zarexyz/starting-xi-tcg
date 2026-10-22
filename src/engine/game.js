@@ -662,6 +662,36 @@ function applyMatchEffects(rng, state, result, side, team, played) {
  * Spielt den aktuellen Kalendertag komplett durch (alle Ligen, Pokal, Final Four).
  * Gibt das Ergebnis des Spiels des Spielers zurück (oder null, wenn er spielfrei ist).
  */
+/** Fester Zufall für das eigene Spiel des aktuellen Spieltags */
+export function userMatchSeed(state) {
+  return (Math.imul(state.seed, 2654435761) ^ Math.imul(state.season || 1, 40503) ^ (state.dayIndex * 97 + 13)) >>> 0 || 1;
+}
+
+/**
+ * Halbzeit-Vorschau: spielt den Spieltag auf einer Kopie ohne Pausen-Entscheidung.
+ * Die erste Hälfte (alles vor Minute 46) ist identisch mit dem echten Spiel danach.
+ * Verändert den Spielstand nicht.
+ */
+export function previewUserMatch(state) {
+  const copy = structuredClone(state);
+  copy.user.halftime = null;
+  return playDay(copy);
+}
+
+/** Entscheidung zur Pause für das nächste eigene Spiel speichern (wird in playDay verbraucht) */
+export function setHalftime(state, decision) {
+  if (!decision) { state.user.halftime = null; return { ok: true }; }
+  const out = {};
+  if (decision.style && STYLES[decision.style]) out.style = decision.style;
+  if (decision.mode === 'allOut' || decision.mode === 'hold') out.mode = decision.mode;
+  if (Array.isArray(decision.subs)) {
+    out.subs = decision.subs.filter(s => s && state.players[s.outId]?.clubId === 'user' && state.players[s.inId]?.clubId === 'user').slice(0, 3)
+      .map(s => ({ outId: s.outId, inId: s.inId }));
+  }
+  state.user.halftime = Object.keys(out).length ? out : null;
+  return { ok: true };
+}
+
 export function playDay(state) {
   const day = currentDay(state);
   if (!day) return null;
@@ -682,8 +712,12 @@ export function playDay(state) {
       participating.add(m.away);
       const knockout = entry.comp !== 'league';
       const neutral = entry.comp === 'ff' && entry.stage === 'final';
-      const hs = setupFor(rng, state, m.home, m.away === 'user');
-      const as = setupFor(rng, state, m.away, m.home === 'user');
+      // Das eigene Spiel bekommt einen festen Zufall aus Saat und Spieltag:
+      // So zeigt die Halbzeit-Vorschau genau die erste Hälfte, die später gespielt wird.
+      const userGame = m.home === 'user' || m.away === 'user';
+      const mrng = userGame ? createRng(userMatchSeed(state)) : rng;
+      const hs = setupFor(mrng, state, m.home, m.away === 'user');
+      const as = setupFor(mrng, state, m.away, m.home === 'user');
       if (m.home === 'user' || m.away === 'user') {
         const h = (state.user.styleHist ||= []);
         h.push(m.home === 'user' ? hs.style : as.style);
@@ -694,7 +728,9 @@ export function playDay(state) {
       const rival = rivalry(state.clubs[m.home], state.clubs[m.away]);
       const isUser = m.home === 'user' || m.away === 'user';
       const strengths = isUser ? { home: clubStrength(state, m.home), away: clubStrength(state, m.away) } : null;
-      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout || rival === 'derby', weather: weatherFor(state.seed, state.dayIndex) });
+      const halftime = userGame && state.user.halftime ? { ...state.user.halftime, side: m.home === 'user' ? 'home' : 'away' } : null;
+      const result = simulateMatch(mrng, home, away, { knockout, neutral, big: knockout || rival === 'derby', weather: weatherFor(state.seed, state.dayIndex), halftime });
+      if (userGame) state.user.halftime = null;
       result.rivalry = rival;
       m.hg = result.hg;
       m.ag = result.ag;
