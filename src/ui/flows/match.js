@@ -153,10 +153,10 @@ export function startMatch(game, flow, settings, onDone) {
     const node = el.firstElementChild;
     const f = state.speedMul > 1 ? 0.45 : 1;
     const steps = [
-      [700, 's1'],
-      [1500, 's2'],
-      ...(p2.skipped ? [] : [[2300, 's3'], [3100, 's4']]),
-      [p2.skipped ? 2200 : 3700, 's5']
+      [1200, 's1'],
+      [2800, 's2'],
+      ...(p2.skipped ? [] : [[4400, 's3'], [6000, 's4']]),
+      [p2.skipped ? 4200 : 7400, 's5']
     ];
     scene.revealed = false;
     clearTimeout(state.sceneTimer);
@@ -178,7 +178,7 @@ export function startMatch(game, flow, settings, onDone) {
       } else if (mine) {
         buzz(30);
       }
-      if (settings.autoScenes) state.sceneTimer = setTimeout(() => continueAfterScene(), 5000 / state.speedMul);
+      if (settings.autoScenes) state.sceneTimer = setTimeout(() => continueAfterScene(), 8000 / state.speedMul);
     }
   }
 
