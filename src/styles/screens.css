@@ -896,3 +896,48 @@ tr[data-action] { cursor: pointer; }
 .xi-chip.is-me { border-color: var(--pitch); background: var(--pitch-soft); }
 .ok-line { display: flex; align-items: center; gap: 8px; margin: var(--s-3) 0 0; }
 .ok-line svg { width: 16px; height: 16px; flex: none; }
+
+/* ---- v1.5: Transfers und Verträge ---- */
+.chip--sm { padding: 4px 10px; font-size: var(--t-xs); min-height: 0; }
+.chip--reward { background: var(--floodlight-soft); border-color: #f2d68a; color: #7a5600; }
+.chips-scroll--sub { margin-top: -4px; }
+.warn-text { display: flex; align-items: center; gap: 6px; color: #8a5a00; }
+.warn-text svg, .pdetail .small.neg svg, .pdetail .small svg { width: 16px; height: 16px; flex: none; vertical-align: -3px; margin-right: 4px; }
+.window-banner { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); font-size: var(--t-sm); font-weight: 600; margin: 0 0 var(--s-3); }
+.window-banner svg { width: 18px; height: 18px; flex: none; }
+.window-banner.is-open { background: var(--pitch-soft); color: var(--pitch-dark); }
+.window-banner.is-closed { background: var(--chalk-2); color: var(--ink-2); }
+.list-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: var(--s-2) 0; }
+.list-level { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); font: inherit; color: inherit; cursor: pointer; text-align: center; }
+.list-level b { font-size: var(--t-sm); }
+.list-level .display { font-size: var(--t-xl); line-height: 1.1; }
+.list-level small { font-size: var(--t-xs); color: var(--ink-3); }
+.list-level.is-active { border-color: var(--pitch); background: var(--pitch-soft); box-shadow: inset 0 0 0 1px var(--pitch); }
+.offer-row { align-items: center; }
+.offer-row__btns { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.buybox .btn + .btn { margin-top: 8px; }
+.active-effects { list-style: none; padding: 0; margin: 0 0 var(--s-3); display: grid; gap: 6px; }
+.active-effects li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-md); background: var(--pitch-soft); color: var(--pitch-dark); font-size: var(--t-sm); font-weight: 600; }
+.active-effects svg { width: 16px; height: 16px; flex: none; }
+.items-grid--prep { grid-template-columns: 1fr; }
+.items-grid--prep .item-card__body span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.news-read { width: 36px; height: 36px; flex: none; color: var(--pitch); }
+.news-read svg { width: 18px; height: 18px; }
+.news-links__title { margin: var(--s-4) 0 var(--s-2); }
+.news-links { margin-bottom: var(--s-3); }
+.news-links .row svg:last-child { width: 16px; height: 16px; color: var(--ink-3); flex: none; }
+.peek__row { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line-2); align-items: start; }
+.peek__row:last-child { border-bottom: 0; }
+.peek__row.is-hl { background: var(--floodlight-soft); }
+.peek__pos { font-weight: 800; font-size: var(--t-sm); display: flex; flex-direction: column; line-height: 1.1; }
+.peek__pos small { font-weight: 600; color: var(--ink-3); font-size: 11px; }
+.peek__players { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.peek__p { background: none; border: 0; padding: 2px 0; font: inherit; font-size: var(--t-sm); color: inherit; cursor: pointer; white-space: nowrap; }
+.peek__p b { font-family: var(--font-display); font-size: var(--t-md); }
+.peek__p small { color: var(--ink-3); }
+.depth-hint { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.depth-hint svg { width: 16px; height: 16px; flex: none; }
+.pmark { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: var(--r-pill); font-size: 10px; font-weight: 700; vertical-align: 2px; background: var(--chalk-2); color: var(--ink-2); }
+.pmark--warn { background: var(--floodlight-soft); color: #7a5600; }
+.pmark--loss { background: var(--loss-soft); color: var(--loss); }
+.depth-hint { text-align: left; align-items: flex-start; }

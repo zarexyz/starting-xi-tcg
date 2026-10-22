@@ -18,9 +18,11 @@ import { ATTR_NAMES, STYLES, POS_LABEL } from './constants.js';
 import { t } from '../i18n/index.js';
 import { newCoach } from './world.js';
 import { aiTransferWindow } from './market.js';
+import { severance, ensureAllContracts, ensureContract, signContract, defaultYears, contractDemand, checkRaiseWishes, contractMood, expiryWarning, expireContracts, wageOf } from './contracts.js';
+import { processTransferDay } from './market.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 // -----------------------------------------------------------------------------
 // Neues Spiel
@@ -48,7 +50,10 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern,
       matchBoost: null,
       ledger: [],
       unpaidDays: 0,
-      autoLineup: true
+      autoLineup: true,
+      listings: {},
+      offers: [],
+      counters: {}
     },
     pending: { type: 'starter' },
     inbox: [],
@@ -88,6 +93,7 @@ function startSeason(rng, state, cupByes) {
   }
   for (const c of Object.values(state.clubs)) { c.halfGames = 0; c.seasonStats = newClubStats(); }
   takeAwardSnapshot(state);
+  ensureAllContracts(state);
 }
 
 /** Saisonstatistik eines Vereins über alle Wettbewerbe */
@@ -185,9 +191,10 @@ export function openStarterPack(state) {
     const squad = generateStarterSquad(rng, state);
     for (const p of squad) {
       p.clubId = 'user';
-    p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
+      p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
       state.players[p.id] = p;
       state.clubs.user.playerIds.push(p.id);
+      signContract(state, p, salaryFor(p.ovr), 1 + rng.int(1, 2));
     }
     const candidates = generateStarDraft(rng, state);
     state.pending = { type: 'draft', source: 'star', title: 'Starspieler-Wahl', candidates };
@@ -224,9 +231,10 @@ export function pickDraft(state, index) {
   if (!p) return null;
   delete p.isNew;
   p.clubId = 'user';
-    p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
+  p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
   state.players[p.id] = p;
   state.clubs.user.playerIds.push(p.id);
+  signContract(state, p, salaryFor(p.ovr), Math.max(2, defaultYears(p.age)));
   const wasStar = state.pending.source === 'star';
   state.pending = null;
   if (wasStar) {
@@ -458,6 +466,8 @@ export function releasePlayer(state, playerId) {
   const p = state.players[playerId];
   if (!p || p.clubId !== 'user') return { error: t('err.notInSquad') };
   if (club.playerIds.length <= 16) return { error: t('err.minSquad') };
+  const pay = severance(state, p);
+  if (pay > 0) ledger(state, 'ledger.severance', -pay, { name: displayName(p) });
   club.playerIds = club.playerIds.filter(id => id !== playerId);
   delete state.players[playerId];
   if (state.user.setup) state.user.setup = repairLineup(state, 'user', state.user.setup);
@@ -730,6 +740,21 @@ export function playDay(state) {
     }
 
     matchdayStories(rng, state, day);
+    contractMood(state);
+    for (const o of processTransferDay(rng, state)) {
+      const p = state.players[o.playerId];
+      addNews(state, 'transfer', o.unsolicited ? 'news.bidIn' : 'news.offerIn',
+        { short: shortName(p), name: displayName(p), club: state.clubs[o.clubId].name, amountC: o.amount }, { playerId: p.id, clubId: o.clubId });
+    }
+    // Belohnung: nach Siegen öfter eine Verbrauchskarte
+    if (userResult) {
+      const chance = userResult.outcome === 'W' ? 0.55 : userResult.outcome === 'D' ? 0.2 : 0.05;
+      if (rng.chance(chance)) {
+        const item = { id: `i${++state.nextId}`, ...generateItems(rng, 1)[0] };
+        state.user.inventory.push(item);
+        userResult.reward = item;
+      }
+    }
     afterDay(rng, state, day);
     previewStories(state);
   });
@@ -761,7 +786,7 @@ function handleWages(state) {
     squad.forEach(p => { p.morale = Math.max(20, p.morale - 10); });
     addNews(state, 'finance', 'news.unpaid');
     if (state.user.unpaidDays >= 3 && squad.length > 16) {
-      const top = [...squad].sort((a, b) => salaryFor(b.ovr) - salaryFor(a.ovr))[0];
+      const top = [...squad].sort((a, b) => wageOf(b) - wageOf(a))[0];
       club.playerIds = club.playerIds.filter(id => id !== top.id);
       // Spieler wechselt zu einem KI-Verein der passenden Liga
       const targetTier = Math.max(1, club.tier - 1);
@@ -769,7 +794,7 @@ function handleWages(state) {
       top.clubId = target;
       state.clubs[target].playerIds.push(top.id);
       state.user.unpaidDays = 0;
-      addNews(state, 'finance', 'news.walkout', { name: displayName(top), club: state.clubs[target].name }, { clubId: target });
+      addNews(state, 'finance', 'news.walkout', { name: displayName(top), club: state.clubs[target].name }, { clubId: target, playerId: top.id });
       state.user.setup = repairLineup(state, 'user', state.user.setup);
     }
   } else {
@@ -786,7 +811,10 @@ function afterDay(rng, state, day) {
     recordHistory(state);
     state.devReport = { tk: 'dev.titleMid', tp: { season: state.season }, changes };
     addNews(state, 'development', 'news.midseason');
+    checkRaiseWishes(state);
+    aiTransferWindow(rng, state, 0.15);
   }
+  if (day.type === 'league' && day.md === 12) expiryWarning(state);
   if (day.type === 'cup') {
     const round = state.cup.rounds[day.round];
     const winners = round.map(matchWinner);
@@ -970,6 +998,11 @@ function endSeason(rng, state) {
     }
   }
 
+  // Auslaufende Verträge
+  summary.leftFree = expireContracts(rng, state);
+  state.user.offers = [];
+  state.user.counters = {};
+
   // Transferfenster der KI-Vereine
   summary.aiMoves = aiTransferWindow(rng, state).length;
 
@@ -992,11 +1025,13 @@ function endSeason(rng, state) {
     p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
     state.players[p.id] = p;
     userClub.playerIds.push(p.id);
+    // Jugendvertrag: läuft drei Saisons ab der kommenden
+    p.contract = { wage: salaryFor(p.ovr), until: state.season + 3 };
     youth.push(p);
   }
   if (youth.length) {
     summary.youth = youth.map(p => p.id);
-    addNews(state, 'squad', 'news.youth', { list: youth.map(p => displayName(p)).join(', '), n: youth.length }, { playerId: youth[0].id });
+    addNews(state, 'squad', 'news.youth', { list: youth.map(p => displayName(p)).join(', '), n: youth.length }, { playerId: youth[0].id, playerIds: youth.map(p => p.id) });
   }
 
   // KI-Kader auffüllen (Nachwuchs)
@@ -1043,6 +1078,7 @@ function endSeason(rng, state) {
   // Pokal-Freilose: Top 4 der Liga 1
   const byes = tables[1].slice(0, 4).map(r => r.clubId).map(id => id);
   state.season++;
+  checkRaiseWishes(state);
   startSeason(rng, state, byes.filter(id => state.clubs[id].tier === 1).length === 4 ? byes : null);
   state.user.setup = state.user.setup ? repairLineup(state, 'user', state.user.setup) : null;
   recordHistory(state);

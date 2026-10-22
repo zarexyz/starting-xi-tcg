@@ -342,7 +342,8 @@ export function salaryFor(ovr) {
 }
 
 export function marketValue(player) {
-  const base = 300 * Math.pow(1.12, player.ovr - 50);
+  // v1.5: Marktwerte etwa 1,5-mal so hoch wie vorher (Spieler waren zu billig)
+  const base = 460 * Math.pow(1.12, player.ovr - 50);
   let ageF = 1;
   if (player.age <= 21) ageF = 1.45;
   else if (player.age <= 25) ageF = 1.25;

@@ -9,6 +9,7 @@ import { itemDef, PACKS } from '../../engine/packs.js';
 import { TIERS, POSITION_NAMES, POS_LABEL } from '../../engine/constants.js';
 import { t } from '../../i18n/index.js';
 import { pendingTitle } from '../text.js';
+import { clubPlayers } from '../../engine/world.js';
 
 const PACK_LOOK = {
   starter: { a: '#1f7a4d', b: '#0b3b24', sub: 'packart.starter' },
@@ -100,11 +101,34 @@ export function packFlow(game, ui) {
       }).join('')}
     </div>
     ${!allFlipped ? `<button class="btn btn--secondary btn--block" data-action="pack-flip-all">${t('pf.revealAll')}</button>` : ''}
-    ${chosen ? draftDetail(chosen, colors) : allFlipped ? `<p class="small muted packflow__center">${t('pf.tapDetail')}</p>` : ''}
+    <button class="btn btn--ghost btn--block" data-action="squad-peek" data-pos="${pending.candidates.map(c => c.position).join(',')}">${icon('squad')}${t('pf.viewSquad')}</button>
+    ${chosen ? draftDetail(chosen, colors, depthText(game, chosen)) : allFlipped ? `<p class="small muted packflow__center">${t('pf.tapDetail')}</p>` : ''}
   </main></div>`;
 }
 
-function draftDetail(p, colors) {
+/** Wo stünde der Kandidat im eigenen Kader auf seiner Position? */
+function depthText(game, p) {
+  const same = clubPlayers(game, 'user').filter(x => x.position === p.position).sort((a, b) => b.ovr - a.ovr);
+  const rank = same.filter(x => x.ovr > p.ovr).length + 1;
+  if (!same.length) return t('pf.depthNone', { pos: POS_LABEL[p.position] });
+  return t('pf.depth', { pos: POS_LABEL[p.position], rank, n: same.length + 1, best: `${same[0].last} ${same[0].ovr}` });
+}
+
+/** Kader-Übersicht nach Positionen (für die Pack-Auswahl) */
+export function squadPeekBody(game, highlight = []) {
+  const ORDER = ['TW', 'LV', 'IV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'ST', 'RF'];
+  const squad = clubPlayers(game, 'user');
+  return `<p class="small muted">${t('pf.peekIntro', { n: squad.length })}</p>
+    <ul class="list panel panel--flush peek">${ORDER.map(pos => {
+      const list = squad.filter(p => p.position === pos).sort((a, b) => b.ovr - a.ovr);
+      return `<li class="peek__row ${highlight.includes(pos) ? 'is-hl' : ''}">
+        <span class="peek__pos">${POS_LABEL[pos]}<small>${list.length}</small></span>
+        <span class="peek__players">${list.length ? list.map(p => `<button class="peek__p" data-action="open-player" data-id="${p.id}"><b>${p.ovr}</b> ${esc(p.last)} <small>${p.age}</small></button>`).join('') : `<span class="xsmall neg">${t('pf.peekEmpty')}</span>`}</span>
+      </li>`;
+    }).join('')}</ul>`;
+}
+
+function draftDetail(p, colors, depth = '') {
   const tier = TIERS[p.tier];
   const potText = `${p.potentialGuess[0]}–${p.potentialGuess[1]}`;
   return `<section class="draft-detail">
@@ -119,6 +143,7 @@ function draftDetail(p, colors) {
         <div><dt>${t('pf.tier')}</dt><dd>${tier.name}</dd></div>
       </dl>
       <p class="small">${p.age >= 27 ? t('pf.veteran') : p.age <= 19 ? t('pf.raw') : t('pf.prime')}</p>
+      ${depth ? `<p class="small depth-hint">${icon('squad')}${esc(depth)}</p>` : ''}
     </div>
     <button class="btn btn--primary btn--block" data-action="pack-confirm">${icon('check')}${t('pf.sign', { name: esc(p.last) })}</button>
   </section>`;

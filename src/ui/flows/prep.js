@@ -18,6 +18,27 @@ import { familiarity } from '../../engine/player.js';
 import { t } from '../../i18n/index.js';
 import { POS_LABEL } from '../../engine/constants.js';
 import { banReason } from '../text.js';
+import { itemCard } from './pack.js';
+import { ATTR_NAMES } from '../../engine/constants.js';
+
+/** Verbrauchskarten vor dem Anpfiff: aktive Effekte und einsetzbare Karten */
+function consumablesSection(game) {
+  const inv = game.user.inventory;
+  const groups = {};
+  inv.forEach(i => { (groups[i.type + (i.attr ? ':' + i.attr : '')] ||= []).push(i); });
+  const active = [];
+  if (game.user.matchBoost) active.push(`<li>${icon('clipboard')}${t('prep.tacticOn')}</li>`);
+  for (const p of clubPlayers(game, 'user').filter(x => x.tempBoost)) {
+    active.push(`<li>${icon('up')}${t('prep.boostOn', { name: esc(p.last), attr: ATTR_NAMES[p.tempBoost.attr], n: p.tempBoost.amount })}</li>`);
+  }
+  return `<section class="section">
+    <div class="section__head"><h2 class="section__title">${t('prep.items')}</h2><span class="small muted">${t('prep.itemsCount', { n: inv.length })}</span></div>
+    ${active.length ? `<ul class="active-effects">${active.join('')}</ul>` : ''}
+    ${inv.length ? `<div class="items-grid items-grid--prep">${Object.values(groups).map(list => itemCard(list[0], 0, { action: 'use-item', id: list[0].id, count: list.length })).join('')}</div>
+      <p class="xsmall muted">${t('prep.itemsHint')}</p>`
+      : `<p class="small muted">${t('prep.noItemsNew')}</p>`}
+  </section>`;
+}
 
 function warnings(game, setup) {
   const list = [];
@@ -57,8 +78,6 @@ export function prepFlow(game, ui) {
   const star = clubPlayers(game, oppId).filter(p => !p.injury && !p.suspension).sort((a, b) => b.ovr - a.ovr)[0];
   const pred = forecastMatch(game, entry, setup);
   const warn = warnings(game, setup);
-  const tactic = game.user.inventory.find(i => i.type === 'TACTIC');
-  const fitness = game.user.inventory.filter(i => i.type === 'FITNESS' || i.type === 'REGEN').length;
 
   const styleTiles = STYLE_KEYS.map(key => {
     const st = STYLES[key];
@@ -106,15 +125,7 @@ export function prepFlow(game, ui) {
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
 
-    <section class="section">
-      <div class="section__head"><h2 class="section__title">${t('prep.before')}</h2></div>
-      <div class="prep__items">
-        ${game.user.matchBoost ? `<span class="chip chip--pitch">${icon('clipboard')}${t('prep.tacticOn')}</span>` :
-          tactic ? `<button class="btn btn--sm btn--secondary" data-action="use-tactic" data-id="${tactic.id}">${icon('clipboard')}${t('prep.useTactic')}</button>` : ''}
-        ${fitness ? `<button class="btn btn--sm btn--secondary" data-action="open-items">${icon('battery')}${t('w.fitness')} (${fitness})</button>` : ''}
-        ${!tactic && !fitness && !game.user.matchBoost ? `<p class="small muted">${t('prep.noItems')}</p>` : ''}
-      </div>
-    </section>
+    ${consumablesSection(game)}
 
     <section class="section prognosis">
       <div class="section__head"><h2 class="section__title">${t('prep.forecast')}</h2><span class="small muted">${t('prep.withPlan')}</span></div>

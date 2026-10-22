@@ -12,6 +12,10 @@ import { ATTR_NAMES } from '../engine/constants.js';
 import { clubPlayers } from '../engine/world.js';
 import { t } from '../i18n/index.js';
 import { newsTitle, newsText } from './text.js';
+import { portraitSvg } from './components/portrait.js';
+import { crestSvg } from './components/crest.js';
+import { LEAGUE_INFO } from '../engine/world.js';
+import { POS_LABEL } from '../engine/constants.js';
 
 const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
@@ -28,10 +32,37 @@ export function inboxSheet(game) {
       ${game.inbox.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
         <span class="alert-dot ${n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' || n.type === 'award' ? 'alert-dot--reward' : ''}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
         <div class="row__main"><div class="row__title ${n.read ? '' : 'is-unread'}">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
-        <span class="xsmall muted">S${n.season}</span>
+        ${n.read ? `<span class="xsmall muted">S${n.season}</span>` : `<button class="icon-btn news-read" data-action="news-read" data-id="${n.id}" aria-label="${t('inbox.markRead')}" title="${t('inbox.markRead')}">${icon('check')}</button>`}
       </li>`).join('')}
     </ul>`;
   return sheet(t('top.inbox'), body);
+}
+
+/** Alle in einer Nachricht genannten Spieler und Vereine, jeweils antippbar */
+function newsLinks(game, n) {
+  const pids = [...new Set([n.playerId, ...(n.playerIds || [])].filter(id => id && game.players[id]))];
+  const cids = [...new Set([n.clubId, ...(n.clubIds || [])].filter(id => id && game.clubs[id]))];
+  if (!pids.length && !cids.length) return '';
+  const rows = [
+    ...pids.map(id => {
+      const p = game.players[id];
+      const c = game.clubs[p.clubId];
+      return `<li><button class="row row--button" data-action="open-player" data-id="${id}">
+        <span class="prow__face tier-${p.tier}" style="--club:${c?.colors.primary || '#888'}">${portraitSvg(p, { colors: c?.colors })}</span>
+        <span class="row__main"><span class="row__title">${esc(p.first)} ${esc(p.last)}</span><span class="row__sub">${POS_LABEL[p.position]}, ${p.ovr}${c ? ` · ${esc(c.name)}` : ''}</span></span>
+        ${icon('chevronRight')}
+      </button></li>`;
+    }),
+    ...cids.map(id => {
+      const c = game.clubs[id];
+      return `<li><button class="row row--button" data-action="open-club" data-id="${id}">
+        ${crestSvg(c, 32)}
+        <span class="row__main"><span class="row__title">${esc(c.name)}</span><span class="row__sub">${LEAGUE_INFO[c.tier].name}</span></span>
+        ${icon('chevronRight')}
+      </button></li>`;
+    })
+  ];
+  return `<h3 class="h3 news-links__title">${t('news.mentioned')}</h3><ul class="list panel panel--flush news-links">${rows.join('')}</ul>`;
 }
 
 export function newsSheet(game, id) {
@@ -39,8 +70,7 @@ export function newsSheet(game, id) {
   if (!n) return '';
   return sheet(newsTitle(n), `
     <p class="news-text">${esc(newsText(n))}</p>
-    ${n.playerId && game.players[n.playerId] ? `<button class="btn btn--secondary btn--block" data-action="open-player" data-id="${n.playerId}">${icon('user')}${t('news.viewPlayer')}</button>` : ''}
-    ${n.clubId && game.clubs[n.clubId] ? `<button class="btn btn--secondary btn--block" data-action="open-club" data-id="${n.clubId}">${icon('shield')}${t('news.viewClub')}</button>` : ''}
+    ${newsLinks(game, n)}
     <button class="btn btn--ghost btn--block" data-action="open-inbox">${icon('chevronLeft')}${t('news.toInbox')}</button>
   `);
 }

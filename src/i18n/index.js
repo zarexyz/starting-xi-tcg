@@ -48,6 +48,10 @@ export function t(key, params) {
       } else if (k.length > 1 && k.endsWith('D') && typeof params[k] === 'number') {
         resolved = resolved || { ...params };
         resolved[k.slice(0, -1)] = fmtDec(params[k], 1);
+      } else if (k.length > 1 && k.endsWith('C') && typeof params[k] === 'number') {
+        // Münzbeträge mit Tausendertrennzeichen der Sprache: { amountC: 1500 } → {amount}
+        resolved = resolved || { ...params };
+        resolved[k.slice(0, -1)] = fmtNum(params[k]);
       }
     }
     if (resolved) params = resolved;

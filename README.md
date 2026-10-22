@@ -20,7 +20,8 @@ Du gründest einen Verein in der Amateurliga, öffnest dein Starter-Pack, wähls
 - **Packs:** Starter-Pack, Draft-Packs (1 aus 3), Ausrüstungs-Packs mit Fitness, Training für einzelne Werte, Matchplänen und Taktik
 - **Gegner:** Jeder Verein hat einen Trainer mit fester Spielphilosophie
 - **Entwicklung:** zweimal pro Saison nach Alter, Spielzeit und Leistung, Durchschnittsnote und Form, Karriereende, Jugendakademie
-- **Transfermarkt:** Kaufen mit Wechselwilligkeit, Verkaufen über Angebote, KI-Transferfenster
+- **Transfermarkt:** Transferfenster bis zur Saisonmitte, Bieten mit Gegenangeboten, Transferliste mit Angeboten über mehrere Spieltage (nicht garantiert), unaufgeforderte Angebote, Positionsfilter
+- **Verträge:** festes Gehalt mit Laufzeit, Verlängerung mit Gehaltsforderung, Gehaltswünsche nach Aufwertung, ablösefreie Abgänge, Abfindung bei Entlassung
 - **Wettbewerbe:** Liga, Pokal mit allen 60 Vereinen, Final Four mit Auf- und Abstieg
 
 ## Entwicklung

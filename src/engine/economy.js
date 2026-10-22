@@ -2,7 +2,7 @@
 // Finanzen: Einnahmen, Gehälter, Soft-Cap, Prämien
 // =============================================================================
 
-import { salaryFor } from './player.js';
+import { wageOf } from './contracts.js';
 import { clubPlayers } from './world.js';
 
 /** Grundeinnahme pro Heimspiel je Liga */
@@ -14,7 +14,7 @@ export function wageCap(tier) {
 }
 
 export function weeklyWages(state, clubId) {
-  return clubPlayers(state, clubId).reduce((s, p) => s + salaryFor(p.ovr), 0);
+  return clubPlayers(state, clubId).reduce((s, p) => s + wageOf(p), 0);
 }
 
 export function matchIncome(tier, isHome, outcome) {

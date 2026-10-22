@@ -14,6 +14,7 @@ import { clubPlayers } from '../../engine/world.js';
 import { ensureUserSetup } from '../../engine/game.js';
 import { buildTeam } from '../../engine/match.js';
 import { familiarity, salaryFor, marketValue, avgRating, formTrend, formAverage } from '../../engine/player.js';
+import { wageOf, ensureContract } from '../../engine/contracts.js';
 import { NATIONS } from '../../engine/names.js';
 import { historyChart } from '../flows/develop.js';
 import { t, tmap } from '../../i18n/index.js';
@@ -140,6 +141,16 @@ function noteText(p) {
   return `, ${t('w.avg')} ${nf1(avg)}${trend === 'up' ? ' ↑' : trend === 'down' ? ' ↓' : ''}`;
 }
 
+/** Kleine Hinweise in der Kaderliste: Vertrag läuft aus, will mehr Gehalt, steht auf der Transferliste */
+function contractMarks(game, p) {
+  if (p.clubId !== 'user') return '';
+  const marks = [];
+  if (p.contract && p.contract.until <= game.season) marks.push(`<span class="pmark pmark--loss" title="${t('ct.expires')}">${t('ct.markEnd')}</span>`);
+  if (p.wantsRaise) marks.push(`<span class="pmark pmark--warn" title="${t('ct.markRaiseT')}">${t('ct.markRaise')}</span>`);
+  if (game.user.listings?.[p.id]) marks.push(`<span class="pmark" title="${t('ct.markListT')}">${t('ct.markList')}</span>`);
+  return marks.length ? ` ${marks.join('')}` : '';
+}
+
 export function playerRow(game, p, opts = {}) {
   const colors = game.clubs[p.clubId]?.colors || game.clubs.user.colors;
   const cond = p.condition;
@@ -149,7 +160,7 @@ export function playerRow(game, p, opts = {}) {
   return `<li><button class="row row--button prow ${opts.selected ? 'is-selected' : ''}" data-action="${opts.action || 'open-player'}" data-id="${p.id}">
     <span class="prow__face tier-${p.tier}" style="--club:${colors.primary}">${portraitSvg(p, { colors })}</span>
     <span class="row__main">
-      <span class="row__title">${esc(p.first[0])}. ${esc(p.last)}</span>
+      <span class="row__title">${esc(p.first[0])}. ${esc(p.last)}${contractMarks(game, p)}</span>
       <span class="row__sub">${opts.extra ? esc(opts.extra) : `${POS_LABEL[p.position]}${p.secondary.length ? ` (${p.secondary.map(s => POS_LABEL[s]).join(', ')})` : ''}, ${t('w.ageShort', { age: p.age })}${noteText(p)}`}</span>
     </span>
     ${status}
@@ -266,10 +277,16 @@ export function playerSheet(game, id, opts = {}) {
       </section>
 
       <section class="section section--tight">
-        <dl class="facts facts--2">
-          <div><dt>${t('ps.wage')}</dt><dd class="display">${fmt(salaryFor(p.ovr))}</dd></div>
+        <h3 class="h3">${t('ct.title')}</h3>
+        <dl class="facts facts--3">
+          <div><dt>${t('ps.wage')}</dt><dd class="display">${fmt(wageOf(p))}</dd></div>
+          <div><dt>${t('ct.until')}</dt><dd class="display">S${ensureContract(game, p).until}</dd></div>
           <div><dt>${t('ps.value')}</dt><dd class="display">${fmt(marketValue(p))}</dd></div>
         </dl>
+        ${own && p.wantsRaise ? `<p class="small warn-text">${icon('alert')}${t('ct.wantsRaise', { n: fmt(salaryFor(p.ovr)) })}</p>` : ''}
+        ${own && ensureContract(game, p).until <= game.season ? `<p class="small neg">${icon('alert')}${t('ct.expires')}</p>` : ''}
+        ${own && game.user.listings?.[p.id] ? `<p class="small">${icon('coins')}${t('ct.listed', { n: fmt(game.user.listings[p.id].price) })}</p>` : ''}
+        ${own ? `<button class="btn btn--secondary btn--block" data-action="open-contract" data-id="${p.id}">${icon('clipboard')}${t('ct.extend')}</button>` : ''}
       </section>
 
       ${own ? `<div class="pdetail__actions">

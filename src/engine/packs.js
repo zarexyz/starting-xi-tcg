@@ -51,27 +51,27 @@ export const CONSUMABLES = {
 
 export const PACKS = {
   talent: {
-    key: 'talent', get name() { return t('pack.talent.name'); }, price: 900, kind: 'draft',
+    key: 'talent', get name() { return t('pack.talent.name'); }, price: 1400, kind: 'draft',
     get desc() { return t('pack.talent.desc'); },
     tiers: { bronze: 64, silver: 32, gold: 4, icon: 0 },
     ages: [16, 20], veteranChance: 0
   },
   scout: {
-    key: 'scout', get name() { return t('pack.scout.name'); }, price: 2200, kind: 'draft',
+    key: 'scout', get name() { return t('pack.scout.name'); }, price: 3300, kind: 'draft',
     get desc() { return t('pack.scout.desc'); },
     tiers: { bronze: 30, silver: 52, gold: 16, icon: 2 },
     ages: [18, 26], veteranChance: 0.45
   },
   elite: {
-    key: 'elite', get name() { return t('pack.elite.name'); }, price: 6500, kind: 'draft',
+    key: 'elite', get name() { return t('pack.elite.name'); }, price: 9500, kind: 'draft',
     get desc() { return t('pack.elite.desc'); },
     tiers: { bronze: 0, silver: 0, gold: 92, icon: 8 },
     ages: [18, 27], veteranChance: 0.35
   },
   gear: {
-    key: 'gear', get name() { return t('pack.gear.name'); }, price: 700, kind: 'items',
+    key: 'gear', get name() { return t('pack.gear.name'); }, price: 500, kind: 'items',
     get desc() { return t('pack.gear.desc'); },
-    count: 3
+    count: 4
   }
 };
 

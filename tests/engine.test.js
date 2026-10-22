@@ -105,11 +105,11 @@ test('Neues Spiel: Starter-Pack füllt den Kader, Starspieler-Wahl folgt', () =>
 
 test('Packs: Kauf zieht Münzen ab, Wahl fügt genau einen Spieler hinzu', () => {
   const s = newStartedGame();
-  s.clubs.user.coins = 10000;
+  s.clubs.user.coins = 20000;
   const before = s.clubs.user.playerIds.length;
   const r = buyPack(s, 'scout');
   assert.ok(r.ok);
-  assert.equal(s.clubs.user.coins, 10000 - 2200);
+  assert.equal(s.clubs.user.coins, 20000 - 3300);
   const ids = s.pending.candidates.map(c => c.id);
   pickDraft(s, 2);
   assert.equal(s.clubs.user.playerIds.length, before + 1);
@@ -274,7 +274,8 @@ test('Match: Verletzte tauchen nach ihrer Auswechslung nicht mehr auf', () => {
   assert.ok(checked > 10, `genug Verletzungen geprüft (${checked})`);
 });
 
-import { searchMarket, buyPlayer, getOffers, acceptOffer, willingness, askingPrice } from '../src/engine/market.js';
+import { searchMarket, buyPlayer, listPlayer, processTransferDay, offersFor, acceptOffer, willingness, askingPrice, transferWindow, bidLow } from '../src/engine/market.js';
+import { wageOf, extendContract, yearsLeft } from '../src/engine/contracts.js';
 
 test('Transfermarkt: kaufen, verkaufen, Einmaligkeit bleibt erhalten', () => {
   const s = newStartedGame(55);
@@ -292,12 +293,15 @@ test('Transfermarkt: kaufen, verkaufen, Einmaligkeit bleibt erhalten', () => {
   assert.equal(target.clubId, 'user');
   assert.equal(s.clubs.user.coins, 200000 - price);
   assert.equal(s.clubs[seller].playerIds.length, 21, 'Verkäufer füllt auf');
-  // Verkaufen
+  assert.ok(target.contract && target.contract.wage > 0, 'Neuer Spieler hat einen Vertrag');
+  // Verkaufen: auf die Transferliste, Angebote kommen über die Tage
   const mine = s.clubs.user.playerIds[0];
-  const offers = getOffers(s, mine);
-  assert.ok(offers.length >= 1);
-  assert.deepEqual(getOffers(s, mine), offers, 'Angebote sind am selben Tag stabil');
-  const r2 = acceptOffer(s, mine, offers[0].clubId);
+  assert.ok(listPlayer(s, mine, 'quick').ok);
+  const rng = createRng(3);
+  for (let i = 0; i < 20 && !offersFor(s, mine).length; i++) processTransferDay(rng, s);
+  const offers = offersFor(s, mine);
+  assert.ok(offers.length >= 1, 'Günstig angebotener Spieler bekommt ein Angebot');
+  const r2 = acceptOffer(s, offers[0].id);
   assert.ok(r2.ok, r2.error);
   assert.equal(s.players[mine].clubId, offers[0].clubId);
   assert.equal(s.clubs[offers[0].clubId].playerIds.length, 21);
@@ -542,4 +546,40 @@ test('Geschichten: eine Saison erzeugt Schlagzeilen und Auszeichnungen, alle Tex
     }
   }
   setLang('de');
+});
+
+
+test('Transferfenster: offen bis Spieltag 9, danach kein Kauf', () => {
+  const s = newStartedGame(21);
+  s.clubs.user.coins = 500000;
+  assert.equal(transferWindow(s).open, true);
+  let guard = 0;
+  while (transferWindow(s).open && guard++ < 40) { s.devReport = null; playDay(s); }
+  assert.equal(transferWindow(s).played, 9);
+  const target = searchMarket(s, { onlyWilling: true })[0];
+  assert.ok(buyPlayer(s, target.id).error, 'Kauf bei geschlossenem Fenster abgelehnt');
+  assert.ok(bidLow(s, target.id).error);
+});
+
+test('Verträge: Gehalt steigt nicht automatisch, Verlängerung setzt neues Gehalt', () => {
+  const s = newStartedGame(8);
+  const p = s.players[s.clubs.user.playerIds[0]];
+  const wage = wageOf(p);
+  p.ovr += 8; // Aufwertung
+  assert.equal(wageOf(p), wage, 'Gehalt bleibt bis zur Verlängerung');
+  const res = extendContract(s, p.id, 2);
+  assert.ok(res.ok);
+  assert.ok(wageOf(p) > wage, 'neues Gehalt nach Verlängerung');
+  assert.equal(yearsLeft(s, p), 3);
+});
+
+test('Verträge: Auslaufende Verträge enden zum Saisonende, Kader bleibt spielfähig', () => {
+  const s = newStartedGame(13);
+  for (const id of s.clubs.user.playerIds) s.players[id].contract.until = s.season; // alle laufen aus
+  const before = s.clubs.user.playerIds.length;
+  playSeason(s);
+  assert.ok(s.clubs.user.playerIds.length >= 16, 'mindestens 16 Spieler');
+  assert.ok(s.clubs.user.playerIds.length < before + 4, 'einige haben den Verein verlassen');
+  for (const id of s.clubs.user.playerIds) assert.ok(s.players[id].contract.until >= s.season);
+  for (const c of Object.values(s.clubs)) if (!c.isUser) assert.equal(c.playerIds.length, 21);
 });

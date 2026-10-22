@@ -221,7 +221,7 @@ export function seasonAwards(state, tier) {
   if (awards.scorer) addNews(state, 'award', awards.scorer.clubId === 'user' ? 'news.scorerMine' : 'news.scorer', { name: awards.scorer.name, club: awards.scorer.club, n: awards.scorer.goals }, { playerId: awards.scorer.id });
   if (awards.pots) addNews(state, 'award', awards.pots.clubId === 'user' ? 'news.potsMine' : 'news.pots', { name: awards.pots.name, club: awards.pots.club, ratingD: awards.pots.rating }, { playerId: awards.pots.id });
   const mineInXi = xi.filter(e => e.clubId === 'user');
-  if (mineInXi.length) addNews(state, 'award', 'news.xiMine', { list: mineInXi.map(e => e.name).join(', '), n: mineInXi.length }, { playerId: mineInXi[0].id });
+  if (mineInXi.length) addNews(state, 'award', 'news.xiMine', { list: mineInXi.map(e => e.name).join(', '), n: mineInXi.length }, { playerId: mineInXi[0].id, playerIds: mineInXi.map(e => e.id) });
   return awards;
 }
 

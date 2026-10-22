@@ -21,13 +21,14 @@ import { leagueScreen } from './ui/screens/league.js';
 import { marketScreen } from './ui/screens/market.js';
 import { clubScreen } from './ui/screens/club.js';
 import { inboxSheet, newsSheet, itemsSheet } from './ui/sheets.js';
-import { packFlow } from './ui/flows/pack.js';
+import { severance } from './engine/contracts.js';
+import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
 import { buildMatchday, matchdayFlow } from './ui/flows/matchday.js';
 import { resultFlow, seasonFlow } from './ui/flows/result.js';
 import { devFlow } from './ui/flows/develop.js';
-import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers, offersSheetBody } from './ui/screens/transfers.js';
+import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers, sellSheetBody, contractSheetBody } from './ui/screens/transfers.js';
 import { setTransferRenderers } from './ui/screens/squad.js';
 import { playSound } from './ui/sound.js';
 import { icon } from './ui/icons.js';
@@ -72,7 +73,9 @@ function sheetHtml(game, ui) {
   if (s.type === 'inbox') return inboxSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
-  if (s.type === 'offers') return sheet(t('tm.offersTitle'), offersSheetBody(game, s.id));
+  if (s.type === 'peek') return sheet(t('pf.viewSquad'), squadPeekBody(game, s.pos || []));
+  if (s.type === 'sell') return sheet(t('tm.sellTitle', { name: game.players[s.id]?.last || '' }), sellSheetBody(game, s.id));
+  if (s.type === 'contract') return sheet(t('ct.sheetTitle', { name: game.players[s.id]?.last || '' }), contractSheetBody(game, s.id));
   return '';
 }
 
@@ -308,6 +311,8 @@ const handlers = {
   'open-inbox': () => setUi({ sheet: { type: 'inbox' } }),
   'open-news': d => { act(markRead, d.id); setUi({ sheet: { type: 'news', id: d.id } }); },
   'read-all': () => act(markAllRead),
+  'news-read': d => act(markRead, d.id),
+  'squad-peek': d => setUi({ sheet: { type: 'peek', pos: (d.pos || '').split(',').filter(Boolean) } }),
   'open-player': d => openDetail('player', d.id),
   'open-club': d => openDetail('club', d.id),
   'sheet-back': () => setUi({ sheet: store.ui.sheet?.prev || null }),
@@ -359,7 +364,7 @@ const handlers = {
   'to-bench': d => { act(placePlayer, d.id, { bench: true }); setUi({ sheet: null }); },
   release: d => {
     const p = store.game.players[d.id];
-    askConfirm(t('confirm.release', { name: `${p.first} ${p.last}` }), t('confirm.releaseX'), t('ps.release'), () => {
+    askConfirm(t('confirm.release', { name: `${p.first} ${p.last}` }), t('confirm.releaseX', { n: severance(store.game, p) }), t('ps.release'), () => {
       const res = act(releasePlayer, d.id);
       if (res?.ok) toast(t('toast.left', { name: p.last }));
     });

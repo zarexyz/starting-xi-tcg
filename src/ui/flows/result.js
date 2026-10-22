@@ -11,6 +11,7 @@ import { STYLES } from '../../engine/constants.js';
 import { t } from '../../i18n/index.js';
 import { POS_LABEL, POSITION_GROUP } from '../../engine/constants.js';
 import { segmented } from '../shell.js';
+import { itemCard } from './pack.js';
 import { txt, nf1, ledgerLabel, ffStageText, cupText } from '../text.js';
 
 function cardMark(r, side, id) {
@@ -108,6 +109,12 @@ export function resultFlow(game, flow, ui = {}) {
       ${segmented([['mine', t('rep.mine')], ['opp', t('rep.opp')]], ui.repSide === 'opp' ? 'opp' : 'mine', 'rep-side')}
       <ul class="list panel panel--flush rate-list">${ratingRows(game, r, showSide, snapshot, ratingClub.colors)}</ul>
     </section>
+
+    ${flow.data.reward ? `<section class="section">
+      <div class="section__head"><h2 class="section__title">${t('rep.reward')}</h2></div>
+      ${itemCard(flow.data.reward)}
+      <p class="xsmall muted">${t('rep.rewardX')}</p>
+    </section>` : ''}
 
     ${finance?.length ? `<section class="section">
       <div class="section__head"><h2 class="section__title">${t('rep.cash')}</h2></div>

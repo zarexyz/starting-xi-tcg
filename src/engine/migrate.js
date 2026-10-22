@@ -7,6 +7,7 @@ import { createRng, clamp } from './rng.js';
 import { calcOvr, normalizeTo } from './player.js';
 import { newCoach } from './world.js';
 import { MATCHDAYS } from './constants.js';
+import { ensureAllContracts } from './contracts.js';
 
 /** Fester Zufall aus einer Id, damit die Umrechnung immer gleich ausfällt */
 function hash(str) {
@@ -65,10 +66,20 @@ function v1to2(state) {
   return state;
 }
 
+/** v2 → v3: Verträge mit festem Gehalt, Transferliste und Angebote */
+function v2to3(state) {
+  ensureAllContracts(state);
+  state.user.listings = state.user.listings || {};
+  state.user.offers = state.user.offers || [];
+  state.version = 3;
+  return state;
+}
+
 /** Bringt einen geladenen Spielstand auf die aktuelle Version. Gibt null zurück, wenn das nicht geht. */
 export function migrateSave(state, current) {
   if (!state || typeof state.version !== 'number') return null;
   if (state.version === current) return state;
   if (state.version === 1) v1to2(state);
+  if (state.version === 2) v2to3(state);
   return state.version === current ? state : null;
 }
