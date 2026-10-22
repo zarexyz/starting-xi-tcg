@@ -59,6 +59,7 @@ async def main():
                         await pg.set_viewport_size({'width': 390, 'height': 844})
                         print('prep tab', tabkey, 'Höhe', h)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
+                    await click_js('[data-action=coach-apply]'); await pg.wait_for_timeout(300)  # Co-Trainer-Vorschlag
                     await pg.locator('[data-action=kickoff]').click()
                     for _ in range(500):
                         if await pg.locator('.scene--ht').count(): break

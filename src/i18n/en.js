@@ -1223,4 +1223,11 @@ export const en = {
   "prep.tab.week": "Week",
   "prep.sum.sp": "Corners: {c} · Penalties: {p} · Free kicks: {f}",
   "prep.sum.plan": "Weekly plan: {plan}",
+  "coach.title": "Coach tip",
+  "coach.apply": "Apply",
+  "coach.applied": "Suggestion applied.",
+  "coach.r.tired": "The XI is tired. Suggestion: {plan}.",
+  "coach.r.injured": "Several injured players. Suggestion: {plan}.",
+  "coach.r.young": "Many young players in the XI. Suggestion: {plan}.",
+  "coach.r.default": "A calm week. Suggestion: {plan}.",
 };

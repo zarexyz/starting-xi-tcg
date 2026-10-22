@@ -1197,3 +1197,6 @@ tr[data-action] { cursor: pointer; }
 .fold__body { margin-top: var(--s-3); }
 /* Spielvorbereitung: Co-Trainer-Zeile ohne Erklärtext (spart Höhe, Text steht im Kader-Reiter) */
 .prep .auto-toggle .small { display: none; }
+.coach-tip { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); margin-top: var(--s-2); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); }
+.coach-tip__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.coach-tip .btn:disabled { opacity: 0.5; }

@@ -33,7 +33,7 @@ import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
 import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
-import { setInterview, setSetPiece } from './engine/extras.js';
+import { setInterview, setSetPiece, applyCoachSuggestion } from './engine/extras.js';
 import { ensureClubLife, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
 
 const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); };
@@ -452,6 +452,7 @@ const handlers = {
     act(setPlan, d.value);
   },
   'set-piece': d => { act(setSetPiece, d.role, d.value || null); },
+  'coach-apply': () => { const res = act(applyCoachSuggestion); if (res?.ok) toast(t('coach.applied')); },
   'set-interview': d => { act(setInterview, d.value); },
   'upgrade-academy': () => {
     const res = act(upgradeAcademy);

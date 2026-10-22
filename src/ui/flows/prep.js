@@ -21,7 +21,7 @@ import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
 import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
-import { weatherFor, INTERVIEW_KEYS, interviewAvailable, SP_ROLES, spCandidates } from '../../engine/extras.js';
+import { weatherFor, INTERVIEW_KEYS, interviewAvailable, SP_ROLES, spCandidates, coachSuggestion } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
 
@@ -170,7 +170,15 @@ export function prepFlow(game, ui) {
     </div>
     <p class="xsmall muted">${t('prep.forecastHint')}</p>`;
 
+  const sug = coachSuggestion(game);
+  const sugSame = SP_ROLES.every(r => (setup.setPieces?.[r] || null) === sug.setPieces[r]) && (game.user.plan || 'normal') === sug.plan;
+  const coachRow = `<div class="coach-tip">
+      <div class="coach-tip__text"><b>${t('coach.title')}</b><span class="xsmall muted">${t(sug.reasons[0], { plan: t('plan.' + sug.plan) })}</span></div>
+      <button class="btn btn--sm btn--secondary" data-action="coach-apply" ${sugSame ? 'disabled' : ''}>${t('coach.apply')}</button>
+    </div>`;
+
   const tacticsTab = `
+    ${coachRow}
     <section class="section">
       <div class="section__head"><h2 class="section__title">${t('prep.style')}</h2></div>
       <div class="style-grid">${styleTiles}</div>

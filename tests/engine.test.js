@@ -778,3 +778,21 @@ test('Halbzeit: „alles nach vorn“ bringt im Schnitt mehr Tore als „Ergebni
   }
   assert.ok(open > hold * 1.2, `offen ${open}, halten ${hold}`);
 });
+
+import { coachSuggestion, applyCoachSuggestion, spScore } from '../src/engine/extras.js';
+test('Co-Trainer: müde Elf -> Fitness, Stil bleibt, zweites Übernehmen ändert nichts', () => {
+  const s = newStartedGame(11); s.pending = null; ensureSetupOf(s);
+  const setup = s.user.setup;
+  for (const id of Object.values(setup.lineup)) s.players[id].condition = 60;
+  const style = setup.style, formation = setup.formation;
+  assert.equal(coachSuggestion(s).plan, 'fitness');
+  const best = Object.values(setup.lineup).map(id => s.players[id]).filter(p => p.position !== 'TW')
+    .sort((a, b) => spScore('pen', b) - spScore('pen', a))[0];
+  assert.equal(coachSuggestion(s).setPieces.pen, best.id);
+  assert.equal(applyCoachSuggestion(s).ok, true);
+  assert.equal(setup.style, style); assert.equal(setup.formation, formation);
+  assert.equal(s.user.plan, 'fitness'); assert.equal(setup.setPieces.pen, best.id);
+  const snap = JSON.stringify([setup.setPieces, s.user.plan]);
+  applyCoachSuggestion(s);
+  assert.equal(JSON.stringify([setup.setPieces, s.user.plan]), snap);
+});
