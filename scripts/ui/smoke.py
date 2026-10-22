@@ -50,7 +50,15 @@ async def main():
             if await pg.locator('[data-action=open-prep]').count() and not await pg.locator('.fullscreen').count():
                 await pg.locator('[data-action=open-prep]').click(); await pg.wait_for_timeout(250)
                 if not live_done:
-                    await shot('02_prep', True)
+                    # Reiter der Spielvorbereitung: Gegner, Taktik, Woche (je ein Screenshot in voller Länge)
+                    for tabkey, name in [('opp', '02a_opp'), ('tactics', '02b_tactics'), ('week', '02c_week')]:
+                        await click_js(f'[data-action=prep-tab][data-value={tabkey}]'); await pg.wait_for_timeout(250)
+                        h = await pg.evaluate("document.querySelector('.fullscreen > .screen').scrollHeight")
+                        # Vollbild-Ablauf scrollt in sich: Viewport auf Inhaltshöhe ziehen, dann fotografieren
+                        await pg.set_viewport_size({'width': 390, 'height': max(844, h)}); await shot(name)
+                        await pg.set_viewport_size({'width': 390, 'height': 844})
+                        print('prep tab', tabkey, 'Höhe', h)
+                    await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await pg.locator('[data-action=kickoff]').click()
                     for _ in range(500):
                         if await pg.locator('.scene--ht').count(): break

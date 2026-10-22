@@ -1162,3 +1162,38 @@ tr[data-action] { cursor: pointer; }
 .ht__sub select { min-height: 40px; width: 100%; border-radius: var(--r-md); border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.08); color: #fff; padding: 0 8px; font: inherit; font-size: var(--t-sm); }
 .ht__sub select option { color: #111; }
 .ht__sub svg { width: 16px; height: 16px; }
+
+/* Spielvorbereitung: feste Kopfzeile, Reiter, einklappbare Bereiche */
+.prep__top {
+  position: sticky; top: calc(-1 * (var(--safe-t) + var(--s-3))); z-index: 5;
+  margin: calc(-1 * (var(--safe-t) + var(--s-3))) calc(-1 * var(--s-4)) var(--s-3);
+  padding: calc(var(--safe-t) + var(--s-3)) var(--s-4) var(--s-2);
+  background: var(--chalk);
+  border-bottom: 1px solid var(--line);
+  display: grid; gap: var(--s-2);
+}
+.prep__top .prep__head { margin-bottom: 0; }
+.scout--mini { gap: var(--s-2); cursor: pointer; }
+.scout--mini .scout__body { gap: 0; flex: 1; min-width: 0; }
+.scout__name { font-family: var(--font-display); font-weight: 800; font-size: var(--t-md, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scout__wx { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-xs); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.scout__wx svg { width: 16px; height: 16px; color: var(--pitch); }
+.scout__form { margin-top: -2px; }
+.prob--slim { height: 30px; }
+.prob--slim > span { min-width: 40px; }
+.prob--slim b { font-size: var(--t-sm); }
+.prep__tabs button { position: relative; flex: 1; }
+.tabdot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--floodlight, #f5b301); box-shadow: 0 0 0 2px var(--chalk-2); }
+.style-tile--compact { padding: var(--s-2) var(--s-3); gap: 2px; }
+.style-tile--compact:first-child { grid-column: auto; }
+.style-tile--compact.is-active { grid-column: 1 / -1; }
+.style-tile--compact { min-height: 44px; justify-content: center; }
+.style-tile--compact b { font-size: var(--t-md, 1rem); }
+.fold { padding: 0; }
+.fold__head { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 52px; padding: var(--s-2) var(--s-3); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); text-align: left; cursor: pointer; font: inherit; color: var(--ink); }
+.fold__head svg { width: 20px; height: 20px; flex: none; color: var(--ink-3); }
+.fold__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.fold__text .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold__body { margin-top: var(--s-3); }
+/* Spielvorbereitung: Co-Trainer-Zeile ohne Erklärtext (spart Höhe, Text steht im Kader-Reiter) */
+.prep .auto-toggle .small { display: none; }

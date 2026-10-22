@@ -1218,4 +1218,9 @@ export const en = {
   "ht.go": "Start second half",
   "set.halftime": "Half-time decision",
   "set.halftimeHint": "Change style, instruction and subs at the break",
+  "prep.tab.opp": "Opponent",
+  "prep.tab.tactics": "Tactics",
+  "prep.tab.week": "Week",
+  "prep.sum.sp": "Corners: {c} · Penalties: {p} · Free kicks: {f}",
+  "prep.sum.plan": "Weekly plan: {plan}",
 };

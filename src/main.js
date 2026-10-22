@@ -124,7 +124,7 @@ function sheetHtml(game, ui) {
 
 function flowHtml(game, ui) {
   const f = ui.flow;
-  if (f?.type === 'prep') return prepFlow(game, ui);
+  if (f?.type === 'prep') return prepFlow(game, { ...ui, prepTab: store.settings.prepTab });
   if (f?.type === 'match') return matchFlow(game, f);
   if (f?.type === 'result') return resultFlow(game, f, ui);
   if (f?.type === 'matchday') return matchdayFlow(game, f);
@@ -178,7 +178,7 @@ function render() {
   const sh = document.querySelector('.sheet');
   if (sh && sheetScroll) sh.scrollTop = sheetScroll;
   const fl = document.querySelector('.fullscreen > .screen');
-  const flowKey = ui.flow ? ui.flow.type : game?.seasonSummary ? 'season' : game?.devReport ? 'dev' : null;
+  const flowKey = ui.flow ? ui.flow.type + (ui.flow.type === 'prep' ? ':' + (store.settings.prepTab || '') : '') : game?.seasonSummary ? 'season' : game?.devReport ? 'dev' : null;
   if (fl && flowScroll && flowKey && flowKey === lastFlowKey) fl.scrollTop = flowScroll;
   lastFlowKey = flowKey;
 
@@ -531,6 +531,8 @@ const handlers = {
 
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
+  'prep-tab': d => { updateSettings({ prepTab: d.value }); },
+  'prep-fold': d => setUi({ prepOpen: { ...(store.ui.prepOpen || {}), [d.value]: !store.ui.prepOpen?.[d.value] } }),
   'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
   'toggle-halftime': () => updateSettings({ halftime: store.settings.halftime === false }),
   'set-speed': d => updateSettings({ speed: d.value }),

@@ -23,9 +23,10 @@ import { ATTR_NAMES } from '../../engine/constants.js';
 import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
 import { weatherFor, INTERVIEW_KEYS, interviewAvailable, SP_ROLES, spCandidates } from '../../engine/extras.js';
 import { fmt } from '../html.js';
+import { CONSUMABLES } from '../../engine/packs.js';
 
 /** Training der Woche: ein Schwerpunkt mit Vor- und Nachteil */
-function planSection(game) {
+function planBody(game) {
   const cur = game.user.plan || 'normal';
   const tiles = PLAN_KEYS.map(key => {
     const cost = planCost(game, key);
@@ -35,11 +36,8 @@ function planSection(game) {
       <span class="small">${t(`plan.${key}.d`, { n: fmt(cost) })}</span>
     </button>`;
   }).join('');
-  return `<section class="section">
-    <div class="section__head"><h2 class="section__title">${t('plan.title')}</h2></div>
-    <div class="style-grid plan-grid">${tiles}</div>
-    <p class="xsmall muted">${t('plan.hint')}</p>
-  </section>`;
+  return `<div class="style-grid plan-grid">${tiles}</div>
+    <p class="xsmall muted">${t('plan.hint')}</p>`;
 }
 
 /** Verbrauchskarten vor dem Anpfiff: aktive Effekte und einsetzbare Karten */
@@ -73,7 +71,7 @@ function interviewSection(game, entry) {
   </section>`;
 }
 
-function setPieceSection(game, setup) {
+function setPieceBody(game, setup) {
   const rows = SP_ROLES.map(role => {
     const cur = setup.setPieces?.[role] || null;
     const chips = [`<button class="chip chip--btn ${cur ? '' : 'is-active'}" data-action="set-piece" data-role="${role}" data-value="" aria-pressed="${!cur}">${t('sp.auto')}</button>`]
@@ -81,11 +79,8 @@ function setPieceSection(game, setup) {
         `<button class="chip chip--btn ${cur === p.id ? 'is-active' : ''}" data-action="set-piece" data-role="${role}" data-value="${p.id}" aria-pressed="${cur === p.id}">${esc(p.last)}</button>`));
     return `<div class="sp-row"><div class="small"><b>${t('sp.' + role)}</b></div><div class="chips">${chips.join('')}</div></div>`;
   }).join('');
-  return `<section class="section">
-    <div class="section__head"><h2 class="section__title">${t('sp.title')}</h2></div>
-    ${rows}
-    <p class="xsmall muted">${t('sp.hint')}</p>
-  </section>`;
+  return `${rows}
+    <p class="xsmall muted">${t('sp.hint')}</p>`;
 }
 
 function warnings(game, setup) {
@@ -112,6 +107,20 @@ function warnings(game, setup) {
   return list;
 }
 
+/** Eingeklappte Zeile mit aktueller Wahl; Tippen klappt den Bereich auf */
+function fold(ui, key, title, summary, body) {
+  const open = !!ui.prepOpen?.[key];
+  return `<section class="section fold ${open ? 'is-open' : ''}">
+    <button class="fold__head" data-action="prep-fold" data-value="${key}" aria-expanded="${open}">
+      <span class="fold__text"><b>${title}</b><span class="small muted">${summary}</span></span>
+      ${icon(open ? 'chevronUp' : 'chevronDown')}
+    </button>
+    ${open ? `<div class="fold__body">${body}</div>` : ''}
+  </section>`;
+}
+
+/** Erster Satz einer Stilbeschreibung (kompakte Kachel) */
+
 export function prepFlow(game, ui) {
   const day = currentDay(game);
   const entry = userMatch(game, day);
@@ -129,31 +138,29 @@ export function prepFlow(game, ui) {
   const oppLines = buildTeam(game, oppId, expectedOpponentSetup(game, oppId)).lines;
   const wx = weatherFor(game.seed, game.dayIndex);
   const weakest = ['def', 'mid', 'att'].sort((a, b) => oppLines[a] - oppLines[b])[0];
+  const tab = ['opp', 'tactics', 'week'].includes(ui.prepTab) ? ui.prepTab : 'tactics';
+
+  // Hinweis-Punkte an den Reitern
+  const dotTactics = warn.some(w => w.tone === 'warn');
+  const unusedItem = game.user.inventory.some(i => CONSUMABLES[i.type]?.target === 'match' &&
+    !(i.type === 'TACTIC' && game.user.matchBoost) && !(i.type === 'SCOUT' && game.user.scout?.oppId === oppId));
+  const dotWeek = (interviewAvailable(game, entry) && !game.user.interview) || unusedItem;
+  const tabBtn = (key, dot) => `<button data-action="prep-tab" data-value="${key}" aria-pressed="${tab === key}">${t('prep.tab.' + key)}${dot ? '<i class="tabdot" aria-hidden="true"></i>' : ''}</button>`;
 
   const styleTiles = STYLE_KEYS.map(key => {
     const st = STYLES[key];
-    return `<button class="style-tile ${setup.style === key ? 'is-active' : ''}" data-action="set-style" data-value="${key}" aria-pressed="${setup.style === key}">
+    const on = setup.style === key;
+    return `<button class="style-tile style-tile--compact ${on ? 'is-active' : ''}" data-action="set-style" data-value="${key}" aria-pressed="${on}" title="${esc(st.desc)}">
       <b>${st.name}</b>
-      <span class="small">${st.desc}</span>
+      ${on ? `<span class="small">${esc(st.desc)}</span>` : ''}
     </button>`;
   }).join('');
 
-  return `<div class="fullscreen"><main class="screen prep">
-    <header class="prep__head">
-      <button class="icon-btn" data-action="close-flow" aria-label="${t('w.back')}">${icon('chevronLeft')}</button>
-      <div><div class="h3">${t('prep.title')}</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? t('w.home') : t('w.away')}</div></div>
-      ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
-    </header>
+  const spName = role => { const id = setup.setPieces?.[role]; const p = id && game.players[id]; return p ? esc(p.last) : t('sp.auto'); };
+  const spSummary = t('prep.sum.sp', { c: spName('corner'), p: spName('pen'), f: spName('fk') });
+  const planSummary = t('prep.sum.plan', { plan: t('plan.' + (game.user.plan || 'normal')) });
 
-    <section class="scout" data-action="open-club" data-id="${opp.id}" role="button">
-      ${crestSvg(opp, 56)}
-      <div class="scout__body">
-        <div class="h3">${esc(opp.name)}</div>
-        <div class="small muted">${LEAGUE_INFO[opp.tier].short}${oppRow ? `, ${t('prep.place', { pos: oppRow.pos })}` : ''}, ${t('w.rating')} ${clubStrength(game, oppId)}</div>
-        ${oppRow ? formHtml(oppRow.form) : ''}
-      </div>
-      ${icon('chevronRight', 'row__chev')}
-    </section>
+  const oppTab = `
     <div class="scout__report">
       <div class="scout__line">${icon('strategy')}<span>${opp.coach ? t('prep.coach', { coach: `<b>${esc(opp.coach.name)}</b>`, style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` }) : t('prep.noCoach', { style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` })}</span></div>
       <div class="scout__line">${icon('target')}<span>${t('prep.weakest', { line: `<b>${t('prep.line.' + weakest)}</b>` })}</span></div>
@@ -161,7 +168,9 @@ export function prepFlow(game, ui) {
       ${game.user.scout?.oppId === oppId ? `<div class="scout__line">${icon('target')}<span>${t('prep.scouted', { club: `<b>${esc(opp.name)}</b>`, style: `<b>${STYLES[game.user.scout.style].name}</b>` })}</span></div>` : ''}
       ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
+    <p class="xsmall muted">${t('prep.forecastHint')}</p>`;
 
+  const tacticsTab = `
     <section class="section">
       <div class="section__head"><h2 class="section__title">${t('prep.style')}</h2></div>
       <div class="style-grid">${styleTiles}</div>
@@ -176,26 +185,41 @@ export function prepFlow(game, ui) {
       </div>
       <p class="hint small">${t('prep.swapHint')}</p>
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
-      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
+      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : ''}
     </section>
 
-    ${setPieceSection(game, setup)}
+    ${fold(ui, 'sp', t('sp.title'), spSummary, setPieceBody(game, setup))}`;
 
+  const weekTab = `
     ${interviewSection(game, entry)}
+    ${fold(ui, 'plan', t('plan.title'), planSummary, planBody(game))}
+    ${consumablesSection(game)}`;
 
-    ${planSection(game)}
-
-    ${consumablesSection(game)}
-
-    <section class="section prognosis">
-      <div class="section__head"><h2 class="section__title">${t('prep.forecast')}</h2><span class="small muted">${t('prep.withPlan')}</span></div>
-      <div class="prob">
-        <span class="prob__w" style="flex:${pred.win || 1}"><b>${pred.win} %</b>${t('prep.win')}</span>
-        <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b>${t('cp.draws')}</span>
-        <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b>${t('prep.loss')}</span>
+  return `<div class="fullscreen"><main class="screen prep">
+    <div class="prep__top">
+      <header class="prep__head">
+        <button class="icon-btn" data-action="close-flow" aria-label="${t('w.back')}">${icon('chevronLeft')}</button>
+        <div><div class="h3">${t('prep.title')}</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? t('w.home') : t('w.away')}</div></div>
+        ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
+      </header>
+      <section class="scout scout--mini" data-action="open-club" data-id="${opp.id}" role="button">
+        ${crestSvg(opp, 36)}
+        <div class="scout__body">
+          <div class="scout__name">${esc(opp.name)}</div>
+          <div class="small muted">${LEAGUE_INFO[opp.tier].short}${oppRow ? `, ${t('prep.place', { pos: oppRow.pos })}` : ''}, ${t('w.rating')} ${clubStrength(game, oppId)}</div>
+        </div>
+        <span class="scout__wx" title="${esc(t('weather.' + wx + '.d'))}">${icon('sun')}${t('weather.' + wx)}</span>
+      </section>
+      ${oppRow ? `<div class="scout__form">${formHtml(oppRow.form)}</div>` : ''}
+      <div class="prob prob--slim" aria-label="${t('prep.forecast')}">
+        <span class="prob__w" style="flex:${pred.win || 1}"><b>${pred.win} %</b></span>
+        <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b></span>
+        <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b></span>
       </div>
-      <p class="xsmall muted">${t('prep.forecastHint')}</p>
-    </section>
+      <div class="segmented prep__tabs">${tabBtn('opp', false)}${tabBtn('tactics', dotTactics)}${tabBtn('week', dotWeek)}</div>
+    </div>
+
+    ${tab === 'opp' ? oppTab : tab === 'tactics' ? tacticsTab : weekTab}
 
     <div class="prep__cta">
       ${ui.selected ? selectionBar(game, ui.selected) : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}${t('prep.kickoff')}</button>

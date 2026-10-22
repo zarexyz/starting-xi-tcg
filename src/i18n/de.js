@@ -1225,4 +1225,9 @@ export const de = {
   "ht.go": "Anpfiff 2. Halbzeit",
   "set.halftime": "Halbzeit-Entscheidung",
   "set.halftimeHint": "Zur Pause Stil, Ansage und Wechsel ändern",
+  "prep.tab.opp": "Gegner",
+  "prep.tab.tactics": "Taktik",
+  "prep.tab.week": "Woche",
+  "prep.sum.sp": "Ecken: {c} · Elfmeter: {p} · Freistoß: {f}",
+  "prep.sum.plan": "Wochenplan: {plan}",
 };

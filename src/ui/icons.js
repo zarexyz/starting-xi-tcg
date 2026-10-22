@@ -15,6 +15,7 @@ const P = {
   chevronRight: '<path d="m9 5 7 7-7 7"/>',
   chevronLeft: '<path d="m15 5-7 7 7 7"/>',
   chevronDown: '<path d="m5 9 7 7 7-7"/>',
+  chevronUp: '<path d="m5 15 7-7 7 7"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   share: '<path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7"/>',
   upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
