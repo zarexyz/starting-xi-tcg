@@ -1,7 +1,7 @@
-import { createRng } from '../src/engine/rng.js';
-import { createWorld, clubStrength } from '../src/engine/world.js';
-import { aiSetup } from '../src/engine/ai.js';
-import { buildTeam, simulateMatch } from '../src/engine/match.js';
+import { createRng } from '../../src/engine/rng.js';
+import { createWorld, clubStrength } from '../../src/engine/world.js';
+import { aiSetup } from '../../src/engine/ai.js';
+import { buildTeam, simulateMatch } from '../../src/engine/match.js';
 const rng = createRng(42);
 const state = { rng: 1, nextId: 1 };
 createWorld(rng, state, { name: 'Test FC', primary: '#000', secondary: '#fff' });
