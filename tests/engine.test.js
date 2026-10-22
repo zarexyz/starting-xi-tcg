@@ -824,3 +824,20 @@ test('Spielbericht: Wetter, Standardtore, Obergrenze 6, keine doppelten Gründe'
   }
   assert.ok(seenWeather, 'Wetter'); assert.ok(seenSp, 'Standard');
 });
+
+import { interviewAvailable, setInterview, resolveInterview } from '../src/engine/extras.js';
+test('Pressekonferenz: Pause von 3 Spieltagen, PROVOKE wirkt, News entsteht', () => {
+  const s = newStartedGame(13); s.pending = null; ensureSetupOf(s); ensureClubLife(s);
+  const entry = { comp: 'cup', m: { home: 'user', away: Object.keys(s.clubs).find(c => c !== 'user') } };
+  assert.equal(interviewAvailable(s, entry), true);
+  const fans0 = s.user.mood.fans;
+  assert.equal(setInterview(s, 'PROVOKE').ok, true);
+  assert.ok(s.user.mood.fans > fans0);
+  assert.equal(interviewAvailable(s, entry), true);   // offene Antwort bleibt sichtbar
+  const news0 = s.inbox.length;
+  resolveInterview(s, 'W');
+  assert.equal(s.inbox.length, news0 + 1);
+  assert.equal(interviewAvailable(s, entry), false);
+  s.dayIndex += 2; assert.equal(interviewAvailable(s, entry), false);
+  s.dayIndex += 1; assert.equal(interviewAvailable(s, entry), true);
+});

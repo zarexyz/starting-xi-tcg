@@ -5,6 +5,7 @@
 import { createRng } from './rng.js';
 import { clubPlayers, clubStrength, rivalry } from './world.js';
 import { setPlan, planCost } from './clublife.js';
+import { addNews } from './game.js';
 
 export const WEATHERS = ['CLEAR', 'RAIN', 'WIND', 'HOT'];
 
@@ -22,10 +23,14 @@ const WEATHER_MID = {
 export const weatherMid = (style, weather) => WEATHER_MID[weather]?.[style] || 0;
 
 // Pressekonferenz --------------------------------------------------------------
-export const INTERVIEW_KEYS = ['BOLD', 'CALM', 'FANS'];
+export const INTERVIEW_KEYS = ['BOLD', 'CALM', 'FANS', 'PROVOKE'];
+export const INTERVIEW_GAP = 3;  // frühestens alle 3 Spieltage
 
 export function interviewAvailable(state, entry) {
   if (!entry) return false;
+  const u = state.user;
+  // Nach einer Antwort drei Spieltage Pause (die aktuelle, noch offene Antwort bleibt sichtbar)
+  if (!u.interview && u.lastInterviewDay != null && u.lastInterviewSeason === state.season && state.dayIndex - u.lastInterviewDay < INTERVIEW_GAP) return false;
   const opp = entry.m.home === 'user' ? entry.m.away : entry.m.home;
   return entry.comp !== 'league' ||
     rivalry(state.clubs.user, state.clubs[opp]) === 'derby' ||
@@ -36,9 +41,12 @@ export function setInterview(state, key) {
   if (!INTERVIEW_KEYS.includes(key)) return { ok: false, code: 'bad' };
   if (state.user.interview) return { ok: false, code: 'done' };
   state.user.interview = { key, day: state.dayIndex };
+  state.user.lastInterviewDay = state.dayIndex;
+  state.user.lastInterviewSeason = state.season;
   const squad = clubPlayers(state, 'user');
   if (key === 'BOLD') squad.forEach(p => { p.morale = Math.min(100, p.morale + 4); });
   if (key === 'FANS' && state.user.mood) state.user.mood.fans = Math.min(100, state.user.mood.fans + 2);
+  if (key === 'PROVOKE' && state.user.mood) state.user.mood.fans = Math.min(100, state.user.mood.fans + 3);
   return { ok: true };
 }
 
@@ -57,7 +65,11 @@ export function resolveInterview(state, outcome) {
     if (outcome === 'W') m.board = c(m.board + 1);
   } else if (iv.key === 'FANS') {
     if (outcome === 'W') squad.forEach(p => { p.morale = Math.min(100, p.morale + 3); });
+  } else if (iv.key === 'PROVOKE') {
+    if (outcome === 'W') { m.fans = c(m.fans + 3); squad.forEach(p => { p.morale = Math.min(100, p.morale + 2); }); }
+    else if (outcome === 'L') m.fans = c(m.fans - 4);
   }
+  addNews(state, 'board', 'news.iv', { answerK: `iv.${iv.key}`, outcomeK: `iv.out.${outcome}` });
   return `news.iv.${iv.key}.${outcome}`;
 }
 

@@ -525,7 +525,10 @@ function setupFor(rng, state, clubId, vsUser = false) {
     const setup = ensureUserSetup(state);
     return { ...setup, boosts: userBoosts(state) };
   }
-  return aiSetup(rng, state, clubId, vsUser ? state.user.styleHist || [] : null);
+  const ai = aiSetup(rng, state, clubId, vsUser ? state.user.styleHist || [] : null);
+  // Pressekonferenz „Gegner provozieren“: der Gegner geht motiviert ins Spiel
+  if (vsUser && state.user.interview?.key === 'PROVOKE') ai.boosts = { ...ai.boosts, mid: (ai.boosts?.mid || 0) + 1 };
+  return ai;
 }
 
 function applyMatchEffects(rng, state, result, side, team, played) {
