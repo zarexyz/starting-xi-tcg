@@ -1237,4 +1237,6 @@ export const de = {
   "coach.r.injured": "Mehrere Verletzte. Vorschlag: {plan}.",
   "coach.r.young": "Viele junge Spieler in der Elf. Vorschlag: {plan}.",
   "coach.r.default": "Ruhige Woche. Vorschlag: {plan}.",
+  "plan.setpieces": "Standards",
+  "plan.setpieces.d": "Standards üben: Ecken, Freistöße und Elfmeter gelingen etwas besser. Nachteil: −3 Kondition.",
 };

@@ -796,3 +796,11 @@ test('Co-Trainer: müde Elf -> Fitness, Stil bleibt, zweites Übernehmen ändert
   applyCoachSuggestion(s);
   assert.equal(JSON.stringify([setup.setPieces, s.user.plan]), snap);
 });
+
+test('Wochenplan Standards: gültig, userBoosts.sp = 1', () => {
+  const s = newStartedGame(5); s.pending = null; ensureSetupOf(s);
+  assert.equal(setPlan(s, 'setpieces').ok, true);
+  assert.equal(userBoosts(s).sp, 1);
+  setPlan(s, 'normal');
+  assert.equal(userBoosts(s).sp || 0, 0);
+});

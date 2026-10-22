@@ -48,6 +48,21 @@ const team = (style, extra = {}) => buildTeam(g, clubId, { formation: f, style, 
   check('Eckentore pro Spiel', corner / n, 0.15, 0.4);
 }
 
+// 1b) Wochenplan „Standards“: Standardtore mit und ohne Bonus -----------------------
+{
+  const n = Math.round(4000 * N);
+  const count = boosts => {
+    const rng = createRng(21);  // gleicher Zufall: nur der Bonus unterscheidet
+    let sp = 0;
+    for (let i = 0; i < n; i++) {
+      const r = simulateMatch(rng, team('AUSGEWOGEN', { boosts }), team('AUSGEWOGEN'), { neutral: true });
+      for (const x of r.goals) if (x.side === 'home' && x.kind !== 'play') sp++;
+    }
+    return sp;
+  };
+  check('Standardtore mit Plan / ohne Plan (Faktor)', count({ sp: 1 }) / count({}), fast ? 1.05 : 1.1, fast ? 1.45 : 1.35);
+}
+
 // 2) Spielstile: Kreis und Gesamtbilanz ----------------------------------------
 {
   const rng = createRng(3);

@@ -1230,4 +1230,6 @@ export const en = {
   "coach.r.injured": "Several injured players. Suggestion: {plan}.",
   "coach.r.young": "Many young players in the XI. Suggestion: {plan}.",
   "coach.r.default": "A calm week. Suggestion: {plan}.",
+  "plan.setpieces": "Set pieces",
+  "plan.setpieces.d": "Practise set pieces: corners, free kicks and penalties work a little better. Downside: −3 condition.",
 };

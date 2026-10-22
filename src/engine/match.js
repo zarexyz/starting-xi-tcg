@@ -71,7 +71,8 @@ export function buildTeam(state, clubId, setup) {
     defensePower: def * 0.7 + mid * 0.3 + style.defBonus + (boosts.def || 0),
     keeper: slots.find(s => s.group === 'GK'),
     mental: slots.reduce((s, x) => s + (x.player ? attrOf(x.player, 'men') : 30), 0) / 11,
-    avgCondition: slots.reduce((s, x) => s + (x.player?.condition ?? 0), 0) / 11
+    avgCondition: slots.reduce((s, x) => s + (x.player?.condition ?? 0), 0) / 11,
+    spBoost: boosts.sp || 0
   };
 }
 
@@ -335,13 +336,15 @@ export function simulateMatch(rng, home, away, opts = {}) {
     const keep = keeper?.rating ?? 30;
     let p2 = clamp(0.3 * hp.style.qualityMult * Math.exp((finish - keep) / 40), 0.06, 0.62);
 
-    if (kind === 'corner' && assister) p1 = clamp(p1 + (attrOf(assister.player, 'pas') - 50) / 400, 0.12, 0.88);
+    const spb = side.team.spBoost || 0;  // Wochenplan „Standards“: keine neue Zufallsziehung
+    if (kind === 'corner' && assister) p1 = clamp(p1 + (attrOf(assister.player, 'pas') - 50) / 400 + 0.06 * spb, 0.12, 0.88);
+    else if (kind === 'corner') p1 = clamp(p1 + 0.06 * spb, 0.12, 0.88);
     if (kind === 'pen') {
       p1 = 1;
-      p2 = clamp(0.74 + (finish - keep) / 180 + (attrOf(sp, 'men') - 55) / 300, 0.55, 0.92);
+      p2 = clamp(0.74 + (finish - keep) / 180 + (attrOf(sp, 'men') - 55) / 300 + 0.03 * spb, 0.55, 0.95);
     } else if (kind === 'fk') {
       p1 = clamp(p1 * 0.7, 0.1, 0.7);
-      p2 = clamp(0.22 * Math.exp((attrOf(sp, 'sch') * 0.6 + attrOf(sp, 'pas') * 0.4 - keep) / 40), 0.05, 0.5);
+      p2 = clamp(0.22 * Math.exp((attrOf(sp, 'sch') * 0.6 + attrOf(sp, 'pas') * 0.4 - keep) / 40) * (spb ? 1 + 0.15 * spb : 1), 0.05, 0.5);
     }
     const broke = r.chance(p1);
     const scored = broke && r.chance(p2);

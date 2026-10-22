@@ -106,6 +106,7 @@ export function userBoosts(state) {
   const base = { ...(state.user.matchBoost || {}) };
   const add = (k, v) => { base[k] = (base[k] || 0) + v; };
   if (state.user.plan === 'tactics') { add('mid', 2); add('att', 1); add('def', 1); }
+  if (state.user.plan === 'setpieces') add('sp', 1);
   const tb = ((state.user.mood ? teamMood(state) : 60) - 60) / 100 * 2;
   add('mid', tb); add('att', tb); add('def', tb);
   return base;
@@ -215,7 +216,7 @@ export function closeSeasonLife(state, tier, pos) {
 // Wochenplan Training
 // -----------------------------------------------------------------------------
 
-export const PLAN_KEYS = ['normal', 'fitness', 'tactics', 'youth', 'recovery'];
+export const PLAN_KEYS = ['normal', 'fitness', 'tactics', 'setpieces', 'youth', 'recovery'];
 
 export function planCost(state, key) {
   return key === 'recovery' ? Math.round(TIER_INCOME[state.clubs.user.tier] * 0.12 / 10) * 10 : 0;
@@ -237,7 +238,7 @@ export function applyPlanStart(state) {
   const squad = clubPlayers(state, 'user');
   if (plan === 'fitness') squad.forEach(p => { p.condition = Math.min(100, p.condition + 8); });
   if (plan === 'tactics') squad.forEach(p => { p.condition = Math.max(30, p.condition - 4); });
-  if (plan === 'youth') squad.forEach(p => { p.condition = Math.max(30, p.condition - 3); });
+  if (plan === 'youth' || plan === 'setpieces') squad.forEach(p => { p.condition = Math.max(30, p.condition - 3); });
   if (plan === 'recovery') {
     const cost = planCost(state, 'recovery');
     ledger(state, 'ledger.planRecovery', -cost, {});
