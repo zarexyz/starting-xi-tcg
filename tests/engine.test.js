@@ -6,7 +6,7 @@ import { createRng } from '../src/engine/rng.js';
 import { createWorld, clubStrength } from '../src/engine/world.js';
 import { roundRobin } from '../src/engine/schedule.js';
 import { buildTeam, simulateMatch } from '../src/engine/match.js';
-import { bestLineup } from '../src/engine/ai.js';
+import { bestLineup, aiSetup } from '../src/engine/ai.js';
 import { createPlayer, developPlayer, trainPlayer, trainAttribute, calcOvr } from '../src/engine/player.js';
 import { migrateSave } from '../src/engine/migrate.js';
 import { ATTRS } from '../src/engine/constants.js';
@@ -803,4 +803,24 @@ test('Wochenplan Standards: gültig, userBoosts.sp = 1', () => {
   assert.equal(userBoosts(s).sp, 1);
   setPlan(s, 'normal');
   assert.equal(userBoosts(s).sp || 0, 0);
+});
+
+import { analyzeMatch } from '../src/engine/match.js';
+test('Spielbericht: Wetter, Standardtore, Obergrenze 6, keine doppelten Gründe', () => {
+  const s = newStartedGame(9); s.pending = null; ensureSetupOf(s);
+  const rng = createRng(77);
+  const mk = style => buildTeam(s, 'user', { ...s.user.setup, style });
+  let seenWeather = false, seenSp = false;
+  for (let n = 0; n < 60; n++) {
+    const opp = Object.keys(s.clubs).find(c => c !== 'user');
+    const r = simulateMatch(rng, mk('BALLBESITZ'), buildTeam(s, opp, aiSetup(rng, s, opp)), { weather: 'RAIN' });
+    for (const side of ['home', 'away']) {
+      const a = analyzeMatch(s, r, side);
+      assert.ok(a.length <= 6);
+      const ks = a.map(x => x.k); assert.equal(new Set(ks).size, ks.length);
+      if (side === 'home' && ks.includes('why.weatherMinus')) seenWeather = true;
+      if (ks.some(k => k.startsWith('why.setPieceGoals'))) seenSp = true;
+    }
+  }
+  assert.ok(seenWeather, 'Wetter'); assert.ok(seenSp, 'Standard');
 });

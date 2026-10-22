@@ -54,7 +54,7 @@ function ratingRows(game, r, side, snapshot, colors) {
 }
 
 export function resultFlow(game, flow, ui = {}) {
-  const { result: r, side, outcome, label, analysis, finance, snapshot } = flow.data;
+  const { result: r, side, outcome, label, analysis, finance, snapshot, interview } = flow.data;
   const home = game.clubs[r.homeId];
   const away = game.clubs[r.awayId];
   const title = outcome === 'W' ? t('rep.win') : outcome === 'L' ? t('rep.loss') : t('rep.draw');
@@ -90,7 +90,7 @@ export function resultFlow(game, flow, ui = {}) {
       <div class="section__head"><h2 class="section__title">${t('rep.why')}</h2></div>
       <ul class="reasons">${analysis.map(a => `<li class="reason reason--${a.impact > 0 ? 'plus' : a.impact < 0 ? 'minus' : 'neutral'}">
         <span class="reason__icon">${icon(a.impact > 0 ? 'up' : a.impact < 0 ? 'down' : 'strategy')}</span><span>${esc(txt(a))}</span>
-      </li>`).join('')}</ul>
+      </li>`).join('')}${interview ? `<li class="reason reason--neutral"><span class="reason__icon">${icon('megaphone')}</span><span>${t('why.iv.' + interview)}</span></li>` : ''}</ul>
       <p class="xsmall muted">${t('rep.styles', { a: STYLES[r.styles[0]].name, b: STYLES[r.styles[1]].name, fa: r.formations[0], fb: r.formations[1] })}</p>
     </section>
 

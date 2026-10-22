@@ -72,7 +72,8 @@ export function buildTeam(state, clubId, setup) {
     keeper: slots.find(s => s.group === 'GK'),
     mental: slots.reduce((s, x) => s + (x.player ? attrOf(x.player, 'men') : 30), 0) / 11,
     avgCondition: slots.reduce((s, x) => s + (x.player?.condition ?? 0), 0) / 11,
-    spBoost: boosts.sp || 0
+    spBoost: boosts.sp || 0,
+    learned: !!setup.learned
   };
 }
 
@@ -418,7 +419,8 @@ export function simulateMatch(rng, home, away, opts = {}) {
     meta: {
       edge,
       lines: { home: home.lines, away: away.lines },
-      avgCondition: [Math.round(home.avgCondition), Math.round(away.avgCondition)]
+      avgCondition: [Math.round(home.avgCondition), Math.round(away.avgCondition)],
+      learned: [!!home.learned, !!away.learned]
     }
   };
 
@@ -692,6 +694,34 @@ export function analyzeMatch(state, result, side) {
     reasons.push({ impact: 0, icon: 'strategy', k: 'why.styleEven', p: { mineK: `style.${myStyle.key}.name`, theirsK: `style.${theirStyle.key}.name` } });
   }
 
+  // v1.10: kleine Effekte sichtbar machen (nur wenn zutreffend, nie doppelt)
+  const extra = [];
+  const wx = result.weather;
+  if (wx && wx !== 'CLEAR') {
+    const w = weatherMid(result.styles[i], wx);
+    if (w > 0) extra.push({ impact: 1, icon: 'sun', k: 'why.weatherPlus', p: { weatherK: `weather.${wx}` } });
+    else if (w < 0) extra.push({ impact: -1, icon: 'sun', k: 'why.weatherMinus', p: { weatherK: `weather.${wx}` } });
+  }
+  const spFor = result.goals.filter(g => g.side === side && g.kind !== 'play').length;
+  const spAgainst = result.goals.filter(g => g.side !== side && g.kind !== 'play').length;
+  if (spFor >= 1) extra.push({ impact: 1, icon: 'target', k: spFor === 1 ? 'why.setPieceGoals_one' : 'why.setPieceGoals_other', p: { n: spFor } });
+  if (spAgainst >= 2) extra.push({ impact: -1, icon: 'shield', k: 'why.setPieceConceded', p: { n: spAgainst } });
+  const ht = result.halftime;
+  if (ht && ht.side === side) {
+    const change = ht.mode && ht.mode !== 'none' ? `ht.mode.${ht.mode}` : ht.style ? `style.${ht.style}.name` : null;
+    if (change) {
+      const second = result.goals.filter(g => g.minute >= HALF_SUB_MINUTE);
+      const diff = second.filter(g => g.side === side).length - second.filter(g => g.side !== side).length;
+      if (diff > 0) extra.push({ impact: 1, icon: 'strategy', k: 'why.htWorked', p: { changeK: change } });
+      else if (diff < 0) extra.push({ impact: -1, icon: 'strategy', k: 'why.htBackfired', p: { changeK: change } });
+    }
+  }
+  if (result.meta.learned?.[o]) {
+    const oppId = side === 'home' ? result.awayId : result.homeId;
+    extra.push({ impact: -1, icon: 'strategy', k: 'why.oppLearned', p: { club: state.clubs[oppId]?.name || '', styleK: `style.${myStyle.key}.name` } });
+  }
+  reasons.push(...extra);
+
   const motm = result.motm && state.players[result.motm];
   if (motm) {
     const mine = lineup.some(l => l.playerId === motm.id) || result.subs.some(s => s.inId === motm.id && s.side === side);
@@ -700,7 +730,9 @@ export function analyzeMatch(state, result, side) {
       k: 'why.motm', p: { name: shortName(motm), rating: result.ratings[motm.id].toFixed(1) }
     });
   }
-  return reasons.slice(0, 5);
+  const last = reasons[reasons.length - 1];
+  if (reasons.length <= 6) return reasons;
+  return last?.k === 'why.motm' ? [...reasons.slice(0, 5), last] : reasons.slice(0, 6);
 }
 
 /** Schnelle Prognose für die Spielvorbereitung (Monte Carlo) */

@@ -61,6 +61,8 @@ async def main():
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=week]'); await click_js('[data-action=prep-fold][data-value=plan]'); await pg.wait_for_timeout(150); await click_js('[data-action=set-plan][data-value=setpieces]'); await pg.wait_for_timeout(200); await shot('02d_plan_setpieces')  # plan-setpieces
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
+                    await click_js('[data-action=prep-tab][data-value=week]'); await click_js('[data-action=set-interview][data-value=BOLD]'); await pg.wait_for_timeout(150)  # Pressekonferenz
+                    await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=coach-apply]'); await pg.wait_for_timeout(300)  # Co-Trainer-Vorschlag
                     await pg.locator('[data-action=kickoff]').click()
                     for _ in range(500):
@@ -73,7 +75,10 @@ async def main():
                         if await pg.locator('[data-action=match-report]').count(): break
                         await click_js('.scene[data-action=scene-continue]'); await pg.wait_for_timeout(120)
                     await shot('04_fulltime')
-                    await click_js('[data-action=match-report]'); await shot('05_report', True)
+                    await click_js('[data-action=match-report]'); await pg.wait_for_timeout(300)
+                    h = await pg.evaluate("document.querySelector('.fullscreen > .screen')?.scrollHeight || 844")
+                    await pg.set_viewport_size({'width': 390, 'height': max(844, h)}); await shot('05_report')
+                    await pg.set_viewport_size({'width': 390, 'height': 844})
                     live_done = True
                 else:
                     await click_js('[data-action=kickoff-instant]')

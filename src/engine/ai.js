@@ -100,7 +100,8 @@ export function aiSetup(rng, state, clubId, userHist = null) {
   // Trainer-Philosophie: in etwa 85 % der Spiele sein Stil
   const style = rng.chance(0.85) ? club.preferredStyle : rng.pick(STYLE_KEYS.filter(k => k !== club.preferredStyle));
   const { lineup, bench } = bestLineup(state, clubId, formation, { minCondition: 70 });
-  return { formation: club.preferredFormation, style: learnStyle(rng, style, userHist), lineup, bench, boosts: {} };
+  const finalStyle = learnStyle(rng, style, userHist);
+  return { formation: club.preferredFormation, style: finalStyle, lineup, bench, boosts: {}, learned: finalStyle !== style };
 }
 
 /** Wie der Gegner meistens spielt – sichtbar in der Spielvorbereitung */

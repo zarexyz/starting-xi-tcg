@@ -829,7 +829,11 @@ export function playDay(state) {
       if (userResult) userResult.finance.push({ label: 'fin.wages', amount: -wages });
       handleWages(state);
     }
-    if (userInfo) { afterUserMatch(state, userInfo); resolveInterview(state, userInfo.outcome); }
+    if (userInfo) {
+      afterUserMatch(state, userInfo);
+      const ivKey = resolveInterview(state, userInfo.outcome);
+      if (userResult && ivKey) userResult.interview = ivKey.replace(/^news\.iv\./, '');  // z. B. „BOLD.W“
+    }
 
     matchdayStories(rng, state, day);
     contractMood(state);
