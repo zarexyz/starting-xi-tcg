@@ -11,6 +11,7 @@ import { weeklyWages, wageCap, TIER_INCOME } from '../../engine/economy.js';
 import { t, LANGS, getLang } from '../../i18n/index.js';
 import { ledgerLabel, ffStageText, cupText } from '../text.js';
 import { trophiesView } from './trophies.js';
+import { moodSection, academyView } from './academy.js';
 import { APP_VERSION } from '../../config.js';
 
 function overview(game) {
@@ -39,6 +40,7 @@ function overview(game) {
         <p class="small ${ratio > 1.15 ? 'neg' : 'muted'}">${ratio > 1.15 ? t('club.overCap') : t('club.capHint')} ${t('club.homeIncome', { n: TIER_INCOME[club.tier] })}</p>
       </div>
     </section>
+    ${moodSection(game)}
     ${best ? `<section class="section"><div class="section__head"><h2 class="section__title">${t('club.best')}</h2></div>
       <p>${t('club.bestText', { league: LEAGUE_INFO[best.tier].name, pos: best.pos, season: best.season })}${best.champion ? `, ${t('club.champion')}!` : ''}</p></section>` : ''}
   `;
@@ -155,8 +157,8 @@ export function settingsBody(store) {
 
 export function clubScreen(game, ui, store) {
   const view = ui.view.club || 'overview';
-  const items = [['overview', t('club.tab.overview')], ['trophies', t('club.tab.trophies')], ['history', t('club.tab.history')], ['finance', t('club.tab.finance')]];
-  const body = ({ overview, finance, history, trophies: g => trophiesView(g, store) }[view] || overview)(game);
+  const items = [['overview', t('club.tab.overview')], ['academy', t('club.tab.academy')], ['trophies', t('club.tab.trophies')], ['history', t('club.tab.history')], ['finance', t('club.tab.finance')]];
+  const body = ({ overview, finance, history, academy: academyView, trophies: g => trophiesView(g, store) }[view] || overview)(game);
   return `<main class="screen">
     ${topbar(game)}
     ${segmented(items, view, 'club-view')}

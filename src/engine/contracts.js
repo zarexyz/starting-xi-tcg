@@ -167,7 +167,7 @@ export function expireContracts(rng, state) {
     addNews(state, 'contract', 'news.leftFree', { name: displayName(p), short: shortName(p), club: target.name }, { playerId: p.id, clubId: target.id });
   }
   for (const p of Object.values(state.players)) {
-    if (p.clubId === 'user') continue;
+    if (p.clubId === 'user' || p.academy) continue;
     const c = ensureContract(state, p);
     if (c.until <= state.season) p.contract = { wage: salaryFor(p.ovr), until: state.season + rng.int(1, 3) };
   }

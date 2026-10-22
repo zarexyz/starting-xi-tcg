@@ -647,3 +647,66 @@ test('Identität: Nummer tauschen, Binde tauschen, Abgang des Kapitäns', () => 
   assert.ok(s.user.vice && s.user.vice !== cap && s.players[s.user.vice].clubId === 'user');
   assert.ok(characterOf(a).key.startsWith('ch.'));
 });
+
+// ---- v1.9: Verein lebt ----
+import { ensureClubLife, setPlan, teamMood, userBoosts, prospects, upgradeAcademy, promoteProspect, releaseProspect, academyCap, GOALS } from '../src/engine/clublife.js';
+
+test('v1.9: Stimmung und Saisonziel entstehen, bleiben im Rahmen und werden nach Spielen aktualisiert', () => {
+  const s = newStartedGame(21);
+  ensureClubLife(s);
+  assert.ok(GOALS[s.user.mood.goal.key]);
+  assert.equal(s.user.mood.goal.season, 1);
+  for (let i = 0; i < 12; i++) { s.pending = null; s.devReport = null; s.seasonSummary = null; playDay(s); }
+  const m = s.user.mood;
+  for (const v of [m.fans, m.board, teamMood(s)]) assert.ok(v >= 0 && v <= 100);
+  assert.ok(m.hist.fans.length >= 5);
+});
+
+test('v1.9: Saisonende prüft das Ziel und zahlt nur bei Erfolg eine Prämie', () => {
+  const s = newStartedGame(22);
+  ensureClubLife(s);
+  playSeason(s);
+  const h = s.history[0];
+  assert.ok(typeof h.goal.met === 'boolean');
+  assert.equal(h.goal.bonus > 0, h.goal.met);
+  assert.equal(s.user.mood.goal.season, 2);
+});
+
+test('v1.9: Wochenplan wirkt einmalig und wird verbraucht', () => {
+  const s = newStartedGame(23);
+  ensureClubLife(s);
+  assert.equal(setPlan(s, 'tactics').ok, true);
+  assert.ok(userBoosts(s).mid >= 2);
+  let res = null;
+  let guard = 0;
+  while (!res && guard++ < 6) { s.pending = null; res = playDay(s); }
+  assert.equal(s.user.plan, null);
+  assert.ok(userBoosts(s).mid < 2);
+  assert.equal(setPlan(s, 'quatsch').ok, false);
+});
+
+test('v1.9: Akademie hat Talente, kennt Ausbau, Hochziehen und Entlassen', () => {
+  const s = newStartedGame(24);
+  ensureClubLife(s);
+  const list = prospects(s);
+  assert.equal(list.length, 2);
+  assert.ok(list.every(p => p.clubId === 'academy' && !s.clubs.user.playerIds.includes(p.id)));
+  s.clubs.user.coins = 50000;
+  assert.equal(upgradeAcademy(s).level, 2);
+  const before = s.clubs.user.playerIds.length;
+  assert.equal(promoteProspect(s, list[0].id).ok, true);
+  assert.equal(s.clubs.user.playerIds.length, before + 1);
+  assert.equal(s.players[list[0].id].clubId, 'user');
+  assert.equal(releaseProspect(s, list[1].id).ok, true);
+  assert.equal(s.players[list[1].id], undefined);
+  assert.ok(academyCap(2) >= 9);
+});
+
+test('v1.9: Mehrere Saisons laufen sauber, Akademie bleibt im Rahmen', () => {
+  const s = newStartedGame(25);
+  ensureClubLife(s);
+  for (let i = 0; i < 4; i++) { playSeason(s); }
+  assert.ok(prospects(s).length <= academyCap(s.user.academy.level));
+  assert.ok(prospects(s).every(p => p.age <= 19));
+  assert.ok(s.clubs.user.playerIds.length >= 16);
+});

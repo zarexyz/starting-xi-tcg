@@ -8,6 +8,7 @@
 import { buildTeam, predictMatch } from './match.js';
 import { bestLineup } from './ai.js';
 import { createRng } from './rng.js';
+import { userBoosts } from './clublife.js';
 
 const NEUTRAL = 'AUSGEWOGEN';
 
@@ -22,7 +23,7 @@ export function forecastMatch(game, entry, setup) {
   const m = entry.m;
   const isHome = m.home === 'user';
   const oppId = isHome ? m.away : m.home;
-  const mine = buildTeam(game, 'user', { ...setup, style: NEUTRAL, boosts: game.user.matchBoost || {} });
+  const mine = buildTeam(game, 'user', { ...setup, style: NEUTRAL, boosts: userBoosts(game) });
   const theirs = buildTeam(game, oppId, { ...expectedOpponentSetup(game, oppId), style: NEUTRAL });
   const rng = createRng(game.seed + game.dayIndex * 7919);
   const neutral = entry.comp === 'ff' && entry.stage === 'final';

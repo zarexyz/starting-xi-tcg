@@ -2,6 +2,7 @@
 // Kader: Aufstellung auf dem Spielfeld & Kaderliste, Spielerdetails
 // =============================================================================
 
+import { signingFee } from '../../engine/clublife.js';
 import { topbar, segmented, sheet, autoToggle } from '../shell.js';
 import { cardHtml, starsHtml, potentialStars } from '../components/card.js';
 import { portraitSvg } from '../components/portrait.js';
@@ -217,7 +218,8 @@ export function squadScreen(game, ui) {
 export function playerSheet(game, id, opts = {}) {
   const p = game.players[id];
   if (!p) return '';
-  const club = game.clubs[p.clubId];
+  const academy = !!p.academy;
+  const club = game.clubs[p.clubId] || game.clubs.user;
   const own = p.clubId === 'user';
   const setup = own ? game.user.setup : null;
   const inLineup = setup && Object.values(setup.lineup).includes(p.id);
@@ -238,7 +240,7 @@ export function playerSheet(game, id, opts = {}) {
         ${p.injury ? `<span class="chip chip--loss">${icon('medical')}${t('ps.injured', { label: esc(injuryLabel(p.injury)), n: p.injury.days })}</span>` : ''}
         ${p.suspension ? `<span class="chip chip--loss"><i class="redcard"></i>${t('ps.banned', { reason: esc(banReason(p.suspension)), n: p.suspension.games })}</span>` : ''}
         ${!p.suspension && p.yellowCount >= 3 ? `<span class="chip chip--warn"><i class="yellowcard"></i>${t('ps.yellows', { n: p.yellowCount })}</span>` : ''}
-        ${own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? t('ps.starting') : onBench ? t('sq.bench') : t('sq.out')}</span>` : `<button class="chip chip--link" data-action="open-club" data-id="${club.id}">${crestSvg(club, 16)}${esc(club.name)}</button>`}
+        ${academy ? `<span class="chip chip--warn">${icon('sparkles')}${t('acad.title')}</span>` : own ? `<span class="chip ${inLineup ? 'chip--pitch' : ''}">${inLineup ? t('ps.starting') : onBench ? t('sq.bench') : t('sq.out')}</span>` : `<button class="chip chip--link" data-action="open-club" data-id="${club.id}">${crestSvg(club, 16)}${esc(club.name)}</button>`}
         <span class="chip">${flagSvg(p.nation, 16)}${esc(NATIONS[p.nation]?.name || p.nation)}</span>
         ${own && p.number ? `<button class="chip chip--link" data-action="open-number" data-id="${p.id}" title="${t('num.change')}">#${p.number}</button>` : ''}
         ${own && armbandBadge(game, p.id) ? `<span class="chip chip--warn">${armbandBadge(game, p.id)}${game.user.captain === p.id ? t('cap.captain') : t('cap.vice')}</span>` : ''}
@@ -294,7 +296,7 @@ export function playerSheet(game, id, opts = {}) {
         </li>`).join('')}</ul>` : ''}
       </section>
 
-      <section class="section section--tight">
+      ${academy ? '' : `<section class="section section--tight">
         <h3 class="h3">${t('ct.title')}</h3>
         <dl class="facts facts--3">
           <div><dt>${t('ps.wage')}</dt><dd class="display">${fmt(wageOf(p))}</dd></div>
@@ -305,7 +307,7 @@ export function playerSheet(game, id, opts = {}) {
         ${own && ensureContract(game, p).until <= game.season ? `<p class="small neg">${icon('alert')}${t('ct.expires')}</p>` : ''}
         ${own && game.user.listings?.[p.id] ? `<p class="small">${icon('coins')}${t('ct.listed', { n: fmt(game.user.listings[p.id].price) })}</p>` : ''}
         ${own ? `<button class="btn btn--secondary btn--block" data-action="open-contract" data-id="${p.id}">${icon('clipboard')}${t('ct.extend')}</button>` : ''}
-      </section>
+      </section>`}
 
       ${own ? `<div class="pdetail__actions">
         ${inLineup ? `<button class="btn btn--secondary" data-action="to-bench" data-id="${p.id}">${icon('bench')}${t('ps.toBench')}</button>` : `<button class="btn btn--secondary" data-action="pick-for-lineup" data-id="${p.id}" ${p.injury || p.suspension ? 'disabled' : ''}>${icon('pitch')}${t('ps.toXI')}</button>`}
@@ -314,6 +316,9 @@ export function playerSheet(game, id, opts = {}) {
         <button class="btn btn--secondary" data-action="open-captain">${icon('star')}${t('cap.sheetTitle')}</button>
         ${transferButtons(game, p)}
         <button class="btn btn--danger" data-action="release" data-id="${p.id}">${icon('trash')}${t('ps.release')}</button>
+      </div>` : academy ? `<div class="pdetail__actions">
+        <button class="btn btn--primary" data-action="promote-prospect" data-id="${p.id}">${icon('up')}${t('acad.promote', { n: fmt(signingFee(p)) })}</button>
+        <button class="btn btn--ghost" data-action="release-prospect" data-id="${p.id}">${t('acad.release')}</button>
       </div>` : foreignActions(game, p)}
     </div>`;
   return sheet(`${p.first} ${p.last}`, body, opts);

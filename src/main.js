@@ -33,6 +33,9 @@ import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
 import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
+import { ensureClubLife, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
+
+const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); };
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
 import { buildMatchday, matchdayFlow } from './ui/flows/matchday.js';
@@ -56,7 +59,7 @@ setTransferRenderers(transferSheetButtons, foreignPlayerActions);
 // Erfolge prüfen nach jeder Spielaktion; Belohnung wird im laufenden Spielstand gebucht
 setAfterAct(st => {
   if (!st.game || st.game.pending?.type === 'starter') return;
-  ensureIdentity(st.game);
+  ensureLife(st.game);
   const profile = loadProfile();
   const unlocks = evaluateAchievements(st.game, profile);
   if (!unlocks.length) { saveProfile(profile); return; }
@@ -303,7 +306,7 @@ function useItemAction(itemId, playerId = null) {
 
 const handlers = {
   // Titel & Gründung
-  continue: () => { if (resumeGame()) { act(ensureIdentity); setUi({ screen: 'app', tab: 'home' }); } else setUi({ slotPicker: true }); },
+  continue: () => { if (resumeGame()) { act(ensureLife); setUi({ screen: 'app', tab: 'home' }); } else setUi({ slotPicker: true }); },
   'show-slots': () => setUi({ slotPicker: true }),
   'export-save': async () => {
     if (!store.game) return;
@@ -319,11 +322,11 @@ const handlers = {
     const res = parseSave(text);
     if (res.error) { toast(res.error); return; }
     startGame(slot, res.game);
-    act(ensureIdentity);
+    act(ensureLife);
     setUi({ screen: 'app', tab: 'home', slotPicker: false, sheet: null, flow: null });
     toast(t('toast.loaded', { club: res.game.clubs.user.name, season: res.game.season }));
   },
-  'load-slot': d => { if (resumeGame(Number(d.slot))) { act(ensureIdentity); setUi({ screen: 'app', tab: 'home', slotPicker: false }); } },
+  'load-slot': d => { if (resumeGame(Number(d.slot))) { act(ensureLife); setUi({ screen: 'app', tab: 'home', slotPicker: false }); } },
   'delete-slot': d => askConfirm(t('confirm.delete'), t('confirm.deleteX', { n: d.slot }), t('confirm.deleteBtn'), () => { deleteGame(Number(d.slot)); setUi({ sheet: null }); }),
   'new-game': d => setUi({ screen: 'found', found: { slot: Number(d.slot) || 1, name: '', primary: '#1f7a4d', secondary: '#f8fafc', shape: 'shield', pattern: 0, country: defaultCountry() } }),
   'back-title': () => setUi({ screen: 'title' }),
@@ -420,6 +423,26 @@ const handlers = {
   'set-number': d => {
     const res = act(setNumber, d.id, Number(d.n));
     if (res?.ok) { toast(t('toast.numSet', { name: store.game.players[d.id].last, n: d.n })); setUi({ sheet: store.ui.sheet?.prev || { type: 'player', id: d.id } }); }
+  },
+  'set-plan': d => {
+    if (planCost(store.game, d.value) > store.game.clubs.user.coins) { toast(t('acad.noMoney')); return; }
+    act(setPlan, d.value);
+  },
+  'upgrade-academy': () => {
+    const res = act(upgradeAcademy);
+    if (res?.ok) toast(t('acad.upDone', { n: res.level }));
+    else if (res?.code === 'noMoney') toast(t('acad.noMoney'));
+  },
+  'promote-prospect': d => {
+    const name = store.game.players[d.id]?.last || '';
+    const res = act(promoteProspect, d.id);
+    if (res?.ok) { toast(t('acad.promoted', { name })); if (store.ui.sheet) setUi({ sheet: null }); }
+    else if (res?.code === 'full') toast(t('acad.full'));
+    else if (res?.code === 'noMoney') toast(t('acad.noMoney'));
+  },
+  'release-prospect': d => {
+    const name = store.game.players[d.id]?.last || '';
+    if (act(releaseProspect, d.id)?.ok) { toast(t('acad.released', { name })); if (store.ui.sheet) setUi({ sheet: null }); }
   },
   'meet-go': d => setUi({ pack: { ...store.ui.pack, stage: 'meet', meet: Number(d.value) } }),
   'open-club': d => openDetail('club', d.id),

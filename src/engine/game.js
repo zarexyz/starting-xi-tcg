@@ -21,6 +21,7 @@ import { aiTransferWindow } from './market.js';
 import { severance, ensureAllContracts, ensureContract, signContract, defaultYears, contractDemand, checkRaiseWishes, contractMood, expiryWarning, expireContracts, wageOf } from './contracts.js';
 import { processTransferDay } from './market.js';
 import { newsChannel } from './news.js';
+import { ensureClubLife, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 3;
@@ -95,6 +96,7 @@ function startSeason(rng, state, cupByes) {
   for (const c of Object.values(state.clubs)) { c.halfGames = 0; c.seasonStats = newClubStats(); }
   takeAwardSnapshot(state);
   ensureAllContracts(state);
+  ensureClubLife(state);
 }
 
 /** Saisonstatistik eines Vereins über alle Wettbewerbe */
@@ -120,7 +122,7 @@ export function addNews(state, type, key, params = {}, extra = {}) {
 }
 
 /** Kassenbuch: label ist ein Übersetzungsschlüssel, lp seine Platzhalter */
-function ledger(state, label, amount, lp = {}) {
+export function ledger(state, label, amount, lp = {}) {
   state.clubs.user.coins += amount;
   state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label, lp, amount });
   if (state.user.ledger.length > 60) state.user.ledger.length = 60;
@@ -499,7 +501,7 @@ function setupFor(rng, state, clubId) {
   if (clubId === 'user') {
     if (state.user.autoLineup) autoLineup(state);
     const setup = ensureUserSetup(state);
-    return { ...setup, boosts: state.user.matchBoost || {} };
+    return { ...setup, boosts: userBoosts(state) };
   }
   return aiSetup(rng, state, clubId);
 }
@@ -648,6 +650,9 @@ export function playDay(state) {
     const matches = matchesForDay(state, day);
     const played = new Set();
     const participating = new Set();
+    const userPlays = matches.some(e => e.m.home === 'user' || e.m.away === 'user');
+    let userInfo = null;
+    if (userPlays) applyPlanStart(state);
 
     for (const entry of matches) {
       const { m } = entry;
@@ -698,6 +703,11 @@ export function playDay(state) {
           finance: []
         };
         state.user.matchBoost = null;
+        userInfo = {
+          outcome, home: side === 'home', derby: rival === 'derby',
+          gf: side === 'home' ? result.hg : result.ag,
+          starters: result.lineups[side].map(l => l.playerId).filter(Boolean), day
+        };
       }
     }
 
@@ -725,12 +735,14 @@ export function playDay(state) {
         }
       }
     }
+    if (userPlays) applyPlanEnd(state);
 
     // Finanzen des Spielers
     if (userResult) {
       const tier = state.clubs.user.tier;
       let income = matchIncome(tier, userResult.side === 'home' && !(day.type === 'ff_final'), userResult.outcome);
       if (userResult.rivalry === 'derby') income = Math.round(income * 1.25);
+      income = Math.round(income * fanIncomeFactor(state));
       ledger(state, 'ledger.income', income, { day: userResult.label });
       userResult.finance.push({ label: 'fin.gate', amount: income });
       if (day.type === 'cup' && userResult.outcome === 'W') {
@@ -753,6 +765,7 @@ export function playDay(state) {
       if (userResult) userResult.finance.push({ label: 'fin.wages', amount: -wages });
       handleWages(state);
     }
+    if (userInfo) afterUserMatch(state, userInfo);
 
     matchdayStories(rng, state, day);
     contractMood(state);
@@ -888,7 +901,9 @@ function developAll(rng, state, aging) {
     const share = Math.min(1, half.apps / Math.max(1, games));
     const avg = half.apps >= 3 ? half.ratingSum / half.apps : null;
     const before = p.ovr;
-    const delta = developPlayer(rng, p, share, avg);
+    const delta = p.academy
+      ? developPlayer(rng, p, academyShare(state), null)
+      : developPlayer(rng, p, share, avg, p.clubId === 'user' ? planDevMod(state, p) : 0);
     if (aging) p.age++;
     if (p.clubId === 'user') {
       p.lastDelta = delta;
@@ -897,6 +912,7 @@ function developAll(rng, state, aging) {
     p.half = { apps: 0, ratingSum: 0 };
   }
   for (const c of Object.values(state.clubs)) c.halfGames = 0;
+  resetPlanWeeks(state);
   changes.sort((a, b) => b.delta - a.delta);
   return changes;
 }
@@ -953,6 +969,7 @@ function endSeason(rng, state) {
   const prize = seasonPrize(userTier, row.pos);
   ledger(state, 'ledger.seasonPrize', prize, { pos: row.pos });
   userSummary.prize = prize;
+  userSummary.goal = closeSeasonLife(state, userTier, row.pos);
   summary.awards = seasonAwards(state, userTier);
 
   // Chronik aller Vereine und Karriere-Stationen aller Spieler (vor Auf- und Abstieg)
@@ -1027,10 +1044,16 @@ function endSeason(rng, state) {
   summary.aiMoves = aiMoves.length;
   worldTransferNews(state, aiMoves);
 
-  // Eigene Jugendakademie: zwei Talente pro Saison, Kader nie unter 16
+  // Jugendakademie: 19-Jährige rücken in den Profikader, neue Talente kommen in die Akademie
+  const grads = academyGraduates(state);
+  const filled = academyFillSquad(state, 16);
+  const intake = academyIntake(rng, state);
+  state.user.plan = null;
+
+  // Notfall: Kader nie unter 16, notfalls direkt aus der Jugend
   const youth = [];
   const userClub = state.clubs.user;
-  const wantYouth = Math.max(2, 16 - userClub.playerIds.length);
+  const wantYouth = Math.max(0, 16 - userClub.playerIds.length);
   for (let i = 0; i < wantYouth && userClub.playerIds.length < MAX_SQUAD; i++) {
     const counts = {};
     clubPlayers(state, 'user').forEach(p => { counts[POSITION_GROUP[p.position]] = (counts[POSITION_GROUP[p.position]] || 0) + 1; });
@@ -1047,14 +1070,20 @@ function endSeason(rng, state) {
     state.players[p.id] = p;
     userClub.playerIds.push(p.id);
     p.fromYouth = true;
-    // Jugendvertrag: läuft drei Saisons ab der kommenden
     p.contract = { wage: salaryFor(p.ovr), until: state.season + 3 };
     youth.push(p);
   }
-  if (youth.length) {
-    summary.youth = youth.map(p => p.id);
-    addNews(state, 'squad', 'news.youth', { list: youth.map(p => displayName(p)).join(', '), n: youth.length }, { playerId: youth[0].id, playerIds: youth.map(p => p.id) });
+  const promotedIds = [...grads.promoted, ...filled, ...youth.map(p => p.id)];
+  if (promotedIds.length) {
+    const list = promotedIds.map(id => state.players[id]).filter(Boolean);
+    summary.youth = promotedIds;
+    addNews(state, 'squad', 'news.youth', { list: list.map(p => displayName(p)).join(', '), n: list.length }, { playerId: list[0]?.id, playerIds: promotedIds });
   }
+  summary.academy = { intake: intake.map(p => p.id), released: grads.released, level: state.user.academy.level };
+  if (intake.length) {
+    addNews(state, 'squad', 'news.academyIntake', { list: intake.map(p => displayName(p)).join(', '), n: intake.length }, { playerId: intake[0].id, playerIds: intake.map(p => p.id) });
+  }
+  for (const name of grads.released) addNews(state, 'squad', 'news.academyReleased', { name });
 
   // KI-Kader auffüllen (Nachwuchs)
   const template = ['TW', 'TW', 'IV', 'IV', 'IV', 'IV', 'LV', 'LV', 'RV', 'ZDM', 'ZDM', 'ZM', 'ZM', 'ZM', 'ZOM', 'LM', 'LF', 'RF', 'ST', 'ST', 'RM'];

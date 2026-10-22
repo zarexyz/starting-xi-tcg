@@ -230,6 +230,7 @@ export function seasonFlow(game, ui = {}) {
       u.relegated ? t('se.relegatedX', { league: LEAGUE_INFO[u.tier + 1].name }) :
         t('se.stayX', { league: LEAGUE_INFO[u.tier].name });
   const youth = (s.youth || []).map(id => game.players[id]).filter(Boolean);
+  const intake = (s.academy?.intake || []).map(id => game.players[id]).filter(Boolean);
   const pages = [t('se.p.result'), t('se.p.awards'), t('se.p.leagues'), t('se.p.squad')];
 
   let body = '';
@@ -246,6 +247,7 @@ export function seasonFlow(game, ui = {}) {
       <ul class="list panel panel--flush">
         <li class="row"><span class="alert-dot">${icon('star')}</span><div class="row__main"><div class="row__title">Final Four</div><div class="row__sub">${esc(ffStageText(u.ffStage))}</div></div></li>
         <li class="row"><span class="alert-dot">${icon('trophy')}</span><div class="row__main"><div class="row__title">${t('w.cup')}</div><div class="row__sub">${esc(cupText(u.cup))}</div></div></li>
+        ${u.goal ? `<li class="row"><span class="alert-dot ${u.goal.met ? '' : 'alert-dot--loss'}">${icon(u.goal.met ? 'check' : 'close')}</span><div class="row__main"><div class="row__title">${t('goal.title')}</div><div class="row__sub">${esc(t(`goal.${u.goal.key}`))}. ${u.goal.met ? t('se.goalMet', { amountC: u.goal.bonus }) : t('se.goalMissed')}</div></div></li>` : ''}
       </ul>
       <button class="btn btn--secondary btn--block se-share" data-action="share-season">${icon('share')}${t('share.season')}</button>`;
   } else if (page === 1) {
@@ -258,7 +260,8 @@ export function seasonFlow(game, ui = {}) {
         ${s.retired.length ? `<li class="row"><span class="alert-dot">${icon('user')}</span><div class="row__main"><div class="row__title">${t('se.retired')}</div><div class="row__sub">${s.retired.map(r => `${esc(r.name)} (${r.age})`).join(', ')}</div></div></li>` : ''}
         ${left.length ? `<li class="row"><span class="alert-dot alert-dot--loss">${icon('swap')}</span><div class="row__main"><div class="row__title">${t('se.leftFree')}</div><div class="row__sub">${left.map(l => esc(l.name)).join(', ')}</div></div></li>` : ''}
         ${youth.length ? `<li class="row"><span class="alert-dot alert-dot--reward">${icon('sparkles')}</span><div class="row__main"><div class="row__title">${t('se.youth')}</div><div class="row__sub">${youth.map(p => `${esc(p.first)} ${esc(p.last)} (${POS_LABEL[p.position]})`).join(', ')}</div></div></li>` : ''}
-        ${!s.retired.length && !left.length && !youth.length ? `<li class="row"><div class="row__main"><div class="row__sub">${t('se.noChanges')}</div></div></li>` : ''}
+        ${intake.length ? `<li class="row"><span class="alert-dot alert-dot--reward">${icon('sparkles')}</span><div class="row__main"><div class="row__title">${t('acad.intake')}</div><div class="row__sub">${intake.map(p => `${esc(p.first)} ${esc(p.last)} (${POS_LABEL[p.position]})`).join(', ')}</div></div></li>` : ''}
+        ${!s.retired.length && !left.length && !youth.length && !intake.length ? `<li class="row"><div class="row__main"><div class="row__sub">${t('se.noChanges')}</div></div></li>` : ''}
       </ul>
       <p class="small muted">${t('se.older')}</p>`;
   }

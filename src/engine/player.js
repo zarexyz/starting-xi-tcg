@@ -257,7 +257,7 @@ export function ageGrowth(age) {
  * Bewusst moderat: typischer Ausschlag 0 bis 3 Punkte pro Halbserie.
  * Gibt die OVR-Veränderung zurück.
  */
-export function developPlayer(rng, player, minutesShare = 0.5, avg = null) {
+export function developPlayer(rng, player, minutesShare = 0.5, avg = null, mod = 0) {
   const before = player.ovr;
   const softCap = TIERS[player.tier].softCap;
   const share = clamp(minutesShare, 0, 1);
@@ -281,6 +281,7 @@ export function developPlayer(rng, player, minutesShare = 0.5, avg = null) {
     growth += perf;
   }
 
+  growth += mod;
   growth += rng.normal(0, 0.5);
   growth = clamp(growth, -3, 4);
   applyOvrChange(rng, player, growth);

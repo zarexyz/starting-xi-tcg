@@ -1109,3 +1109,32 @@ tr[data-action] { cursor: pointer; }
 /* Bei großer Schrift die Spalte Siege-Unentschieden-Niederlagen ausblenden, damit die Tabelle passt */
 :root[style*='1.12'] .table--wdl th:nth-child(4), :root[style*='1.12'] .table--wdl td:nth-child(4),
 :root[style*='1.25'] .table--wdl th:nth-child(4), :root[style*='1.25'] .table--wdl td:nth-child(4) { display: none; }
+
+/* v1.9: Stimmung, Saisonziel, Wochenplan, Akademie */
+.mood { list-style: none; margin: 0; padding: 0.25rem 1rem; display: grid; }
+.mood-row { padding: 0.8rem 0; display: grid; gap: 0.4rem; }
+.mood-row + .mood-row { border-top: 1px solid var(--line); }
+.mood-row__head { display: flex; align-items: baseline; gap: 0.5rem; }
+.mood-row__head > b:first-child { flex: 1; }
+.mood-row__trend { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.78rem; color: var(--ink-3); }
+.mood-row__trend svg { width: 14px; height: 14px; }
+.mood-row__trend--up { color: var(--pitch-dark); }
+.mood-row__trend--down { color: var(--loss); }
+.mood-row__val { min-width: 2.2ch; text-align: right; }
+.mood-row p { margin: 0; }
+.goal { display: grid; gap: 0.5rem; padding: 1rem; }
+.goal__main { display: flex; align-items: center; gap: 0.75rem; }
+.goal p { margin: 0; }
+.plan-grid .plan-tile[aria-disabled='true'] { opacity: 0.5; }
+.academy { display: grid; gap: 0.6rem; padding: 1rem; }
+.academy p { margin: 0; }
+.academy__head { display: flex; align-items: center; gap: 0.75rem; }
+.academy__head > div:nth-child(2) { flex: 1; }
+.academy__pips { display: flex; gap: 4px; }
+.academy__pips i { width: 10px; height: 10px; border-radius: 50%; background: var(--chalk-2); }
+.academy__pips i.is-on { background: var(--floodlight, #e0a100); }
+.prospects { list-style: none; }
+.prospect { border-top: 1px solid var(--line); }
+.prospect:first-child { border-top: 0; }
+.prospect__actions { display: flex; gap: 0.5rem; padding: 0 1rem 0.8rem; justify-content: flex-end; }
+.btn[aria-disabled='true'] { opacity: 0.55; }

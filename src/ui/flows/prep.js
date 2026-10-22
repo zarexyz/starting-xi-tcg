@@ -20,6 +20,26 @@ import { POS_LABEL } from '../../engine/constants.js';
 import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
+import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
+import { fmt } from '../html.js';
+
+/** Training der Woche: ein Schwerpunkt mit Vor- und Nachteil */
+function planSection(game) {
+  const cur = game.user.plan || 'normal';
+  const tiles = PLAN_KEYS.map(key => {
+    const cost = planCost(game, key);
+    const poor = cost > game.clubs.user.coins;
+    return `<button class="style-tile plan-tile ${cur === key ? 'is-active' : ''}" data-action="set-plan" data-value="${key}" aria-pressed="${cur === key}" ${poor ? 'aria-disabled="true"' : ''}>
+      <b>${t(`plan.${key}`)}</b>
+      <span class="small">${t(`plan.${key}.d`, { n: fmt(cost) })}</span>
+    </button>`;
+  }).join('');
+  return `<section class="section">
+    <div class="section__head"><h2 class="section__title">${t('plan.title')}</h2></div>
+    <div class="style-grid plan-grid">${tiles}</div>
+    <p class="xsmall muted">${t('plan.hint')}</p>
+  </section>`;
+}
 
 /** Verbrauchskarten vor dem Anpfiff: aktive Effekte und einsetzbare Karten */
 function consumablesSection(game) {
@@ -124,6 +144,8 @@ export function prepFlow(game, ui) {
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
+
+    ${planSection(game)}
 
     ${consumablesSection(game)}
 
