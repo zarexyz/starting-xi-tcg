@@ -7,6 +7,7 @@
 import { FORMATIONS, STYLES, POSITION_GROUP, styleMatchup } from './constants.js';
 import { effectiveRating, familiarity, shortName, fitnessFactor, attrOf } from './player.js';
 import { clamp } from './rng.js';
+import { weatherMid } from './extras.js';
 
 /** Formationsbedingte Verschiebung der Mannschaftsteile */
 const FORMATION_SHAPE = {
@@ -109,8 +110,10 @@ export function simulateMatch(rng, home, away, opts = {}) {
   const bigH = opts.big ? mentalEdge(home) * 1.2 : 0;
   const bigA = opts.big ? mentalEdge(away) * 1.2 : 0;
 
-  const midH = home.midControl + home.style.midBonus + homeAdv + edge * EDGE_MID + bigH;
-  const midA = away.midControl + away.style.midBonus - edge * EDGE_MID + bigA;
+  const wH = weatherMid(home.style.key, opts.weather);
+  const wA = weatherMid(away.style.key, opts.weather);
+  const midH = home.midControl + home.style.midBonus + homeAdv + edge * EDGE_MID + bigH + wH;
+  const midA = away.midControl + away.style.midBonus - edge * EDGE_MID + bigA + wA;
   const possession = clamp(sigmoid((midH - midA) / 13), 0.3, 0.7);
 
   const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
@@ -279,6 +282,7 @@ export function simulateMatch(rng, home, away, opts = {}) {
     homeId: home.clubId,
     awayId: away.clubId,
     hg, ag, pens,
+    weather: opts.weather || 'CLEAR',
     possession: [pct(possession), 100 - pct(possession)],
     stats: {
       shots: [chances.filter(c => c.side === 'home').length, chances.filter(c => c.side === 'away').length],

@@ -33,6 +33,7 @@ import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
 import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
+import { setInterview } from './engine/extras.js';
 import { ensureClubLife, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
 
 const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); };
@@ -428,6 +429,7 @@ const handlers = {
     if (planCost(store.game, d.value) > store.game.clubs.user.coins) { toast(t('acad.noMoney')); return; }
     act(setPlan, d.value);
   },
+  'set-interview': d => { act(setInterview, d.value); },
   'upgrade-academy': () => {
     const res = act(upgradeAcademy);
     if (res?.ok) toast(t('acad.upDone', { n: res.level }));

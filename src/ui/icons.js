@@ -27,6 +27,7 @@ const P = {
   dumbbell: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   flame: '<path d="M12 21c-3.9 0-7-2.8-7-6.6 0-3.4 2.4-5.2 3.5-7.9.4 1.6 1.4 2.8 2.6 3.4C11.5 6.6 13.4 4 15.5 3c-.3 2.4.6 4.5 2 6.2 1.1 1.4 1.5 3 1.5 4.7C19 18.1 15.9 21 12 21Z"/>',
   megaphone: '<path d="M3 10v4a1 1 0 0 0 1 1h3l7 4V5L7 9H4a1 1 0 0 0-1 1Z"/><path d="M18 9a4 4 0 0 1 0 6"/><path d="M8 15l1 5h3"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
   clipboard: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/>',
   swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 12 4 4-4 4"/><path d="M21 16H8"/>',
   strategy: '<circle cx="6" cy="6" r="2.5"/><path d="M15 4l5 5M20 4l-5 5"/><path d="M6 9.5v2a4 4 0 0 0 4 4h4"/><path d="m12 13 3 2.5-3 2.5"/><circle cx="18.5" cy="18" r="2.5"/>',

@@ -21,6 +21,7 @@ import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
 import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
+import { weatherFor, INTERVIEW_KEYS, interviewAvailable } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 
 /** Training der Woche: ein Schwerpunkt mit Vor- und Nachteil */
@@ -57,6 +58,18 @@ function consumablesSection(game) {
     ${inv.length ? `<div class="items-grid items-grid--prep">${Object.values(groups).map(list => itemCard(list[0], 0, { action: 'use-item', id: list[0].id, count: list.length })).join('')}</div>
       <p class="xsmall muted">${t('prep.itemsHint')}</p>`
       : `<p class="small muted">${t('prep.noItemsNew')}</p>`}
+  </section>`;
+}
+
+function interviewSection(game, entry) {
+  if (!interviewAvailable(game, entry)) return '';
+  const cur = game.user.interview?.key;
+  const tiles = INTERVIEW_KEYS.map(key => `<button class="style-tile plan-tile ${cur === key ? 'is-active' : ''}" data-action="set-interview" data-value="${key}" aria-pressed="${cur === key}" ${cur && cur !== key ? 'aria-disabled="true"' : ''}>
+      <b>${t(`iv.${key}`)}</b><span class="small">${t(`iv.${key}.d`)}</span></button>`).join('');
+  return `<section class="section">
+    <div class="section__head"><h2 class="section__title">${t('iv.title')}</h2></div>
+    <div class="style-grid plan-grid">${tiles}</div>
+    <p class="xsmall muted">${t('iv.hint')}</p>
   </section>`;
 }
 
@@ -99,6 +112,7 @@ export function prepFlow(game, ui) {
   const pred = forecastMatch(game, entry, setup);
   const warn = warnings(game, setup);
   const oppLines = buildTeam(game, oppId, expectedOpponentSetup(game, oppId)).lines;
+  const wx = weatherFor(game.seed, game.dayIndex);
   const weakest = ['def', 'mid', 'att'].sort((a, b) => oppLines[a] - oppLines[b])[0];
 
   const styleTiles = STYLE_KEYS.map(key => {
@@ -128,6 +142,8 @@ export function prepFlow(game, ui) {
     <div class="scout__report">
       <div class="scout__line">${icon('strategy')}<span>${opp.coach ? t('prep.coach', { coach: `<b>${esc(opp.coach.name)}</b>`, style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` }) : t('prep.noCoach', { style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` })}</span></div>
       <div class="scout__line">${icon('target')}<span>${t('prep.weakest', { line: `<b>${t('prep.line.' + weakest)}</b>` })}</span></div>
+      <div class="scout__line">${icon('sun')}<span><b>${t('weather.' + wx)}</b>. ${t('weather.' + wx + '.d')}</span></div>
+      ${game.user.scout?.oppId === oppId ? `<div class="scout__line">${icon('target')}<span>${t('prep.scouted', { club: `<b>${esc(opp.name)}</b>`, style: `<b>${STYLES[game.user.scout.style].name}</b>` })}</span></div>` : ''}
       ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
 
@@ -147,6 +163,8 @@ export function prepFlow(game, ui) {
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
+
+    ${interviewSection(game, entry)}
 
     ${planSection(game)}
 

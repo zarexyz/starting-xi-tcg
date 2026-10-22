@@ -21,6 +21,7 @@ import { aiTransferWindow } from './market.js';
 import { severance, ensureAllContracts, ensureContract, signContract, defaultYears, contractDemand, checkRaiseWishes, contractMood, expiryWarning, expireContracts, wageOf } from './contracts.js';
 import { processTransferDay } from './market.js';
 import { newsChannel } from './news.js';
+import { weatherFor, resolveInterview } from './extras.js';
 import { ensureClubLife, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
@@ -318,6 +319,16 @@ export function useItem(state, itemId, playerId = null) {
         state.user.matchBoost = { mid: 3 };
         message = t('item.msg.tactic');
         break;
+      case 'SCOUT': {
+        const um = userMatch(state);
+        if (!um) return { error: t('item.err.scout') };
+        const oppId = um.m.home === 'user' ? um.m.away : um.m.home;
+        if (state.user.scout?.oppId === oppId) return { error: t('item.err.scout2') };
+        const style = aiSetup(rng, state, oppId, state.user.styleHist || []).style;
+        state.user.scout = { oppId, style };
+        message = t('item.msg.scout', { club: state.clubs[oppId].name, styleK: `style.${style}.name` });
+        break;
+      }
       case 'RETRAIN': {
         const related = ['IV', 'LV', 'RV', 'ZDM', 'ZM', 'ZOM', 'LM', 'RM', 'LF', 'RF', 'ST']
           .filter(pos => pos !== player.position && !player.secondary.includes(pos) &&
@@ -505,6 +516,10 @@ export function releasePlayer(state, playerId) {
 
 
 function setupFor(rng, state, clubId, vsUser = false) {
+  if (vsUser && state.user.scout?.oppId === clubId) {
+    const forced = aiSetup(rng, state, clubId, null);
+    return { ...forced, style: state.user.scout.style };
+  }
   if (clubId === 'user') {
     if (state.user.autoLineup) autoLineup(state);
     const setup = ensureUserSetup(state);
@@ -679,7 +694,7 @@ export function playDay(state) {
       const rival = rivalry(state.clubs[m.home], state.clubs[m.away]);
       const isUser = m.home === 'user' || m.away === 'user';
       const strengths = isUser ? { home: clubStrength(state, m.home), away: clubStrength(state, m.away) } : null;
-      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout || rival === 'derby' });
+      const result = simulateMatch(rng, home, away, { knockout, neutral, big: knockout || rival === 'derby', weather: weatherFor(state.seed, state.dayIndex) });
       result.rivalry = rival;
       m.hg = result.hg;
       m.ag = result.ag;
@@ -715,6 +730,7 @@ export function playDay(state) {
           finance: []
         };
         state.user.matchBoost = null;
+        state.user.scout = null;
         userInfo = {
           outcome, home: side === 'home', derby: rival === 'derby',
           gf: side === 'home' ? result.hg : result.ag,
@@ -777,7 +793,7 @@ export function playDay(state) {
       if (userResult) userResult.finance.push({ label: 'fin.wages', amount: -wages });
       handleWages(state);
     }
-    if (userInfo) afterUserMatch(state, userInfo);
+    if (userInfo) { afterUserMatch(state, userInfo); resolveInterview(state, userInfo.outcome); }
 
     matchdayStories(rng, state, day);
     contractMood(state);

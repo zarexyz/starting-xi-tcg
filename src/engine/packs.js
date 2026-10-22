@@ -39,6 +39,10 @@ export const CONSUMABLES = {
     get name() { return t('item.MORALE.name'); }, get desc() { return t('item.MORALE.desc'); },
     icon: 'megaphone', rarity: 'bronze', target: 'team',
   },
+  SCOUT: {
+    get name() { return t('item.SCOUT.name'); }, get desc() { return t('item.SCOUT.desc'); },
+    icon: 'target', rarity: 'silver', target: 'match',
+  },
   TACTIC: {
     get name() { return t('item.TACTIC.name'); }, get desc() { return t('item.TACTIC.desc'); },
     icon: 'clipboard', rarity: 'silver', target: 'match',
