@@ -29,7 +29,7 @@ function tableView(game, tier) {
     <div class="league-picker">${[1, 2, 3, 4, 5, 6].map(t => `<button class="chip ${t === tier ? 'chip--pitch' : ''}" data-action="league-tier" data-value="${t}" aria-pressed="${t === tier}">${LEAGUE_INFO[t].short}${t === game.clubs.user.tier ? ' ★' : ''}</button>`).join('')}</div>
     <h2 class="section__title league-name">${LEAGUE_INFO[tier].name}</h2>
     <div class="panel panel--flush">
-      <table class="table table--full">
+      <table class="table table--full table--wdl">
         <thead><tr><th>#</th><th>${t('tbl.club')}</th><th class="num">${t('tbl.p')}</th><th class="num">${t('tbl.wdl')}</th><th class="num">${t('tbl.gd')}</th><th class="num">${t('tbl.pts')}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>

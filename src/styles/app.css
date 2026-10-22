@@ -5,7 +5,7 @@
    ============================================================================= */
 
 :root {
-  /* Farben */
+  /* Farben (hell) */
   --chalk: #eef1f4;
   --chalk-2: #e3e8ee;
   --paper: #ffffff;
@@ -15,11 +15,20 @@
   --line: #d5dbe3;
   --line-2: #e7ebf0;
   --pitch: #1f7a4d;
+  --pitch-fill: #1f7a4d;
+  --pitch-hover: #165c39;
   --pitch-dark: #165c39;
+  --inverse: #1b2433;
+  --stage: #1b2433;
+  --on-inverse: #ffffff;
+  --on-light: #1b2433;
+  --glass: rgba(255, 255, 255, 0.94);
+  --hover: #f7f9fb;
   --pitch-soft: #e1f1e8;
   --floodlight: #ffc83d;
   --floodlight-soft: #fff4d4;
   --loss: #d9433b;
+  --loss-fill: #d9433b;
   --loss-soft: #fbe6e4;
   --draw: #8a94a6;
   --info: #2f6fd6;
@@ -70,7 +79,7 @@ html, body {
   background: var(--chalk-2);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: calc(16px * var(--ui-scale, 1));
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -89,6 +98,16 @@ img, svg { display: block; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+:root[data-motion='reduced'] *, :root[data-motion='reduced'] *::before, :root[data-motion='reduced'] *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+
+/* Übergang beim Wechsel des Reiters */
+@keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#app.is-entering > main.screen { animation: screenIn 0.24s ease-out both; }
+
+/* Tastendruck spürbar machen */
+.btn, .icon-btn, .row--button, .chip--link, .tab, .card, .choice, .style-tile, .numcell, .cap-pick { transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+.btn:active, .icon-btn:active, .numcell:active, .cap-pick:active, .choice:active, .style-tile:active { transform: scale(0.97); }
+.row--button:active { background: var(--hover); }
 
 /* ----------------------------------------------------------------------------
    App-Rahmen
@@ -134,7 +153,7 @@ img, svg { display: block; }
 .coins svg { width: 18px; height: 18px; }
 
 .icon-btn {
-  width: 40px; height: 40px;
+  width: 44px; height: 44px;
   display: inline-grid; place-items: center;
   border-radius: var(--r-pill);
   background: var(--paper);
@@ -148,7 +167,7 @@ img, svg { display: block; }
   position: absolute; top: 6px; right: 6px;
   min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: var(--r-pill);
-  background: var(--loss); color: #fff;
+  background: var(--loss-fill); color: #fff;
   font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
 }
 
@@ -161,7 +180,7 @@ img, svg { display: block; }
   height: calc(var(--tabbar-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
   display: grid; grid-template-columns: repeat(5, 1fr);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--glass);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
   z-index: 20;
@@ -219,11 +238,11 @@ img, svg { display: block; }
 }
 .btn:active { transform: scale(0.98); }
 .btn svg { width: 20px; height: 20px; }
-.btn--primary { background: var(--pitch); color: #fff; }
-.btn--primary:hover { background: var(--pitch-dark); }
+.btn--primary { background: var(--pitch-fill); color: #fff; }
+.btn--primary:hover { background: var(--pitch-hover); }
 .btn--secondary { background: var(--paper); color: var(--ink); border-color: var(--line); }
 .btn--ghost { background: transparent; color: var(--ink-2); }
-.btn--reward { background: var(--floodlight); color: var(--ink); }
+.btn--reward { background: var(--floodlight); color: var(--on-light); }
 .btn--danger { background: var(--paper); color: var(--loss); border-color: #f0c4c0; }
 .btn--block { width: 100%; }
 .btn--sm { min-height: 36px; padding: 0 var(--s-3); font-size: var(--t-sm); border-radius: var(--r-sm); }
@@ -250,7 +269,7 @@ img, svg { display: block; }
 }
 .row:last-child { border-bottom: 0; }
 .row--button { width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; cursor: pointer; }
-.row--button:hover { background: #f7f9fb; }
+.row--button:hover { background: var(--hover); }
 .row__main { flex: 1; min-width: 0; }
 .row__title { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row__sub { display: block; font-size: var(--t-xs); color: var(--ink-3); }
@@ -277,9 +296,9 @@ img, svg { display: block; }
   display: grid; place-items: center;
   font-style: normal; font-size: 10px; font-weight: 800; color: #fff;
 }
-.form .W { background: var(--pitch); }
+.form .W { background: var(--pitch-fill); }
 .form .D { background: var(--draw); }
-.form .L { background: var(--loss); }
+.form .L { background: var(--loss-fill); }
 
 /* Segmentierte Auswahl */
 .segmented {
@@ -299,9 +318,9 @@ img, svg { display: block; }
 
 /* Balken */
 .bar { height: 6px; border-radius: 3px; background: var(--chalk-2); overflow: hidden; }
-.bar > span { display: block; height: 100%; border-radius: 3px; background: var(--pitch); }
+.bar > span { display: block; height: 100%; border-radius: 3px; background: var(--pitch-fill); }
 .bar--warn > span { background: #e0a100; }
-.bar--low > span { background: var(--loss); }
+.bar--low > span { background: var(--loss-fill); }
 
 /* ----------------------------------------------------------------------------
    Sheet (Bottom Sheet) & Overlay
@@ -336,7 +355,7 @@ img, svg { display: block; }
   position: fixed; left: 50%; top: calc(var(--safe-t) + 12px);
   transform: translateX(-50%);
   max-width: min(440px, calc(100% - 32px));
-  background: var(--ink); color: #fff;
+  background: var(--inverse); color: var(--on-inverse);
   padding: 12px 16px; border-radius: var(--r-md);
   font-size: var(--t-sm); font-weight: 600;
   z-index: 60;
@@ -397,3 +416,65 @@ img, svg { display: block; }
   color: var(--ink-3);
 }
 .empty .h3 { color: var(--ink); margin-bottom: var(--s-2); }
+
+/* =============================================================================
+   Dunkles Design: überschreibt die Farben. Gesetzt wird data-theme="dark" per
+   Skript (Einstellung „Automatisch“ folgt dem Gerät).
+   ============================================================================= */
+:root[data-theme='dark'] {
+  --chalk: #10161d;
+  --chalk-2: #0a0e13;
+  --paper: #1a222d;
+  --ink: #e9eef4;
+  --ink-2: #b3bdca;
+  --ink-3: #8f9bab;
+  --line: #2d3948;
+  --line-2: #242f3b;
+  --pitch: #4cc58a;
+  --pitch-fill: #1f7a4d;
+  --pitch-hover: #279063;
+  --pitch-dark: #8fdcb4;
+  --pitch-soft: #163326;
+  --floodlight-soft: #3a3115;
+  --loss: #ff7a72;
+  --loss-fill: #c9372f;
+  --loss-soft: #3b1f1f;
+  --draw: #8a94a6;
+  --info: #6aa0f0;
+  --inverse: #2a3647;
+  --stage: #0b1118;
+  --on-inverse: #ffffff;
+  --glass: rgba(20, 27, 36, 0.94);
+  --hover: #202a36;
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3), 0 6px 18px -8px rgba(0, 0, 0, 0.7);
+  --shadow-lift: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+:root[data-theme='dark'] .btn--danger { border-color: #5b2a28; }
+:root[data-theme='dark'] .chip--pitch { border-color: #25523d; }
+:root[data-theme='dark'] .chip--warn, :root[data-theme='dark'] .chip--reward { border-color: #5c4d1c; color: #ffd36b; }
+:root[data-theme='dark'] .chip--loss { border-color: #5b2a28; color: #ff9a93; }
+:root[data-theme='dark'] .alert-dot--warn, :root[data-theme='dark'] .alert-dot--reward { color: #ffd36b; }
+:root[data-theme='dark'] .pmark--warn { color: #ffd36b; }
+:root[data-theme='dark'] .warn-text { color: #ffcf66; }
+:root[data-theme='dark'] .award-group summary { color: #ffd36b; }
+:root[data-theme='dark'] .note.is-good { background: #17382a; border-color: #285a43; }
+:root[data-theme='dark'] .note.is-bad { background: #3b2020; border-color: #6a3232; }
+:root[data-theme='dark'] .chip--derby { background: #3a2514; color: #ffab70; border-color: #6b4020; }
+:root[data-theme='dark'] .odds--bronze { background: #3a2a1e; color: #f0c59a; }
+:root[data-theme='dark'] .odds--silver { background: #2a3139; color: #d5dbe3; }
+:root[data-theme='dark'] .odds--gold { background: #3a3115; color: #ffe08a; }
+:root[data-theme='dark'] .odds--icon { background: #2c2347; color: #d9c8ff; }
+:root[data-theme='dark'] .swatch[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--ink); }
+:root[data-theme='dark'] .segmented button[aria-pressed='true'] { background: #2a3647; box-shadow: none; }
+:root[data-theme='dark'] .toggle { background: #3a4656; }
+:root[data-theme='dark'] .toggle[aria-checked='true'] { background: var(--pitch-fill); }
+:root[data-theme='dark'] .toast { background: #2a3647; border: 1px solid var(--line); }
+:root[data-theme='dark'] .tabbar { border-top-color: var(--line); }
+:root[data-theme='dark'] .numcell.is-taken { background: #202a36; }
+:root[data-theme='dark'] .numcell.is-own { background: var(--pitch-fill); }
+
+/* Farbenblind-freundlich: Blau für Erfolg, Orange für Misserfolg */
+:root[data-cb='1'] { --pitch: #1f5fbf; --pitch-fill: #1f5fbf; --pitch-hover: #174a96; --pitch-dark: #174a96; --pitch-soft: #e2ecfb; --loss: #b4510a; --loss-fill: #c2570c; --loss-soft: #fdeadb; }
+:root[data-theme='dark'][data-cb='1'] { --pitch: #6aa0f0; --pitch-fill: #2a64c4; --pitch-hover: #3a74d6; --pitch-dark: #a9c8f7; --pitch-soft: #172a47; --loss: #ff9a55; --loss-fill: #c2570c; --loss-soft: #3e2616; }
+:root[data-theme='dark'] .packflow--walkout > .screen { background: repeating-conic-gradient(from 0deg at 50% 32%, rgba(255, 200, 61, 0.16) 0 8deg, transparent 8deg 22deg), radial-gradient(90% 50% at 50% 30%, #3a3115 0%, transparent 70%), var(--chalk); }

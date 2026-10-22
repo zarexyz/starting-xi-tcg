@@ -4,6 +4,8 @@
 
 import { crestSvg } from './components/crest.js';
 import { t } from '../i18n/index.js';
+import { LEAGUE_INFO } from '../engine/world.js';
+import { ffStageText, cupText } from './text.js';
 
 const W = 1080;
 const H = 1350;
@@ -129,6 +131,66 @@ export async function buildResultCard(game, data) {
   ctx.fillText(t('share.footer'), W / 2, H - 48);
 
   return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'));
+}
+
+/** Saisonkarte: Wappen, Überschrift, Platz, Punkte, Tordifferenz, Pokal */
+export async function buildSeasonCard(game) {
+  const s = game.seasonSummary;
+  const u = s.user;
+  const club = game.clubs.user;
+  try { await Promise.all([document.fonts.load(font(DISPLAY, 100)), document.fonts.load(font(BODY, 30, 700))]); } catch { /* Ersatzschrift */ }
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const up = u.champion || u.promoted;
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, shade(club.colors.primary, -0.3));
+  g.addColorStop(1, '#0d1b14');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 0; i < 9; i++) if (i % 2 === 0) ctx.fillRect(0, i * (H / 9), W, H / 9);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = font(BODY, 34, 700);
+  ctx.fillText(t('se.over', { season: u.season }).toUpperCase(), W / 2, 110);
+  const img = await crestImage(club, 320);
+  if (img) ctx.drawImage(img, W / 2 - 160, 170, 320, 333);
+  ctx.fillStyle = '#fff';
+  ctx.font = font(DISPLAY, 70);
+  ctx.fillText(fit(ctx, club.name.toUpperCase(), W - 160), W / 2, 590);
+  const head = u.champion ? t('se.champion') : u.promoted ? t('se.promoted') : u.relegated ? t('w.relegated') : t('se.placeHead', { pos: u.pos });
+  ctx.fillStyle = u.relegated ? '#ff8a80' : up ? '#ffd66b' : '#5ee59b';
+  ctx.font = font(DISPLAY, 150);
+  ctx.fillText(fit(ctx, head.toUpperCase(), W - 120), W / 2, 740);
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = font(BODY, 36, 600);
+  ctx.fillText(LEAGUE_INFO[u.tier].name, W / 2, 800);
+
+  const facts = [[t('se.place'), String(u.pos)], [t('cp.points'), String(u.pts)], [t('se.gd'), `${u.gd > 0 ? '+' : ''}${u.gd}`]];
+  const cw = 280;
+  facts.forEach(([label, value], i) => {
+    const x = W / 2 + (i - 1) * (cw + 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath(); ctx.roundRect?.(x - cw / 2, 870, cw, 190, 28); if (!ctx.roundRect) ctx.rect(x - cw / 2, 870, cw, 190); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = font(BODY, 28, 700);
+    ctx.fillText(label.toUpperCase(), x, 920);
+    ctx.fillStyle = '#fff';
+    ctx.font = font(DISPLAY, 110);
+    ctx.fillText(value, x, 1030);
+  });
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = font(BODY, 34, 600);
+  ctx.fillText(fit(ctx, `Final Four: ${ffStageText(u.ffStage)}  ·  ${t('w.cup')}: ${cupText(u.cup)}`, W - 120), W / 2, 1160);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = font(BODY, 28, 700);
+  ctx.fillText(t('share.footer'), W / 2, H - 48);
+  return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'));
+}
+
+export function seasonCardName(game) {
+  const clean = x => x.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+  return `starting-xi_${clean(game.clubs.user.name)}_Saison${game.seasonSummary.user.season}.png`;
 }
 
 export function resultCardName(game, data) {

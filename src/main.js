@@ -5,7 +5,7 @@
 import { store, subscribe, notify, act, setUi, setView, toast, startGame, resumeGame, updateSettings, setAfterAct } from './state/store.js';
 import { loadProfile, saveProfile, bump } from './state/profile.js';
 import { deliverFile, deliverText } from './state/sharefile.js';
-import { buildResultCard, resultCardName } from './ui/shareCard.js';
+import { buildResultCard, resultCardName, buildSeasonCard, seasonCardName } from './ui/shareCard.js';
 import { feedbackBody, feedbackDefaults, feedbackMessage } from './ui/screens/feedback.js';
 import { FEEDBACK_MAIL } from './config.js';
 import { evaluateAchievements, ACH_REWARD } from './engine/achievements.js';
@@ -40,13 +40,16 @@ import { resultFlow, seasonFlow } from './ui/flows/result.js';
 import { devFlow } from './ui/flows/develop.js';
 import { transfersView, transferSheetButtons, foreignPlayerActions, transferHandlers, sellSheetBody, contractSheetBody } from './ui/screens/transfers.js';
 import { setTransferRenderers } from './ui/screens/squad.js';
-import { playSound } from './ui/sound.js';
+import { playSound, buzz } from './ui/sound.js';
 import { icon } from './ui/icons.js';
 import { esc } from './ui/html.js';
 import { loadLocalFonts } from './fonts.js';
+import { applyTheme, applyA11y } from './ui/theme.js';
 import { t, setLang, getLang, deviceLang } from './i18n/index.js';
 
 loadLocalFonts();
+applyTheme(store.settings.theme || 'auto');
+applyA11y(store.settings);
 
 setTransferRenderers(transferSheetButtons, foreignPlayerActions);
 
@@ -78,6 +81,7 @@ const app = document.getElementById('app');
 
 let confirmFn = null;
 let lastFlowKey = null;
+let lastScreenKey = null;
 
 function confirmSheet(c) {
   return sheet(c.title, `
@@ -173,6 +177,14 @@ function render() {
   const flowKey = ui.flow ? ui.flow.type : game?.seasonSummary ? 'season' : game?.devReport ? 'dev' : null;
   if (fl && flowScroll && flowKey && flowKey === lastFlowKey) fl.scrollTop = flowScroll;
   lastFlowKey = flowKey;
+
+  // Weicher Übergang nur beim Wechsel von Reiter oder Bildschirm, nicht bei jedem Neuzeichnen
+  const screenKey = `${ui.screen}|${ui.tab}|${ui.view?.[ui.tab] || ''}`;
+  if (lastScreenKey !== null && screenKey !== lastScreenKey && !ui.flow && !ui.sheet) {
+    app.classList.add('is-entering');
+    setTimeout(() => app.classList.remove('is-entering'), 320);
+  }
+  lastScreenKey = screenKey;
 }
 
 function renderToast() {
@@ -387,6 +399,18 @@ const handlers = {
       else if (res === 'error') toast(t('share.failed'));
     } catch (e) { console.warn(e); toast(t('share.failed')); }
   },
+  'share-season': async () => {
+    const game = store.game;
+    if (!game?.seasonSummary) return;
+    try {
+      const blob = await buildSeasonCard(game);
+      if (!blob) { toast(t('share.failed')); return; }
+      const res = await deliverFile(blob, seasonCardName(game), 'Starting XI');
+      if (res === 'downloaded') toast(t('share.done'));
+      else if (res === 'shared') toast(t('share.shared'));
+      else if (res === 'error') toast(t('share.failed'));
+    } catch (e) { console.warn(e); toast(t('share.failed')); }
+  },
   'open-captain': () => setUi({ sheet: { type: 'captain' } }),
   'open-number': d => setUi({ sheet: { type: 'number', id: d.id } }),
   'set-armband': d => {
@@ -461,6 +485,11 @@ const handlers = {
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
   'set-speed': d => updateSettings({ speed: d.value }),
+  'set-text': d => { updateSettings({ textSize: d.value }); applyA11y(store.settings); },
+  'toggle-cb': () => { updateSettings({ colorblind: !store.settings.colorblind }); applyA11y(store.settings); },
+  'toggle-motion': () => { updateSettings({ reduceMotion: !store.settings.reduceMotion }); applyA11y(store.settings); },
+  'toggle-haptics': () => { updateSettings({ haptics: store.settings.haptics === false }); buzz(30, store.settings); },
+  'set-theme': d => { applyTheme(d.value); updateSettings({ theme: d.value }); },
   'set-lang': d => { setLang(d.value); updateSettings({ lang: d.value }); },
 
   // Spieltag
@@ -503,6 +532,8 @@ const handlers = {
 function tearPack() {
   const packEl = document.querySelector('.packflow__pack');
   packEl?.classList.add('is-torn');
+  document.querySelector('.packflow')?.classList.add('is-flash');
+  buzz(35, store.settings);
   playSound('tear', store.settings);
   setTimeout(() => {
     const game = store.game;
@@ -525,7 +556,8 @@ function flipCard(i) {
   pack.justFlipped = i;
   playSound('flip', store.settings);
   const c = store.game.pending.candidates[i];
-  if (c.tier === 'gold' || c.tier === 'icon') setTimeout(() => playSound('shiny', store.settings), 300);
+  if (c.tier === 'gold' || c.tier === 'icon') { setTimeout(() => playSound('shiny', store.settings), 300); buzz([30, 50, 60], store.settings); }
+  else buzz(15, store.settings);
   notify();
   setTimeout(() => { if (store.ui.pack) store.ui.pack.justFlipped = null; }, 900);
 }

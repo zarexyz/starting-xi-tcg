@@ -56,6 +56,12 @@ const SOUNDS = {
   tap: a => { tone(a, 880, 0, 0.05, 'sine', 0.03); }
 };
 
+/** Kurze Vibration (Android), abschaltbar in den Einstellungen */
+export function buzz(pattern, settings = {}) {
+  if (settings.haptics === false) return;
+  try { navigator.vibrate?.(pattern); } catch { /* ohne Vibration weiter */ }
+}
+
 export function playSound(name, settings) {
   if (!settings?.sound) return;
   try {

@@ -246,7 +246,8 @@ export function seasonFlow(game, ui = {}) {
       <ul class="list panel panel--flush">
         <li class="row"><span class="alert-dot">${icon('star')}</span><div class="row__main"><div class="row__title">Final Four</div><div class="row__sub">${esc(ffStageText(u.ffStage))}</div></div></li>
         <li class="row"><span class="alert-dot">${icon('trophy')}</span><div class="row__main"><div class="row__title">${t('w.cup')}</div><div class="row__sub">${esc(cupText(u.cup))}</div></div></li>
-      </ul>`;
+      </ul>
+      <button class="btn btn--secondary btn--block se-share" data-action="share-season">${icon('share')}${t('share.season')}</button>`;
   } else if (page === 1) {
     body = awardsHtml(game, s.awards);
   } else if (page === 2) {

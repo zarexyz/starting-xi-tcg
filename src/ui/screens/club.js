@@ -97,7 +97,33 @@ export function settingsBody(store) {
         <span class="alert-dot">${icon('globe')}</span>
         <div class="row__main"><div class="row__title">${t('set.lang')}</div><div class="row__sub">${t('set.langHint')}</div></div>
       </li>
-      <li class="row">${segmented(LANGS, getLang(), 'set-lang')}</li>`)}
+      <li class="row">${segmented(LANGS, getLang(), 'set-lang')}</li>
+      <li class="row">
+        <span class="alert-dot">${icon('sparkles')}</span>
+        <div class="row__main"><div class="row__title">${t('set.theme')}</div><div class="row__sub">${t('set.themeHint')}</div></div>
+      </li>
+      <li class="row">${segmented([['auto', t('set.themeAuto')], ['light', t('set.themeLight')], ['dark', t('set.themeDark')]], s.theme || 'auto', 'set-theme')}</li>`)}
+    ${group(t('set.g.access'), `
+      <li class="row">
+        <span class="alert-dot">${icon('info')}</span>
+        <div class="row__main"><div class="row__title">${t('set.textSize')}</div><div class="row__sub">${t('set.textSizeHint')}</div></div>
+      </li>
+      <li class="row">${segmented([['normal', t('set.sizeNormal')], ['large', t('set.sizeLarge')], ['xlarge', t('set.sizeXL')]], s.textSize || 'normal', 'set-text')}</li>
+      <li class="row">
+        <span class="alert-dot">${icon('sparkles')}</span>
+        <div class="row__main"><div class="row__title">${t('set.colorblind')}</div><div class="row__sub">${t('set.colorblindHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${!!s.colorblind}" aria-label="${t('set.colorblind')}" data-action="toggle-cb"><span></span></button>
+      </li>
+      <li class="row">
+        <span class="alert-dot">${icon('forward')}</span>
+        <div class="row__main"><div class="row__title">${t('set.reduceMotion')}</div><div class="row__sub">${t('set.reduceMotionHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${!!s.reduceMotion}" aria-label="${t('set.reduceMotion')}" data-action="toggle-motion"><span></span></button>
+      </li>
+      <li class="row">
+        <span class="alert-dot">${icon('sound')}</span>
+        <div class="row__main"><div class="row__title">${t('set.haptics')}</div><div class="row__sub">${t('set.hapticsHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${s.haptics !== false}" aria-label="${t('set.haptics')}" data-action="toggle-haptics"><span></span></button>
+      </li>`)}
     ${game ? group(t('set.g.save'), `
       <li class="row">
         <span class="alert-dot">${icon('save')}</span>
