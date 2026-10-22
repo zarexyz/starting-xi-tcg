@@ -11,7 +11,7 @@ import { lineupEditor, selectionBar } from '../screens/squad.js';
 import { currentDay, dayLabel, userMatch, ensureUserSetup } from '../../engine/game.js';
 import { STYLES, STYLE_KEYS, FORMATION_KEYS } from '../../engine/constants.js';
 import { buildTeam } from '../../engine/match.js';
-import { forecastMatch } from '../../engine/forecast.js';
+import { forecastMatch, expectedOpponentSetup } from '../../engine/forecast.js';
 import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/world.js';
 import { computeTable } from '../../engine/schedule.js';
 import { familiarity } from '../../engine/player.js';
@@ -98,6 +98,8 @@ export function prepFlow(game, ui) {
   const star = clubPlayers(game, oppId).filter(p => !p.injury && !p.suspension).sort((a, b) => b.ovr - a.ovr)[0];
   const pred = forecastMatch(game, entry, setup);
   const warn = warnings(game, setup);
+  const oppLines = buildTeam(game, oppId, expectedOpponentSetup(game, oppId)).lines;
+  const weakest = ['def', 'mid', 'att'].sort((a, b) => oppLines[a] - oppLines[b])[0];
 
   const styleTiles = STYLE_KEYS.map(key => {
     const st = STYLES[key];
@@ -125,6 +127,7 @@ export function prepFlow(game, ui) {
     </section>
     <div class="scout__report">
       <div class="scout__line">${icon('strategy')}<span>${opp.coach ? t('prep.coach', { coach: `<b>${esc(opp.coach.name)}</b>`, style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` }) : t('prep.noCoach', { style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` })}</span></div>
+      <div class="scout__line">${icon('target')}<span>${t('prep.weakest', { line: `<b>${t('prep.line.' + weakest)}</b>` })}</span></div>
       ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
 

@@ -1168,4 +1168,8 @@ export const en = {
   "style.DIREKT.desc": "Long balls and quick routes forward. Beats the high line, little possession.",
   "style.HOCHLINIE.name": "High line",
   "style.HOCHLINIE.desc": "The whole team pushes up and plays offside. Risky against counters and long balls.",
+  "prep.weakest": "Weakest unit: {line}.",
+  "prep.line.def": "Defence",
+  "prep.line.mid": "Midfield",
+  "prep.line.att": "Attack",
 };

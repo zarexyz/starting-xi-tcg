@@ -82,14 +82,25 @@ export function repairLineup(state, clubId, setup) {
   return { ...setup, lineup, bench: bench.slice(0, 7) };
 }
 
+/** Lernende KI: Wer deinen Stil kennt, stellt sich mit wachsender Wahrscheinlichkeit darauf ein */
+function learnStyle(rng, style, hist) {
+  if (!hist || !hist.length) return style;
+  const counts = {};
+  for (const h of hist) counts[h] = (counts[h] || 0) + 1;
+  const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  const counters = STYLE_KEYS.filter(k => STYLES[k].beats.includes(top));
+  if (!counters.length || !rng.chance(Math.min(0.45, 0.12 + 0.1 * counts[top]))) return style;
+  return rng.pick(counters);
+}
+
 /** Komplette Spielvorbereitung eines KI-Vereins */
-export function aiSetup(rng, state, clubId) {
+export function aiSetup(rng, state, clubId, userHist = null) {
   const club = state.clubs[clubId];
   const formation = club.preferredFormation;
   // Trainer-Philosophie: in etwa 85 % der Spiele sein Stil
   const style = rng.chance(0.85) ? club.preferredStyle : rng.pick(STYLE_KEYS.filter(k => k !== club.preferredStyle));
   const { lineup, bench } = bestLineup(state, clubId, formation, { minCondition: 70 });
-  return { formation, style, lineup, bench, boosts: {} };
+  return { formation: club.preferredFormation, style: learnStyle(rng, style, userHist), lineup, bench, boosts: {} };
 }
 
 /** Wie der Gegner meistens spielt – sichtbar in der Spielvorbereitung */

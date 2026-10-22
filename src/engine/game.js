@@ -504,13 +504,13 @@ export function releasePlayer(state, playerId) {
 // -----------------------------------------------------------------------------
 
 
-function setupFor(rng, state, clubId) {
+function setupFor(rng, state, clubId, vsUser = false) {
   if (clubId === 'user') {
     if (state.user.autoLineup) autoLineup(state);
     const setup = ensureUserSetup(state);
     return { ...setup, boosts: userBoosts(state) };
   }
-  return aiSetup(rng, state, clubId);
+  return aiSetup(rng, state, clubId, vsUser ? state.user.styleHist || [] : null);
 }
 
 function applyMatchEffects(rng, state, result, side, team, played) {
@@ -667,8 +667,13 @@ export function playDay(state) {
       participating.add(m.away);
       const knockout = entry.comp !== 'league';
       const neutral = entry.comp === 'ff' && entry.stage === 'final';
-      const hs = setupFor(rng, state, m.home);
-      const as = setupFor(rng, state, m.away);
+      const hs = setupFor(rng, state, m.home, m.away === 'user');
+      const as = setupFor(rng, state, m.away, m.home === 'user');
+      if (m.home === 'user' || m.away === 'user') {
+        const h = (state.user.styleHist ||= []);
+        h.push(m.home === 'user' ? hs.style : as.style);
+        if (h.length > 4) h.shift();
+      }
       const home = buildTeam(state, m.home, hs);
       const away = buildTeam(state, m.away, as);
       const rival = rivalry(state.clubs[m.home], state.clubs[m.away]);

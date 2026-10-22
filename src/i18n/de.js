@@ -1175,4 +1175,8 @@ export const de = {
   "style.DIREKT.desc": "Lange Bälle, schnelle Wege nach vorn. Überspielt die Hohe Linie, wenig Ballbesitz.",
   "style.HOCHLINIE.name": "Hohe Linie",
   "style.HOCHLINIE.desc": "Ganze Mannschaft schiebt hoch, Abseitsfalle. Riskant gegen Konter und lange Bälle.",
+  "prep.weakest": "Schwächster Mannschaftsteil: {line}.",
+  "prep.line.def": "Abwehr",
+  "prep.line.mid": "Mittelfeld",
+  "prep.line.att": "Sturm",
 };
