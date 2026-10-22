@@ -925,7 +925,8 @@ tr[data-action] { cursor: pointer; }
 .news-read svg { width: 18px; height: 18px; }
 .news-links__title { margin: var(--s-4) 0 var(--s-2); }
 .news-links { margin-bottom: var(--s-3); }
-.news-links .row svg:last-child { width: 16px; height: 16px; color: var(--ink-3); flex: none; }
+.news-links__chev { display: inline-flex; flex: none; color: var(--ink-3); }
+.news-links__chev svg { width: 16px; height: 16px; }
 .peek__row { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line-2); align-items: start; }
 .peek__row:last-child { border-bottom: 0; }
 .peek__row.is-hl { background: var(--floodlight-soft); }

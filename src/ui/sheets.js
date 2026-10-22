@@ -47,10 +47,10 @@ function newsLinks(game, n) {
     ...pids.map(id => {
       const p = game.players[id];
       const c = game.clubs[p.clubId];
-      return `<li><button class="row row--button" data-action="open-player" data-id="${id}">
+      return `<li><button class="row row--button prow" data-action="open-player" data-id="${id}">
         <span class="prow__face tier-${p.tier}" style="--club:${c?.colors.primary || '#888'}">${portraitSvg(p, { colors: c?.colors })}</span>
         <span class="row__main"><span class="row__title">${esc(p.first)} ${esc(p.last)}</span><span class="row__sub">${POS_LABEL[p.position]}, ${p.ovr}${c ? ` · ${esc(c.name)}` : ''}</span></span>
-        ${icon('chevronRight')}
+        <span class="news-links__chev">${icon('chevronRight')}</span>
       </button></li>`;
     }),
     ...cids.map(id => {
@@ -58,7 +58,7 @@ function newsLinks(game, n) {
       return `<li><button class="row row--button" data-action="open-club" data-id="${id}">
         ${crestSvg(c, 32)}
         <span class="row__main"><span class="row__title">${esc(c.name)}</span><span class="row__sub">${LEAGUE_INFO[c.tier].name}</span></span>
-        ${icon('chevronRight')}
+        <span class="news-links__chev">${icon('chevronRight')}</span>
       </button></li>`;
     })
   ];
