@@ -94,7 +94,12 @@ function squadAlerts(game) {
 
 function newsList(game) {
   const items = feedItems(game).slice(0, 3);
-  if (!items.length) return '';
+  if (!items.length) {
+    return `<section class="section">
+      <div class="section__head"><h2 class="section__title">${t('feed.title')}</h2></div>
+      <p class="small muted">${t('feed.emptyHint')}</p>
+    </section>`;
+  }
   const unread = feedItems(game).filter(n => !n.read).length;
   return `<section class="section">
     <div class="section__head"><h2 class="section__title">${t('feed.title')}${unread ? ` <span class="badge-count">${unread > 99 ? '99+' : unread}</span>` : ''}</h2><button class="link" data-action="open-feed">${t('home.all')}</button></div>
@@ -127,6 +132,7 @@ export function homeScreen(game) {
   return `<main class="screen">
     ${topbar(game)}
     ${pendingBanner || matchTicket(game)}
+    ${newsList(game)}
     ${firstSteps(game)}
 
     <section class="section">
@@ -154,6 +160,5 @@ export function homeScreen(game) {
     </section>
 
     ${squadAlerts(game)}
-    ${newsList(game)}
   </main>`;
 }

@@ -131,6 +131,17 @@ export function matchdayStories(rng, state, day) {
     }
   }
 
+  // Spieltagszeitung: höchster Sieg des Spieltags und wer vorne steht
+  const round = league.fixtures[day.md - 1] || [];
+  const big = [...round].filter(m => m.hg != null).sort((a, b) => Math.abs(b.hg - b.ag) - Math.abs(a.hg - a.ag) || (b.hg + b.ag) - (a.hg + a.ag))[0];
+  if (big) {
+    const leader = computeTable(state, tier, day.md)[0].clubId;
+    addNews(state, 'table', 'news.roundup', {
+      md: day.md, home: state.clubs[big.home].name, away: state.clubs[big.away].name, score: `${big.hg}:${big.ag}`,
+      leader: state.clubs[leader].name, goals: round.reduce((sum, m) => sum + (m.hg || 0) + (m.ag || 0), 0)
+    }, { clubIds: [big.home, big.away, leader].filter((id, i, arr) => arr.indexOf(id) === i) });
+  }
+
   // Eigener Spieler übernimmt die Torjägerliste
   const players = league.clubIds.flatMap(id => clubPlayers(state, id));
   const top = [...players].sort((a, b) => b.stats.goals - a.stats.goals || b.stats.assists - a.stats.assists)[0];

@@ -1025,3 +1025,7 @@ tr[data-action] { cursor: pointer; }
 .se-club { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; font: inherit; font-size: var(--t-sm); font-weight: 600; color: inherit; cursor: pointer; text-align: left; }
 .se-club.is-me { font-weight: 800; color: var(--pitch-dark); }
 .se-club svg { flex: none; }
+
+/* Chip-Reihen umbrechen statt seitlich abschneiden */
+.cat-picker, .league-picker, .chips-scroll { flex-wrap: wrap; overflow: visible; }
+.cat-picker .chip, .league-picker .chip, .chips-scroll .chip { padding: 5px 10px; font-size: var(--t-xs); }

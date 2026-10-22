@@ -969,4 +969,6 @@ export const de = {
   "item.err.loyaltyAge": "Der Treuebonus gilt nur für Spieler unter 31.",
   "ct.discount": "Verhandlungsgeschick aktiv: 18 % weniger Gehalt bei dieser Verlängerung.",
   "se.placeHead": "Platz {pos}",
+  "news.roundup.t": "Spieltag {md}: {home} {score} {away}",
+  "news.roundup.x": "Das Spiel des Tages endet {score}. Insgesamt fielen {goals} Tore, an der Spitze steht {leader}.",
 };

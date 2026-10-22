@@ -962,4 +962,6 @@ export const en = {
   "item.err.loyaltyAge": "The loyalty bonus only works for players under 31.",
   "ct.discount": "Negotiation skills active: 18% lower wage for this extension.",
   "se.placeHead": "Place {pos}",
+  "news.roundup.t": "Matchday {md}: {home} {score} {away}",
+  "news.roundup.x": "The match of the day ends {score}. {goals} goals were scored in total, and {leader} lead the table.",
 };
