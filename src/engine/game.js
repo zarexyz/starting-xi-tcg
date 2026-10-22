@@ -74,6 +74,13 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern,
     { type: 'MORALE' }, { type: 'TACTIC' }
   ].map(item => ({ id: `i${++state.nextId}`, ...item }));
   addNews(state, 'welcome', 'news.welcome', { club: clubName, league: LEAGUE_INFO[6].name });
+  // News sollen von Anfang an gefüllt sein: Trainer übernehmen ihre Vereine
+  const intro = [...state.leagues[state.clubs.user.tier].clubIds.filter(id => id !== 'user').slice(0, 5),
+    ...state.leagues[1].clubIds.slice(0, 3)];
+  for (const id of intro.reverse()) {
+    const c = state.clubs[id];
+    if (c?.coach) addNews(state, 'coach', 'news.coachStart', { coach: c.coach.name, club: c.name, styleK: `style.${c.coach.style}.name` }, { clubId: id });
+  }
   return state;
 }
 

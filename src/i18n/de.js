@@ -167,7 +167,7 @@ export const de = {
   "news.youth.t": "Nachwuchs aus der eigenen Jugend",
   "news.youth.x_one": "{list} rückt in den Profikader auf.",
   "news.youth.x_other": "{list} rücken in den Profikader auf.",
-  "news.coach.t": "Trainerwechsel bei {club}",
+  "news.coach.t": "{coach} übernimmt {club}",
   "news.coach.x": "{old} muss gehen. Nachfolger {coach} steht für {style}.",
   "news.newSeason.t": "Saison {season} beginnt",
   "news.newSeason.x": "Neue Saison in der {league}. Alle Spieler sind ein Jahr älter. Prüfe Kader und Aufstellung.",
@@ -1167,4 +1167,6 @@ export const de = {
   "acad.intake": "Neue Talente",
   "se.goalMet": "Erreicht. Prämie {amount}.",
   "se.goalMissed": "Verfehlt. Das Vertrauen des Vorstands sinkt.",
+  "news.coachStart.t": "{coach} übernimmt {club}",
+  "news.coachStart.x": "Der neue Trainer von {club} steht für {style}.",
 };

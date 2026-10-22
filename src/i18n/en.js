@@ -160,7 +160,7 @@ export const en = {
   "news.youth.t": "Academy graduates",
   "news.youth.x_one": "{list} joins the first-team squad.",
   "news.youth.x_other": "{list} join the first-team squad.",
-  "news.coach.t": "New manager at {club}",
+  "news.coach.t": "{coach} takes over {club}",
   "news.coach.x": "{old} has been sacked. Successor {coach} stands for {style}.",
   "news.newSeason.t": "Season {season} begins",
   "news.newSeason.x": "A new season in the {league}. Every player is a year older. Check your squad and line-up.",
@@ -1160,4 +1160,6 @@ export const en = {
   "acad.intake": "New talents",
   "se.goalMet": "Reached. Bonus {amount}.",
   "se.goalMissed": "Missed. The board's trust drops.",
+  "news.coachStart.t": "{coach} takes over {club}",
+  "news.coachStart.x": "The new manager of {club} stands for {style}.",
 };
