@@ -16,7 +16,7 @@ const FLAGS = {
   ENG: { special: 'eng' },
   SWE: { special: 'nordic', bg: '#006aa7', cross: '#fecc00' },
   POL: H('#ffffff', '#dc143c'),
-  CRO: H('#ff0000', '#ffffff', '#171796'),
+  CRO: { special: 'cro' },
   AUT: H('#ed2939', '#ffffff', '#ed2939'),
   DEN: { special: 'nordic', bg: '#c8102e', cross: '#ffffff' },
   SEN: V('#00853f', '#fdef42', '#e31b23'),
@@ -54,6 +54,15 @@ export function flagSvg(code, w = 20) {
     body = `<rect width="30" height="21" fill="#fff"/>${[0, 2, 4, 6, 8, 10, 12].map(i => `<rect y="${(i * 21 / 13).toFixed(2)}" width="30" height="${(21 / 13 + 0.05).toFixed(2)}" fill="#b22234"/>`).join('')}<rect width="12.5" height="11.3" fill="#3c3b6e"/>`;
   } else if (f.special === 'mex') {
     body = `<rect width="10" height="21" fill="#006847"/><rect x="10" width="10" height="21" fill="#fff"/><rect x="20" width="10" height="21" fill="#ce1126"/><circle cx="15" cy="10.5" r="2.2" fill="#8c6a2f"/>`;
+  } else if (f.special === 'cro') {
+    // Rot-Weiß-Blau mit rot-weiß kariertem Wappenschild in der Mitte
+    const cells = [];
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 3; c++) {
+      cells.push(`<rect x="${(12 + c * 2).toFixed(1)}" y="${(5 + r * 2).toFixed(1)}" width="2" height="2" fill="${(r + c) % 2 ? '#fff' : '#ff0000'}"/>`);
+    }
+    body = `<rect width="30" height="7" fill="#ff0000"/><rect y="7" width="30" height="7" fill="#fff"/><rect y="14" width="30" height="7" fill="#171796"/>` +
+      `<path d="M11.6 4.6h6.8v6.6q0 3.7-3.4 5.2-3.4-1.5-3.4-5.2z" fill="#fff" stroke="#171796" stroke-width="0.5"/>` +
+      `<clipPath id="cro-shield"><path d="M12 5h6v6.2q0 3.3-3 4.6-3-1.3-3-4.6z"/></clipPath><g clip-path="url(#cro-shield)">${cells.join('')}</g>`;
   } else if (f.special === 'jpn') {
     body = `<rect width="30" height="21" fill="#fff"/><circle cx="15" cy="10.5" r="5.6" fill="#bc002d"/>`;
   } else if (f.special === 'nordic') {

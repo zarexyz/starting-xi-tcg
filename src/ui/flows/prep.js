@@ -103,7 +103,7 @@ export function prepFlow(game, ui) {
       </div>
       <p class="hint small">${t('prep.swapHint')}</p>
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
-      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos">${icon('check')}${t('prep.noWeak')}</p>`}
+      ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : `<p class="small pos ok-line">${icon('check')}${t('prep.noWeak')}</p>`}
     </section>
 
     <section class="section">

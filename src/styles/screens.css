@@ -894,3 +894,5 @@ tr[data-action] { cursor: pointer; }
 .xi-chip small { font-size: 10px; color: var(--ink-3); font-weight: 800; letter-spacing: .04em; }
 .xi-chip .num { font-size: var(--t-xs); color: var(--ink-2); font-weight: 600; }
 .xi-chip.is-me { border-color: var(--pitch); background: var(--pitch-soft); }
+.ok-line { display: flex; align-items: center; gap: 8px; margin: var(--s-3) 0 0; }
+.ok-line svg { width: 16px; height: 16px; flex: none; }
