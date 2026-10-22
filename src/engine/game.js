@@ -20,6 +20,7 @@ import { newCoach } from './world.js';
 import { aiTransferWindow } from './market.js';
 import { severance, ensureAllContracts, ensureContract, signContract, defaultYears, contractDemand, checkRaiseWishes, contractMood, expiryWarning, expireContracts, wageOf } from './contracts.js';
 import { processTransferDay } from './market.js';
+import { newsChannel } from './news.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 3;
@@ -115,7 +116,7 @@ export function addNews(state, type, key, params = {}, extra = {}) {
     read: false,
     ...extra
   });
-  if (state.inbox.length > 120) state.inbox.length = 120;
+  if (state.inbox.length > 200) state.inbox.length = 200;
 }
 
 /** Kassenbuch: label ist ein Übersetzungsschlüssel, lp seine Platzhalter */
@@ -261,7 +262,7 @@ export function useItem(state, itemId, playerId = null) {
   const def = CONSUMABLES[item.type];
   const squad = clubPlayers(state, 'user');
   const player = playerId ? state.players[playerId] : null;
-  if ((def.target === 'player' || def.target === 'injured') && (!player || player.clubId !== 'user')) {
+  if ((def.target === 'player' || def.target === 'injured' || def.target === 'own') && (!player || player.clubId !== 'user')) {
     return { error: t('err.pickPlayer') };
   }
   let message = '';
@@ -316,6 +317,20 @@ export function useItem(state, itemId, playerId = null) {
         const pos = rng.pick(related);
         player.secondary.push(pos);
         message = t('item.msg.retrain', { name: shortName(player), pos: POS_LABEL[pos] });
+        break;
+      }
+      case 'NEGOTIATE':
+        if (player.contractDiscount) return { error: t('item.err.hasDiscount', { name: shortName(player) }) };
+        player.contractDiscount = 0.82;
+        message = t('item.msg.negotiate', { name: shortName(player) });
+        break;
+      case 'LOYALTY': {
+        if (player.age >= 31) return { error: t('item.err.loyaltyAge', { name: shortName(player) }) };
+        const c = ensureContract(state, player);
+        c.until = Math.max(c.until, state.season) + 1;
+        player.wantsRaise = false;
+        player.morale = Math.min(100, player.morale + 5);
+        message = t('item.msg.loyalty', { name: shortName(player), s: c.until });
         break;
       }
       default:
@@ -812,7 +827,7 @@ function afterDay(rng, state, day) {
     state.devReport = { tk: 'dev.titleMid', tp: { season: state.season }, changes };
     addNews(state, 'development', 'news.midseason');
     checkRaiseWishes(state);
-    aiTransferWindow(rng, state, 0.15);
+    worldTransferNews(state, aiTransferWindow(rng, state, 0.15));
   }
   if (day.type === 'league' && day.md === 12) expiryWarning(state);
   if (day.type === 'cup') {
@@ -904,8 +919,12 @@ export function acknowledgeDevReport(state) {
 
 function endSeason(rng, state) {
   const summary = { season: state.season, moves: [], retired: [], user: null };
+  summary.champions = {};
+  for (let tier = 1; tier <= 6; tier++) if (state.finalFours[tier]?.champion) summary.champions[tier] = state.finalFours[tier].champion;
+  summary.cupWinner = state.cup?.winner || null;
+  summary.leaders = {};
   const tables = {};
-  for (let tier = 1; tier <= 6; tier++) tables[tier] = computeTable(state, tier);
+  for (let tier = 1; tier <= 6; tier++) { tables[tier] = computeTable(state, tier); summary.leaders[tier] = tables[tier][0]?.clubId; }
 
   const promoted = {};
   const relegated = {};
@@ -1004,7 +1023,9 @@ function endSeason(rng, state) {
   state.user.counters = {};
 
   // Transferfenster der KI-Vereine
-  summary.aiMoves = aiTransferWindow(rng, state).length;
+  const aiMoves = aiTransferWindow(rng, state);
+  summary.aiMoves = aiMoves.length;
+  worldTransferNews(state, aiMoves);
 
   // Eigene Jugendakademie: zwei Talente pro Saison, Kader nie unter 16
   const youth = [];
@@ -1025,6 +1046,7 @@ function endSeason(rng, state) {
     p.ovrHistory = [{ s: state.season, h: 0, ovr: p.ovr }];
     state.players[p.id] = p;
     userClub.playerIds.push(p.id);
+    p.fromYouth = true;
     // Jugendvertrag: läuft drei Saisons ab der kommenden
     p.contract = { wage: salaryFor(p.ovr), until: state.season + 3 };
     youth.push(p);
@@ -1103,7 +1125,22 @@ export function markRead(state, id) {
 }
 
 export function markAllRead(state) {
-  state.inbox.forEach(n => { n.read = true; });
+  state.inbox.forEach(n => { if (newsChannel(n) === 'inbox') n.read = true; });
+}
+
+/** Zeitung geöffnet: alle Zeitungsmeldungen gelten als gelesen */
+export function markFeedRead(state) {
+  state.inbox.forEach(n => { if (newsChannel(n) === 'feed') n.read = true; });
+}
+
+/** Wechsel zwischen KI-Vereinen als Zeitungsmeldung (die drei stärksten) */
+function worldTransferNews(state, moves) {
+  const notable = moves.map(m => ({ ...m, p: state.players[m.playerId] })).filter(m => m.p)
+    .sort((a, b) => b.p.ovr - a.p.ovr).slice(0, 3);
+  for (const m of notable.reverse()) {
+    addNews(state, 'world', 'news.worldMove', { name: displayName(m.p), short: shortName(m.p), from: state.clubs[m.from]?.name || '', to: state.clubs[m.to]?.name || '', ovr: m.p.ovr },
+      { playerId: m.playerId, clubIds: [m.to, m.from].filter(id => state.clubs[id]) });
+  }
 }
 
 export { createRng };

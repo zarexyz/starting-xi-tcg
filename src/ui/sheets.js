@@ -10,26 +10,28 @@ import { esc } from './html.js';
 import { itemDef, attrMatters } from '../engine/packs.js';
 import { ATTR_NAMES } from '../engine/constants.js';
 import { clubPlayers } from '../engine/world.js';
-import { t } from '../i18n/index.js';
+import { t, fmtNum } from '../i18n/index.js';
 import { newsTitle, newsText } from './text.js';
 import { portraitSvg } from './components/portrait.js';
 import { crestSvg } from './components/crest.js';
 import { LEAGUE_INFO } from '../engine/world.js';
 import { POS_LABEL } from '../engine/constants.js';
+import { inboxItems, newsChannel } from '../engine/news.js';
 
-const NEWS_ICON = {
+export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
   season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', derby: 'flame', coach: 'user',
   streak: 'up', upset: 'sparkles', comeback: 'heart', result: 'ball', player: 'star', youth: 'sparkles',
-  table: 'list', award: 'trophy', rumor: 'megaphone'
+  table: 'list', award: 'trophy', rumor: 'megaphone', world: 'swap', contract: 'clipboard'
 };
 
 export function inboxSheet(game) {
-  if (!game.inbox.length) return sheet(t('top.inbox'), `<div class="empty"><div class="h3">${t('inbox.empty')}</div></div>`);
+  const items = inboxItems(game);
+  if (!items.length) return sheet(t('top.inbox'), `<div class="empty"><div class="h3">${t('inbox.empty')}</div><p>${t('inbox.emptyFeed')}</p></div>`);
   const body = `
     <div class="sheet-actions"><button class="link" data-action="read-all">${t('inbox.readAll')}</button></div>
     <ul class="list panel panel--flush">
-      ${game.inbox.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
+      ${items.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
         <span class="alert-dot ${n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' || n.type === 'award' ? 'alert-dot--reward' : ''}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
         <div class="row__main"><div class="row__title ${n.read ? '' : 'is-unread'}">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
         ${n.read ? `<span class="xsmall muted">S${n.season}</span>` : `<button class="icon-btn news-read" data-action="news-read" data-id="${n.id}" aria-label="${t('inbox.markRead')}" title="${t('inbox.markRead')}">${icon('check')}</button>`}
@@ -71,7 +73,9 @@ export function newsSheet(game, id) {
   return sheet(newsTitle(n), `
     <p class="news-text">${esc(newsText(n))}</p>
     ${newsLinks(game, n)}
-    <button class="btn btn--ghost btn--block" data-action="open-inbox">${icon('chevronLeft')}${t('news.toInbox')}</button>
+    ${newsChannel(n) === 'feed'
+      ? `<button class="btn btn--ghost btn--block" data-action="open-feed">${icon('chevronLeft')}${t('news.toFeed')}</button>`
+      : `<button class="btn btn--ghost btn--block" data-action="open-inbox">${icon('chevronLeft')}${t('news.toInbox')}</button>`}
   `);
 }
 
@@ -83,10 +87,14 @@ export function itemsSheet(game, ui) {
     const def = itemDef(pickItem);
     let players = clubPlayers(game, 'user');
     if (def.target === 'injured') players = players.filter(p => p.injury);
+    if (pickItem.type === 'LOYALTY') players = players.filter(p => p.age < 31).sort((a, b) => (b.wantsRaise ? 1 : 0) - (a.wantsRaise ? 1 : 0) || b.ovr - a.ovr);
+    if (pickItem.type === 'NEGOTIATE') players = players.sort((a, b) => (b.wantsRaise ? 1 : 0) - (a.wantsRaise ? 1 : 0) || (a.contract?.until ?? 99) - (b.contract?.until ?? 99) || b.ovr - a.ovr);
     if (pickItem.type === 'FITNESS') players = players.sort((a, b) => a.condition - b.condition);
+    else if (pickItem.type === 'NEGOTIATE' || pickItem.type === 'LOYALTY') { /* oben sortiert */ }
     else if (def.attr) players = players.sort((a, b) => attrMatters(b.position, def.attr) - attrMatters(a.position, def.attr) || b.ovr - a.ovr);
     else players = players.sort((a, b) => b.ovr - a.ovr);
-    const extra = def.attr ? p => `${ATTR_NAMES[def.attr]} ${p.attrs[def.attr]}${p.tempBoost ? `, ${t('items.boostActive')}` : ''}` : null;
+    const contractExtra = ['NEGOTIATE', 'LOYALTY'].includes(pickItem.type) ? p => `${t('ct.untilS', { s: p.contract?.until ?? game.season })}, ${fmtNum(p.contract?.wage ?? 0)}${p.wantsRaise ? ` · ${t('ct.markRaiseT')}` : ''}` : null;
+    const extra = contractExtra || (def.attr ? p => `${ATTR_NAMES[def.attr]} ${p.attrs[def.attr]}${p.tempBoost ? `, ${t('items.boostActive')}` : ''}` : null);
     return sheet(def.name, `
       ${itemCard(pickItem)}
       <p class="small muted">${t('items.forWhom')}</p>

@@ -8,6 +8,7 @@ import { clubPlayers, clubStrength, rivalry } from './world.js';
 import { computeTable } from './schedule.js';
 import { displayName, shortName } from './player.js';
 import { addNews, userMatch } from './game.js';
+import { recordMatch } from './achievements.js';
 
 const APP_MILESTONES = [50, 100, 150, 200, 250, 300, 400];
 const GOAL_MILESTONES = [25, 50, 75, 100, 150, 200];
@@ -58,6 +59,7 @@ export function matchStories(state, { result, side, outcome, opponentId, rival, 
 
   // Spielverlauf
   const deficit = worstDeficit(result, side);
+  recordMatch(state, { result, side, outcome, rival, deficit, gap });
   if (outcome === 'W' && deficit <= -1 && gf - ga >= 1 && (deficit <= -2 || result.goals.length >= 4)) {
     push(7, 'comeback', 'news.comeback', { club, opp: opp.name, score, n: -deficit }, { clubId: opponentId });
   }
@@ -146,7 +148,7 @@ export function matchdayStories(rng, state, day) {
       const score = x => x.rs / x.apps + x.goals * 0.08;
       const best = cands.sort((a, b) => score(b) - score(a))[0];
       const p = best.p;
-      p.awards = [...(p.awards || []), { k: 'potm', s: state.season, md: day.md }];
+      p.awards = [...(p.awards || []), { k: 'potm', s: state.season, md: day.md, t: tier, c: state.clubs[p.clubId].name }];
       const params = { name: displayName(p), short: shortName(p), club: state.clubs[p.clubId].name, ratingD: Math.round((best.rs / best.apps) * 10) / 10, goals: best.goals };
       if (p.clubId === 'user') {
         p.morale = Math.min(100, p.morale + 6);
@@ -197,7 +199,8 @@ export function seasonAwards(state, tier) {
   const avg = p => (p.stats.apps ? p.stats.ratingSum / p.stats.apps : 0);
   const minApps = Math.ceil(MATCHDAYS / 2);
   const regular = players.filter(p => p.stats.apps >= minApps);
-  const entry = p => ({ id: p.id, name: displayName(p), clubId: p.clubId, club: state.clubs[p.clubId].name, pos: p.position, goals: p.stats.goals, rating: Math.round(avg(p) * 10) / 10 });
+  const entry = p => ({ id: p.id, name: displayName(p), clubId: p.clubId, club: state.clubs[p.clubId].name, pos: p.position, goals: p.stats.goals, rating: Math.round(avg(p) * 10) / 10,
+    snap: { first: p.first, last: p.last, look: p.look, nation: p.nation, tier: p.tier, age: p.age, position: p.position } });
 
   const scorer = [...players].sort((a, b) => b.stats.goals - a.stats.goals || b.stats.assists - a.stats.assists || a.stats.apps - b.stats.apps)[0];
   const pots = [...regular].sort((a, b) => avg(b) + b.stats.goals * 0.02 - (avg(a) + a.stats.goals * 0.02))[0];
@@ -210,12 +213,12 @@ export function seasonAwards(state, tier) {
 
   for (const [k, p] of [['scorer', scorer], ['pots', pots]]) {
     if (!p || !awards[k]) continue;
-    p.awards = [...(p.awards || []), { k, s: state.season }];
+    p.awards = [...(p.awards || []), { k, s: state.season, t: tier, c: state.clubs[p.clubId].name }];
     if (p.clubId === 'user') p.morale = Math.min(100, p.morale + 8);
   }
   for (const e of xi) {
     const p = state.players[e.id];
-    p.awards = [...(p.awards || []), { k: 'xi', s: state.season }];
+    p.awards = [...(p.awards || []), { k: 'xi', s: state.season, t: tier, c: state.clubs[p.clubId].name }];
   }
 
   if (awards.scorer) addNews(state, 'award', awards.scorer.clubId === 'user' ? 'news.scorerMine' : 'news.scorer', { name: awards.scorer.name, club: awards.scorer.club, n: awards.scorer.goals }, { playerId: awards.scorer.id });

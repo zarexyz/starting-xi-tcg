@@ -2,12 +2,14 @@
 // Starting XI TCG — Einstieg: Rendering, Navigation, Eingaben
 // =============================================================================
 
-import { store, subscribe, notify, act, setUi, setView, toast, startGame, resumeGame, updateSettings } from './state/store.js';
+import { store, subscribe, notify, act, setUi, setView, toast, startGame, resumeGame, updateSettings, setAfterAct } from './state/store.js';
+import { loadProfile, saveProfile } from './state/profile.js';
+import { evaluateAchievements, ACH_REWARD } from './engine/achievements.js';
 import { deleteGame } from './state/storage.js';
 import { exportSave, pickSaveFile, parseSave } from './state/backup.js';
 import {
   createGame, openStarterPack, pickDraft, closePending, buyPack, useItem, setUserSetup, autoLineup,
-  placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, userMatch, ensureUserSetup
+  placePlayer, swapPlayers, releasePlayer, playDay, setAutoLineup, acknowledgeDevReport, dismissTips, acknowledgeSeasonSummary, markRead, markAllRead, markFeedRead, userMatch, ensureUserSetup
 } from './engine/game.js';
 import { CONSUMABLES } from './engine/packs.js';
 import { clubPlayers } from './engine/world.js';
@@ -19,9 +21,11 @@ import { squadScreen, playerSheet } from './ui/screens/squad.js';
 import { clubSheet } from './ui/screens/clubpage.js';
 import { leagueScreen } from './ui/screens/league.js';
 import { marketScreen } from './ui/screens/market.js';
-import { clubScreen } from './ui/screens/club.js';
+import { clubScreen, settingsBody } from './ui/screens/club.js';
 import { inboxSheet, newsSheet, itemsSheet } from './ui/sheets.js';
 import { severance } from './engine/contracts.js';
+import { feedItems } from './engine/news.js';
+import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
@@ -39,6 +43,25 @@ import { t, setLang, getLang, deviceLang } from './i18n/index.js';
 loadLocalFonts();
 
 setTransferRenderers(transferSheetButtons, foreignPlayerActions);
+
+// Erfolge prüfen nach jeder Spielaktion; Belohnung wird im laufenden Spielstand gebucht
+setAfterAct(st => {
+  if (!st.game || st.game.pending?.type === 'starter') return;
+  const profile = loadProfile();
+  const unlocks = evaluateAchievements(st.game, profile);
+  if (!unlocks.length) { saveProfile(profile); return; }
+  let total = 0;
+  for (const u of unlocks) {
+    const amount = ACH_REWARD[u.tier];
+    total += amount;
+    st.game.clubs.user.coins += amount;
+    st.game.user.ledger.unshift({ season: st.game.season, day: st.game.dayIndex, label: 'ledger.achievement', lp: { nameK: `ach.${u.id}.name`, tierK: `ach.tier.${u.tier}` }, amount });
+    profile.log = [{ id: u.id, tier: u.tier, at: Date.now(), club: st.game.clubs.user.name }, ...(profile.log || [])].slice(0, 100);
+  }
+  saveProfile(profile);
+  const first = unlocks[unlocks.length - 1];
+  toast(t('ach.unlocked', { nameK: `ach.${first.id}.name`, tierK: `ach.tier.${first.tier}`, coinsC: total }) + (unlocks.length > 1 ? ` ${t('ach.more', { n: unlocks.length - 1 })}` : ''));
+});
 
 const app = document.getElementById('app');
 
@@ -73,6 +96,8 @@ function sheetHtml(game, ui) {
   if (s.type === 'inbox') return inboxSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
+  if (s.type === 'feed') return feedSheet(game, ui);
+  if (s.type === 'settings') return sheet(t('set.title'), settingsBody(store));
   if (s.type === 'peek') return sheet(t('pf.viewSquad'), squadPeekBody(game, s.pos || []));
   if (s.type === 'sell') return sheet(t('tm.sellTitle', { name: game.players[s.id]?.last || '' }), sellSheetBody(game, s.id));
   if (s.type === 'contract') return sheet(t('ct.sheetTitle', { name: game.players[s.id]?.last || '' }), contractSheetBody(game, s.id));
@@ -86,7 +111,7 @@ function flowHtml(game, ui) {
   if (f?.type === 'result') return resultFlow(game, f, ui);
   if (f?.type === 'matchday') return matchdayFlow(game, f);
   if (f?.type === 'pack' && game.pending) return packFlow(game, ui);
-  if (!f && game.seasonSummary) return seasonFlow(game);
+  if (!f && game.seasonSummary) return seasonFlow(game, ui);
   if (!f && game.devReport) return devFlow(game);
   return '';
 }
@@ -239,7 +264,7 @@ function useItemAction(itemId, playerId = null) {
   if (!item) return;
   const def = CONSUMABLES[item.type];
   const target = playerId || store.ui.sheet?.playerId || null;
-  if ((def.target === 'player' || def.target === 'injured') && !target) {
+  if ((def.target === 'player' || def.target === 'injured' || def.target === 'own') && !target) {
     setUi({ sheet: { type: 'items', itemId } });
     return;
   }
@@ -312,6 +337,13 @@ const handlers = {
   'open-news': d => { act(markRead, d.id); setUi({ sheet: { type: 'news', id: d.id } }); },
   'read-all': () => act(markAllRead),
   'news-read': d => act(markRead, d.id),
+  'open-settings': () => setUi({ sheet: { type: 'settings' } }),
+  'open-feed': () => {
+    const fresh = store.ui.sheet?.type === 'news' ? (store.ui.feedFresh || []) : feedItems(store.game).filter(n => !n.read).map(n => n.id);
+    setUi({ sheet: { type: 'feed' }, feedFresh: fresh });
+    act(markFeedRead);
+  },
+  'feed-filter': d => setUi({ feedFilter: d.value }),
   'squad-peek': d => setUi({ sheet: { type: 'peek', pos: (d.pos || '').split(',').filter(Boolean) } }),
   'open-player': d => openDetail('player', d.id),
   'open-club': d => openDetail('club', d.id),
@@ -405,7 +437,8 @@ const handlers = {
   },
   'dismiss-tips': () => act(dismissTips),
   'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
-  'season-continue': () => { act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
+  'season-continue': () => { store.ui.sePage = 0; act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
+  'season-page': d => { setUi({ sePage: Number(d.value) }); document.querySelector('.fullscreen > .screen')?.scrollTo(0, 0); },
 
   ...transferHandlers({ act, setUi, toast, askConfirm, store })
 };

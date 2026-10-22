@@ -271,6 +271,8 @@ export function acceptOffer(state, offerId) {
   user.playerIds = user.playerIds.filter(id => id !== p.id);
   user.coins += offer.amount;
   state.user.ledger.unshift({ season: state.season, day: state.dayIndex, label: 'ledger.sell', lp: { name: displayName(p) }, amount: offer.amount });
+  state.user.record = state.user.record || {};
+  state.user.record.salesIncome = (state.user.record.salesIncome || 0) + offer.amount;
   p.clubId = buyer.id;
   buyer.playerIds.push(p.id);
   ensureContract(state, p);

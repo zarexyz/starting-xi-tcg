@@ -129,53 +129,144 @@ export function resultFlow(game, flow, ui = {}) {
 // Saisonbilanz
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// Saisonbilanz in vier Seiten: Bilanz, Auszeichnungen, Ligen, Kader
+// -----------------------------------------------------------------------------
+
+const XI_SLOTS = [
+  { pos: 'TW', x: 50, y: 88 },
+  { pos: 'LV', x: 13, y: 66 }, { pos: 'IV', x: 37, y: 72 }, { pos: 'IV', x: 63, y: 72 }, { pos: 'RV', x: 87, y: 66 },
+  { pos: 'ZM', x: 24, y: 45 }, { pos: 'ZDM', x: 50, y: 52 }, { pos: 'ZM', x: 76, y: 45 },
+  { pos: 'LF', x: 17, y: 20 }, { pos: 'ST', x: 50, y: 14 }, { pos: 'RF', x: 83, y: 20 }
+];
+
+/** Elf der Saison auf die 4-3-3-Plätze verteilen, passende Positionen zuerst */
+function placeXi(xi) {
+  const groups = { GK: ['TW'], DEF: ['LV', 'IV', 'RV'], MID: ['ZDM', 'ZM', 'ZOM', 'LM', 'RM'], ATT: ['LF', 'ST', 'RF'] };
+  const slotGroup = pos => Object.keys(groups).find(g => groups[g].includes(pos));
+  const free = XI_SLOTS.map((sl, i) => ({ ...sl, i, g: slotGroup(sl.pos) }));
+  const placed = [];
+  const rest = [...xi];
+  // 1. exakte Position, 2. gleiche Gruppe
+  for (const exact of [true, false]) {
+    for (const e of [...rest]) {
+      const g = slotGroup(e.pos) || (['LM', 'RM', 'ZOM'].includes(e.pos) ? 'MID' : 'ATT');
+      const slot = free.find(sl => !sl.used && (exact ? sl.pos === e.pos : sl.g === g));
+      if (slot) { slot.used = true; placed.push({ ...e, x: slot.x, y: slot.y }); rest.splice(rest.indexOf(e), 1); }
+    }
+  }
+  for (const e of rest) { const slot = free.find(sl => !sl.used); if (slot) { slot.used = true; placed.push({ ...e, x: slot.x, y: slot.y }); } }
+  return placed;
+}
+
+function xiPitch(game, xi) {
+  return `<div class="xi-pitch">
+    <div class="pitch__lines" aria-hidden="true"><span class="pitch__half"></span><span class="pitch__circle"></span><span class="pitch__box pitch__box--top"></span><span class="pitch__box pitch__box--bottom"></span></div>
+    ${placeXi(xi).map(e => {
+      const p = game.players[e.id] || e.snap || { first: e.name, last: e.name };
+      const c = game.clubs[e.clubId];
+      const colors = c?.colors || { primary: '#888', secondary: '#ddd' };
+      return `<button class="xi-pitch__p ${e.clubId === 'user' ? 'is-me' : ''}" style="left:${e.x}%;top:${e.y}%" ${game.players[e.id] ? `data-action="open-player" data-id="${e.id}"` : ''}>
+        <span class="prow__face tier-${p.tier || 'bronze'}" style="--club:${colors.primary}">${p.look ? portraitSvg(p, { colors }) : ''}</span>
+        <span class="xi-pitch__name">${esc((p.last || e.name).split(' ').slice(-1)[0])}</span>
+        <span class="xi-pitch__rate">${nf1(e.rating)}</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
 function awardsHtml(game, aw) {
-  if (!aw || (!aw.scorer && !aw.pots)) return '';
-  const row = (e, label, value) => e ? `<li class="row row--button ${e.clubId === 'user' ? 'is-me' : ''}" data-action="open-player" data-id="${e.id}">
+  if (!aw || (!aw.scorer && !aw.pots)) return `<p class="small muted">${t('se.noAwards')}</p>`;
+  const row = (e, label, value) => e ? `<li class="row row--button ${e.clubId === 'user' ? 'is-me' : ''}" ${game.players[e.id] ? `data-action="open-player" data-id="${e.id}"` : ''}>
     <span class="alert-dot alert-dot--reward">${icon('trophy')}</span>
     <div class="row__main"><div class="row__title">${esc(e.name)}</div><div class="row__sub">${label} · ${esc(e.club)}</div></div>
     <b class="num">${value}</b>
   </li>` : '';
-  const xi = (aw.xi || []).map(e => `<button class="xi-chip ${e.clubId === 'user' ? 'is-me' : ''}" data-action="open-player" data-id="${e.id}"><small>${POS_LABEL[e.pos] || ''}</small>${esc(e.name.split(' ').slice(-1)[0])}<span class="num">${nf1(e.rating)}</span></button>`).join('');
   return `<section class="section awards">
     <div class="section__head"><h2 class="section__title">${t('aw.title')}</h2><span class="small muted">${esc(LEAGUE_INFO[aw.tier].name)}</span></div>
     <ul class="list panel panel--flush">
       ${row(aw.scorer, t('aw.scorer'), aw.scorer ? t('aw.goals', { n: aw.scorer.goals }) : '')}
       ${row(aw.pots, t('aw.pots'), aw.pots ? nf1(aw.pots.rating) : '')}
     </ul>
-    ${xi ? `<h3 class="h3 awards__xi">${t('aw.xi')}</h3><div class="xi-grid">${xi}</div>` : ''}
+    ${aw.xi?.length ? `<h3 class="h3 awards__xi">${t('aw.xi')}</h3>${xiPitch(game, aw.xi)}` : ''}
   </section>`;
 }
 
-export function seasonFlow(game) {
+function clubLink(game, id) {
+  const c = game.clubs[id];
+  if (!c) return '';
+  return `<button class="se-club ${id === 'user' ? 'is-me' : ''}" data-action="open-club" data-id="${id}">${crestSvg(c, 20)}<span>${esc(c.name)}</span></button>`;
+}
+
+function leaguesHtml(game, s) {
+  const moves = s.moves || [];
+  return `${s.cupWinner ? `<div class="se-cup">${icon('trophy')}<span>${t('se.cupWinner')}</span>${clubLink(game, s.cupWinner)}</div>` : ''}
+  <div class="se-leagues">${[1, 2, 3, 4, 5, 6].map(tier => {
+    const up = moves.filter(m => m.from === tier && m.to === tier - 1).map(m => m.id);
+    const down = moves.filter(m => m.from === tier && m.to === tier + 1).map(m => m.id);
+    const champ = s.champions?.[tier];
+    const mine = s.user.tier === tier;
+    return `<section class="se-league ${mine ? 'is-mine' : ''}">
+      <h3 class="se-league__name">${esc(LEAGUE_INFO[tier].name)}</h3>
+      ${champ ? `<div class="se-line"><span class="se-tag se-tag--gold">${icon('trophy')}${tier === 1 ? t('se.champ') : t('se.ffWinner')}</span>${clubLink(game, champ)}</div>` : ''}
+      ${s.leaders?.[tier] ? `<div class="se-line"><span class="se-tag">${icon('list')}${t('se.first')}</span>${clubLink(game, s.leaders[tier])}</div>` : ''}
+      ${up.length ? `<div class="se-line"><span class="se-tag se-tag--up">${icon('up')}${t('w.promoted')}</span><span class="se-clubs">${up.map(id => clubLink(game, id)).join('')}</span></div>` : ''}
+      ${down.length ? `<div class="se-line"><span class="se-tag se-tag--down">${icon('down')}${t('w.relegated')}</span><span class="se-clubs">${down.map(id => clubLink(game, id)).join('')}</span></div>` : ''}
+    </section>`;
+  }).join('')}</div>`;
+}
+
+export function seasonFlow(game, ui = {}) {
   const s = game.seasonSummary;
   const u = s.user;
   const club = game.clubs.user;
-  const headline = u.champion ? t('se.champion') : u.promoted ? t('se.promoted') : u.relegated ? t('w.relegated') : t('prep.place', { pos: u.pos });
+  const page = Math.max(0, Math.min(3, ui.sePage || 0));
+  const headline = u.champion ? t('se.champion') : u.promoted ? t('se.promoted') : u.relegated ? t('w.relegated') : t('se.placeHead', { pos: u.pos });
   const sub = u.champion ? t('se.championX', { league: LEAGUE_INFO[u.tier].name }) :
     u.promoted ? t('se.promotedX', { club: esc(club.name), league: LEAGUE_INFO[u.tier - 1].name }) :
       u.relegated ? t('se.relegatedX', { league: LEAGUE_INFO[u.tier + 1].name }) :
         t('se.stayX', { league: LEAGUE_INFO[u.tier].name });
   const youth = (s.youth || []).map(id => game.players[id]).filter(Boolean);
+  const pages = [t('se.p.result'), t('se.p.awards'), t('se.p.leagues'), t('se.p.squad')];
+
+  let body = '';
+  if (page === 0) {
+    body = `<div class="season-end__crest">${crestSvg(club, 110)}</div>
+      <h1 class="h1">${headline}</h1>
+      <p>${sub}</p>
+      <dl class="facts facts--4">
+        <div><dt>${t('se.place')}</dt><dd class="display">${u.pos}</dd></div>
+        <div><dt>${t('cp.points')}</dt><dd class="display">${u.pts}</dd></div>
+        <div><dt>${t('se.gd')}</dt><dd class="display">${u.gd > 0 ? '+' : ''}${u.gd}</dd></div>
+        <div><dt>${t('se.prize')}</dt><dd class="display">${fmt(u.prize)}</dd></div>
+      </dl>
+      <ul class="list panel panel--flush">
+        <li class="row"><span class="alert-dot">${icon('star')}</span><div class="row__main"><div class="row__title">Final Four</div><div class="row__sub">${esc(ffStageText(u.ffStage))}</div></div></li>
+        <li class="row"><span class="alert-dot">${icon('trophy')}</span><div class="row__main"><div class="row__title">${t('w.cup')}</div><div class="row__sub">${esc(cupText(u.cup))}</div></div></li>
+      </ul>`;
+  } else if (page === 1) {
+    body = awardsHtml(game, s.awards);
+  } else if (page === 2) {
+    body = leaguesHtml(game, s);
+  } else {
+    const left = s.leftFree || [];
+    body = `<ul class="list panel panel--flush">
+        ${s.retired.length ? `<li class="row"><span class="alert-dot">${icon('user')}</span><div class="row__main"><div class="row__title">${t('se.retired')}</div><div class="row__sub">${s.retired.map(r => `${esc(r.name)} (${r.age})`).join(', ')}</div></div></li>` : ''}
+        ${left.length ? `<li class="row"><span class="alert-dot alert-dot--loss">${icon('swap')}</span><div class="row__main"><div class="row__title">${t('se.leftFree')}</div><div class="row__sub">${left.map(l => esc(l.name)).join(', ')}</div></div></li>` : ''}
+        ${youth.length ? `<li class="row"><span class="alert-dot alert-dot--reward">${icon('sparkles')}</span><div class="row__main"><div class="row__title">${t('se.youth')}</div><div class="row__sub">${youth.map(p => `${esc(p.first)} ${esc(p.last)} (${POS_LABEL[p.position]})`).join(', ')}</div></div></li>` : ''}
+        ${!s.retired.length && !left.length && !youth.length ? `<li class="row"><div class="row__main"><div class="row__sub">${t('se.noChanges')}</div></div></li>` : ''}
+      </ul>
+      <p class="small muted">${t('se.older')}</p>`;
+  }
+
   return `<div class="fullscreen"><main class="screen season-end ${u.promoted || u.champion ? 'season-end--up' : u.relegated ? 'season-end--down' : ''}">
     <p class="small muted">${t('se.over', { season: u.season })}</p>
-    <div class="season-end__crest">${crestSvg(club, 120)}</div>
-    <h1 class="h1">${headline}</h1>
-    <p>${sub}</p>
-    <dl class="facts facts--4">
-      <div><dt>${t('se.place')}</dt><dd class="display">${u.pos}</dd></div>
-      <div><dt>${t('cp.points')}</dt><dd class="display">${u.pts}</dd></div>
-      <div><dt>${t('se.gd')}</dt><dd class="display">${u.gd > 0 ? '+' : ''}${u.gd}</dd></div>
-      <div><dt>${t('se.prize')}</dt><dd class="display">${fmt(u.prize)}</dd></div>
-    </dl>
-    <ul class="list panel panel--flush">
-      <li class="row"><span class="alert-dot">${icon('star')}</span><div class="row__main"><div class="row__title">Final Four</div><div class="row__sub">${esc(ffStageText(u.ffStage))}</div></div></li>
-      <li class="row"><span class="alert-dot">${icon('trophy')}</span><div class="row__main"><div class="row__title">${t('w.cup')}</div><div class="row__sub">${esc(cupText(u.cup))}</div></div></li>
-      ${s.retired.length ? `<li class="row"><span class="alert-dot">${icon('user')}</span><div class="row__main"><div class="row__title">${t('se.retired')}</div><div class="row__sub">${s.retired.map(r => `${esc(r.name)} (${r.age})`).join(', ')}</div></div></li>` : ''}
-      ${youth.length ? `<li class="row"><span class="alert-dot alert-dot--reward">${icon('sparkles')}</span><div class="row__main"><div class="row__title">${t('se.youth')}</div><div class="row__sub">${youth.map(p => `${esc(p.first)} ${esc(p.last)} (${POS_LABEL[p.position]})`).join(', ')}</div></div></li>` : ''}
-    </ul>
-    ${awardsHtml(game, s.awards)}
-    <p class="small muted">${t('se.older')}</p>
-    <button class="btn btn--primary btn--block" data-action="season-continue">${t('se.start', { season: game.season })}</button>
+    <div class="se-steps">${pages.map((p, i) => `<button class="se-step ${i === page ? 'is-on' : ''}" data-action="season-page" data-value="${i}">${p}</button>`).join('')}</div>
+    <div class="se-body">${body}</div>
+    <div class="se-nav">
+      ${page > 0 ? `<button class="btn btn--secondary" data-action="season-page" data-value="${page - 1}">${icon('chevronLeft')}${t('w.back')}</button>` : '<span></span>'}
+      ${page < 3 ? `<button class="btn btn--primary" data-action="season-page" data-value="${page + 1}">${t('w.continue')}${icon('chevronRight')}</button>`
+        : `<button class="btn btn--primary" data-action="season-continue">${t('se.start', { season: game.season })}</button>`}
+    </div>
   </main></div>`;
 }

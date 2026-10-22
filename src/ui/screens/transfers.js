@@ -186,6 +186,7 @@ export function contractSheetBody(game, playerId) {
       <div><dt>${t('ct.until')}</dt><dd class="display">S${c.until}</dd></div>
     </dl>
     <p class="small muted">${t('ct.intro', { name: esc(p.last) })}</p>
+    ${p.contractDiscount ? `<p class="small pos">${icon('clipboard')}${t('ct.discount')}</p>` : ''}
     <div class="list-levels">${opts}</div>
     ${p.age >= 31 ? `<p class="xsmall muted">${t('ct.ageLimit')}</p>` : ''}
     <button class="btn btn--ghost btn--block" data-action="open-player" data-id="${playerId}">${icon('chevronLeft')}${t('tm.toProfile')}</button>

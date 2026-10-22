@@ -583,3 +583,30 @@ test('Verträge: Auslaufende Verträge enden zum Saisonende, Kader bleibt spielf
   for (const id of s.clubs.user.playerIds) assert.ok(s.players[id].contract.until >= s.season);
   for (const c of Object.values(s.clubs)) if (!c.isUser) assert.equal(c.playerIds.length, 21);
 });
+
+
+test('Vertragskarten: Verhandlungsgeschick senkt die Forderung, Treuebonus verlängert zum alten Gehalt', async () => {
+  const { demandFor } = await import('../src/engine/contracts.js');
+  const s = newStartedGame(17);
+  const p = s.clubs.user.playerIds.map(id => s.players[id]).find(x => x.age < 31);
+  const before = demandFor(s, p, 2);
+  s.user.inventory.push({ id: 'iN', type: 'NEGOTIATE' }, { id: 'iL', type: 'LOYALTY' });
+  assert.ok(useItem(s, 'iN', p.id).ok);
+  assert.ok(demandFor(s, p, 2) < before, 'Forderung sinkt');
+  const wage = p.contract.wage;
+  const until = p.contract.until;
+  assert.ok(useItem(s, 'iL', p.id).ok);
+  assert.equal(p.contract.wage, wage);
+  assert.equal(p.contract.until, Math.max(until, s.season) + 1);
+});
+
+test('Erfolge: Stufen werden aus dem Spielstand ermittelt und nur einmal freigeschaltet', async () => {
+  const { evaluateAchievements } = await import('../src/engine/achievements.js');
+  const s = newStartedGame(19);
+  playSeason(s);
+  const profile = {};
+  const first = evaluateAchievements(s, profile);
+  assert.ok(first.some(u => u.id === 'wins' || u.id === 'nations'), 'erste Erfolge nach einer Saison');
+  assert.equal(evaluateAchievements(s, profile).length, 0, 'kein zweites Mal');
+  assert.ok(s.user.record.wins >= 0);
+});

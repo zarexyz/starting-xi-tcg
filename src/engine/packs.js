@@ -43,6 +43,14 @@ export const CONSUMABLES = {
     get name() { return t('item.TACTIC.name'); }, get desc() { return t('item.TACTIC.desc'); },
     icon: 'clipboard', rarity: 'silver', target: 'match',
   },
+  NEGOTIATE: {
+    get name() { return t('item.NEGOTIATE.name'); }, get desc() { return t('item.NEGOTIATE.desc'); },
+    icon: 'clipboard', rarity: 'silver', target: 'own', weight: 1.4
+  },
+  LOYALTY: {
+    get name() { return t('item.LOYALTY.name'); }, get desc() { return t('item.LOYALTY.desc'); },
+    icon: 'heart', rarity: 'gold', target: 'own', weight: 0.6
+  },
   RETRAIN: {
     get name() { return t('item.RETRAIN.name'); }, get desc() { return t('item.RETRAIN.desc'); },
     icon: 'swap', rarity: 'gold', target: 'player'
@@ -134,7 +142,7 @@ const TRAIN_ATTRS = [
 
 export function generateItems(rng, count) {
   const weights = { bronze: 6, silver: 3, gold: 1 };
-  const entries = Object.entries(CONSUMABLES).map(([type, c]) => ({ value: type, weight: weights[c.rarity] }));
+  const entries = Object.entries(CONSUMABLES).map(([type, c]) => ({ value: type, weight: c.weight ?? weights[c.rarity] }));
   return Array.from({ length: count }, () => {
     const type = rng.weighted(entries);
     return CONSUMABLES[type].perAttr ? { type, attr: rng.weighted(TRAIN_ATTRS) } : { type };

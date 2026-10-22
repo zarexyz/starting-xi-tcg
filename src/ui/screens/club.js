@@ -10,6 +10,7 @@ import { LEAGUE_INFO, clubStrength } from '../../engine/world.js';
 import { weeklyWages, wageCap, TIER_INCOME } from '../../engine/economy.js';
 import { t, LANGS, getLang } from '../../i18n/index.js';
 import { ledgerLabel, ffStageText, cupText } from '../text.js';
+import { trophiesView } from './trophies.js';
 
 function overview(game) {
   const club = game.clubs.user;
@@ -63,20 +64,13 @@ function history(game) {
   </li>`).join('')}</ul>`;
 }
 
-function settings(store) {
+/** Einstellungen als Sheet (Zahnrad oben rechts), gruppiert */
+export function settingsBody(store) {
   const s = store.settings;
+  const game = store.game;
+  const group = (title, rows) => `<h3 class="settings-group">${title}</h3><ul class="list panel panel--flush">${rows}</ul>`;
   return `
-    <ul class="list panel panel--flush">
-      <li class="row">
-        <span class="alert-dot">${icon('globe')}</span>
-        <div class="row__main"><div class="row__title">${t('set.lang')}</div><div class="row__sub">${t('set.langHint')}</div></div>
-      </li>
-      <li class="row">${segmented(LANGS, getLang(), 'set-lang')}</li>
-      <li class="row">
-        <span class="alert-dot">${icon(s.sound ? 'sound' : 'mute')}</span>
-        <div class="row__main"><div class="row__title">${t('set.sound')}</div><div class="row__sub">${t('set.soundHint')}</div></div>
-        <button class="toggle" role="switch" aria-checked="${s.sound}" data-action="toggle-sound"><span></span></button>
-      </li>
+    ${group(t('set.g.game'), `
       <li class="row">
         <span class="alert-dot">${icon('forward')}</span>
         <div class="row__main"><div class="row__title">${t('set.speed')}</div><div class="row__sub">${t('set.speedHint')}</div></div>
@@ -87,25 +81,50 @@ function settings(store) {
         <div class="row__main"><div class="row__title">${t('set.autoScenes')}</div><div class="row__sub">${t('set.autoScenesHint')}</div></div>
         <button class="toggle" role="switch" aria-checked="${!!s.autoScenes}" data-action="toggle-auto-scenes"><span></span></button>
       </li>
+      ${game ? `<li class="row">
+        <span class="alert-dot">${icon('auto')}</span>
+        <div class="row__main"><div class="row__title">${t('set.coach')}</div><div class="row__sub">${t('set.coachHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${!!game.user.autoLineup}" data-action="toggle-auto"><span></span></button>
+      </li>` : ''}`)}
+    ${group(t('set.g.display'), `
+      <li class="row">
+        <span class="alert-dot">${icon(s.sound ? 'sound' : 'mute')}</span>
+        <div class="row__main"><div class="row__title">${t('set.sound')}</div><div class="row__sub">${t('set.soundHint')}</div></div>
+        <button class="toggle" role="switch" aria-checked="${s.sound}" data-action="toggle-sound"><span></span></button>
+      </li>
+      <li class="row">
+        <span class="alert-dot">${icon('globe')}</span>
+        <div class="row__main"><div class="row__title">${t('set.lang')}</div><div class="row__sub">${t('set.langHint')}</div></div>
+      </li>
+      <li class="row">${segmented(LANGS, getLang(), 'set-lang')}</li>`)}
+    ${game ? group(t('set.g.save'), `
       <li class="row">
         <span class="alert-dot">${icon('save')}</span>
         <div class="row__main"><div class="row__title">${t('set.slot', { n: store.slot })}</div><div class="row__sub">${t('set.slotHint')}</div></div>
-        <button class="btn btn--sm btn--secondary" data-action="to-title">${t('set.switch')}</button>
       </li>
       <li class="row">
         <span class="alert-dot">${icon('download')}</span>
         <div class="row__main"><div class="row__title">${t('set.backup')}</div><div class="row__sub">${t('set.backupHint')}</div></div>
         <button class="btn btn--sm btn--secondary" data-action="export-save">${t('set.backupBtn')}</button>
+      </li>`) : ''}
+    ${group(t('set.g.about'), `
+      <li class="row">
+        <span class="alert-dot">${icon('info')}</span>
+        <div class="row__main"><div class="row__title">${t('set.version', { v: '1.6' })}</div><div class="row__sub">${t('set.fiction')}</div></div>
       </li>
-    </ul>
-    <p class="xsmall muted settings-note">${t('set.note', { v: '1.5' })}</p>
+      <li class="row">
+        <span class="alert-dot">${icon('shield')}</span>
+        <div class="row__main"><a class="row__title link" href="datenschutz.html" target="_blank" rel="noopener">${t('set.privacy')}</a></div>
+      </li>`)}
+    ${game ? `<button class="btn btn--secondary btn--block settings-menu" data-action="to-title">${icon('home')}${t('set.toMenu')}</button>
+    <p class="xsmall muted settings-note">${t('set.toMenuHint')}</p>` : ''}
   `;
 }
 
 export function clubScreen(game, ui, store) {
   const view = ui.view.club || 'overview';
-  const items = [['overview', t('club.tab.overview')], ['finance', t('club.tab.finance')], ['history', t('club.tab.history')], ['settings', t('club.tab.settings')]];
-  const body = { overview, finance, history }[view]?.(game) ?? settings(store);
+  const items = [['overview', t('club.tab.overview')], ['trophies', t('club.tab.trophies')], ['history', t('club.tab.history')], ['finance', t('club.tab.finance')]];
+  const body = ({ overview, finance, history, trophies: g => trophiesView(g, store) }[view] || overview)(game);
   return `<main class="screen">
     ${topbar(game)}
     ${segmented(items, view, 'club-view')}

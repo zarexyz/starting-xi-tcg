@@ -13,6 +13,8 @@ import { clubStrength, clubPlayers, LEAGUE_INFO, rivalry } from '../../engine/wo
 import { packArt } from '../flows/pack.js';
 import { t } from '../../i18n/index.js';
 import { newsTitle, newsText, pendingTitle } from '../text.js';
+import { feedItems } from '../../engine/news.js';
+import { feedCard } from './feed.js';
 
 function tableRowsAround(game) {
   const tier = game.clubs.user.tier;
@@ -91,16 +93,12 @@ function squadAlerts(game) {
 }
 
 function newsList(game) {
-  const items = game.inbox.slice(0, 3);
+  const items = feedItems(game).slice(0, 3);
   if (!items.length) return '';
+  const unread = feedItems(game).filter(n => !n.read).length;
   return `<section class="section">
-    <div class="section__head"><h2 class="section__title">${t('home.news')}</h2><button class="link" data-action="open-inbox">${t('home.all')}</button></div>
-    <ul class="list panel panel--flush">
-      ${items.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
-        ${!n.read ? `<span class="unread-dot" aria-label="${t('home.unread')}"></span>` : ''}
-        <div class="row__main"><div class="row__title">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
-      </li>`).join('')}
-    </ul>
+    <div class="section__head"><h2 class="section__title">${t('feed.title')}${unread ? ` <span class="badge-count">${unread > 99 ? '99+' : unread}</span>` : ''}</h2><button class="link" data-action="open-feed">${t('home.all')}</button></div>
+    <ul class="feed feed--compact">${items.map(n => feedCard(game, n)).join('')}</ul>
   </section>`;
 }
 

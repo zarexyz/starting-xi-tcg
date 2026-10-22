@@ -77,7 +77,7 @@ export function contractDemand(state, p) {
 
 /** Forderung für eine bestimmte Laufzeit: längere Verträge kosten etwas mehr */
 export function demandFor(state, p, years) {
-  return Math.round(contractDemand(state, p) * [1, 1.03, 1.06, 1.1][years - 1]);
+  return Math.round(contractDemand(state, p) * [1, 1.03, 1.06, 1.1][years - 1] * (p.contractDiscount || 1));
 }
 
 /** Vertrag des eigenen Spielers verlängern */
@@ -89,6 +89,7 @@ export function extendContract(state, playerId, years) {
   // Verlängerung: y weitere Saisons nach der laufenden
   p.contract = { wage, until: state.season + y };
   p.wantsRaise = false;
+  delete p.contractDiscount;
   p.morale = Math.min(100, p.morale + 6);
   return { ok: true, wage, until: p.contract.until };
 }

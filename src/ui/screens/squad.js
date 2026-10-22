@@ -15,6 +15,7 @@ import { ensureUserSetup } from '../../engine/game.js';
 import { buildTeam } from '../../engine/match.js';
 import { familiarity, salaryFor, marketValue, avgRating, formTrend, formAverage } from '../../engine/player.js';
 import { wageOf, ensureContract } from '../../engine/contracts.js';
+import { LEAGUE_INFO } from '../../engine/world.js';
 import { NATIONS } from '../../engine/names.js';
 import { historyChart } from '../flows/develop.js';
 import { t, tmap } from '../../i18n/index.js';
@@ -139,6 +140,18 @@ function noteText(p) {
   if (avg == null) return '';
   const trend = formTrend(p);
   return `, ${t('w.avg')} ${nf1(avg)}${trend === 'up' ? ' ↑' : trend === 'down' ? ' ↓' : ''}`;
+}
+
+/** Auszeichnungen gruppiert und gezählt; Antippen zeigt Saison, Liga und Verein */
+function awardsBlock(p) {
+  const list = p.awards || [];
+  if (!list.length) return '';
+  const order = ['pots', 'scorer', 'xi', 'potm'];
+  const groups = order.map(k => ({ k, items: list.filter(a => a.k === k) })).filter(g => g.items.length);
+  return `<div class="awards-block">${groups.map(g => `<details class="award-group">
+    <summary><span class="award-group__icon">${icon(g.k === 'xi' ? 'star' : 'trophy')}</span><b>${g.items.length}×</b> ${t(`aw.${g.k}`)}${icon('chevronDown')}</summary>
+    <ul>${[...g.items].reverse().map(a => `<li>S${a.s}${a.t ? ` · ${LEAGUE_INFO[a.t]?.name || ''}` : ''}${a.c ? ` · ${esc(a.c)}` : ''}${a.md ? ` · ${t('aw.afterMd', { md: a.md })}` : ''}</li>`).join('')}</ul>
+  </details>`).join('')}</div>`;
 }
 
 /** Kleine Hinweise in der Kaderliste: Vertrag läuft aus, will mehr Gehalt, steht auf der Transferliste */
@@ -266,7 +279,7 @@ export function playerSheet(game, id, opts = {}) {
           <div><dt>${t('st.rating')}</dt><dd class="display">${careerAvg}</dd></div>
         </dl>
         ${p.position === 'TW' ? `<p class="small muted">${t('ps.clean', { n: p.careerStats.cleanSheets || 0, season: p.stats.cleanSheets || 0 })}</p>` : ''}
-        ${(p.awards || []).length ? `<div class="award-chips">${[...p.awards].reverse().map(a => `<span class="chip chip--warn">${icon(a.k === 'xi' ? 'star' : 'trophy')}${t(`aw.${a.k}`)} S${a.s}</span>`).join('')}</div>` : ''}
+        ${awardsBlock(p)}
         ${(p.career || []).length ? `<ul class="list panel panel--flush stations">${[...p.career].reverse().map(c => `<li class="row station">
           <span class="season-badge display">S${c.s}</span>
           <div class="row__main">

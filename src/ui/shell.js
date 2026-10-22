@@ -7,6 +7,7 @@ import { crestSvg } from './components/crest.js';
 import { esc, fmt } from './html.js';
 import { LEAGUE_INFO } from '../engine/world.js';
 import { computeTable } from '../engine/schedule.js';
+import { inboxItems } from '../engine/news.js';
 import { t } from '../i18n/index.js';
 
 export const TABS = [
@@ -30,7 +31,7 @@ export function userPosition(game) {
 
 export function topbar(game, title = null) {
   const club = game.clubs.user;
-  const unread = game.inbox.filter(n => !n.read).length;
+  const unread = inboxItems(game).filter(n => !n.read).length;
   return `<header class="topbar">
     ${crestSvg(club, 42)}
     <div class="topbar__title">
@@ -39,6 +40,7 @@ export function topbar(game, title = null) {
     </div>
     <span class="coins" aria-label="${t('w.coinsN', { n: club.coins })}">${coinIcon()}${fmt(club.coins)}</span>
     <button class="icon-btn" data-action="open-inbox" aria-label="${t('top.inbox')}${unread ? `, ${t('top.unread', { n: unread })}` : ''}">${icon('mail')}${unread ? `<span class="icon-btn__dot">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
+    <button class="icon-btn" data-action="open-settings" aria-label="${t('set.title')}">${icon('settings')}</button>
   </header>`;
 }
 

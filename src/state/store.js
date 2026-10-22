@@ -8,6 +8,10 @@ import { saveGame, loadGame, activeSlot, loadSettings, saveSettings } from './st
 
 const listeners = new Set();
 
+/** Wird nach jeder erfolgreichen Spielaktion aufgerufen (z. B. für Erfolge) */
+let afterAct = null;
+export function setAfterAct(fn) { afterAct = fn; }
+
 export const store = {
   game: null,
   slot: null,
@@ -43,6 +47,7 @@ export function act(fn, ...args) {
     return result;
   }
   store.game = next;
+  if (afterAct) { try { afterAct(store); } catch (e) { console.warn(e); } }
   persist();
   notify();
   return result;
