@@ -169,9 +169,12 @@ export function startMatch(game, flow, settings, onDone) {
     if (cls === 's5') {
       scene.revealed = true;
       if (scene.outcome === 'GOAL') {
-        const s = [...state.score];
-        s[scene.side === 'home' ? 0 : 1]++;
-        setScore(s, mine);
+        // Stand aus dem Ticker übernehmen (gleiche Minute und Seite), nie hochzählen: sonst doppelt
+        const gt = ticker.find(x => x.type === 'goal' && x.side === scene.side && x.minute === scene.minute);
+        let s = gt ? [...gt.score] : [...state.score];
+        if (!gt) s[scene.side === 'home' ? 0 : 1]++;
+        s = [Math.max(s[0], state.score[0]), Math.max(s[1], state.score[1])];
+        if (s[0] !== state.score[0] || s[1] !== state.score[1]) setScore(s, mine);
       } else if (mine) {
         buzz(30);
       }
@@ -310,7 +313,7 @@ export function startMatch(game, flow, settings, onDone) {
     while (state.tickIdx < ticker.length && ticker[state.tickIdx].minute <= m && ticker[state.tickIdx].type !== 'end' && ticker[state.tickIdx].type !== 'pens') {
       const tk = ticker[state.tickIdx];
       // Schlüsselszene vor dem passenden Tickereintrag zeigen
-      if (state.sceneIdx < scenes.length && scenes[state.sceneIdx].minute <= t.minute) {
+      if (state.sceneIdx < scenes.length && scenes[state.sceneIdx].minute <= tk.minute) {
         showScene(scenes[state.sceneIdx++]);
         return;
       }
