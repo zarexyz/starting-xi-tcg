@@ -35,6 +35,8 @@ async def main():
                 else:
                     # offene Postfach-Aufgaben beantworten (erste Wahl), sonst Escape
                     if await pg.locator('[data-action=task-choice]').count(): await js('[data-action=task-choice]')
+                    elif await pg.locator('[data-action=open-tasks]').count():
+                        await js('[data-action=open-tasks]'); await pg.wait_for_timeout(150); await js('.task-list [data-action=open-news]')
                     else: await pg.keyboard.press('Escape')
                 await pg.wait_for_timeout(150)
             await pg.locator('[data-action=open-prep]').click(); await pg.wait_for_timeout(250)

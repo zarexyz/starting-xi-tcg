@@ -153,6 +153,24 @@ const team = (style, extra = {}) => buildTeam(g, clubId, { formation: f, style, 
   if (out.goalsAll && !fast) check('Karriere: Saisonziel erreicht (Anteil, passiv)', out.goalsMet / out.goalsAll, 0.2, 0.9);
 }
 
+// 5b) Ehrgeiziger Manager (wählt immer das höhere Ziel) im Vergleich zum Vorschlags-Manager -------------
+if (!fast) {
+  const endCoins = choices => {
+    let sum = 0;
+    for (const seed of [5, 17, 29]) {
+      const s = createGame({ seed, clubName: 'Sim FC', primary: '#000', secondary: '#fff' });
+      openStarterPack(s); pickDraft(s, 0);
+      let guard = 0;
+      while (s.season <= 5 && guard++ < 400) { s.pending = null; s.seasonSummary = null; autoResolveTasks(s, { choices }); playDay(s); }
+      sum += s.clubs.user.coins;
+    }
+    return sum;
+  };
+  const base = endCoins({});
+  const amb = endCoins({ goal: 'ambitious' });
+  check('Karriere: Münzen ehrgeizig / Vorschlag (5 Saisons)', amb / Math.max(1, base), 0.85, 1.25);
+}
+
 console.log(rows.join('\n'));
 console.log(failed ? '\nMindestens ein Wert liegt außerhalb des Ziels.' : '\nAlle Werte im Ziel.');
 process.exit(failed ? 1 : 0);

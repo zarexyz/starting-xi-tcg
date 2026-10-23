@@ -8,7 +8,7 @@ import { icon } from '../icons.js';
 import { esc, fmt } from '../html.js';
 import { POS_LABEL } from '../../engine/constants.js';
 import { MAX_SQUAD } from '../../engine/constants.js';
-import { teamMood, teamReason, trend, fanIncomeFactor, userPos, prospects, signingFee, academyCap, academyIntakeCount, ACADEMY_COSTS } from '../../engine/clublife.js';
+import { teamMood, teamReason, trend, fanIncomeFactor, userPos, canLowerGoal, prospects, signingFee, academyCap, academyIntakeCount, ACADEMY_COSTS } from '../../engine/clublife.js';
 import { t } from '../../i18n/index.js';
 
 function moodRow(game, key, value, reasonKey, fx) {
@@ -37,7 +37,9 @@ export function moodSection(game) {
     <div class="section__head"><h2 class="section__title">${t('goal.title')}</h2></div>
     <div class="panel goal">
       <div class="goal__main"><span class="alert-dot">${icon('trophy')}</span><div><b>${esc(t(`goal.${goal.key}`))}</b>${pos ? `<div class="small muted">${t('goal.now', { pos })}</div>` : ''}</div></div>
+      ${goal.deal === 'ambitious' || goal.deal === 'cautious' || goal.lowered ? `<p class="small"><span class="chip">${t(goal.lowered ? 'goal.lowered' : 'goal.deal.' + goal.deal)}</span></p>` : ''}
       <p class="xsmall muted">${t('goal.hint')}</p>
+      ${canLowerGoal(game) ? `<button class="btn btn--sm btn--secondary" data-action="lower-goal">${t('goal.lower')}</button>` : ''}
     </div>
   </section>
   <section class="section">

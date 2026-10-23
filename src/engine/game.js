@@ -23,7 +23,7 @@ import { severance, ensureAllContracts, ensureContract, signContract, defaultYea
 import { processTransferDay } from './market.js';
 import { newsChannel } from './news.js';
 import { weatherFor, resolveInterview } from './extras.js';
-import { ensureClubLife, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
+import { ensureClubLife, ensureGoalTask, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 3;
@@ -255,6 +255,7 @@ export function pickDraft(state, index) {
   } else {
     state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
   }
+  ensureGoalTask(state);
   ensureInterviewTask(state);
   return p.id;
 }

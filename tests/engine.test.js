@@ -848,7 +848,7 @@ test('Pressekonferenz: Pause von 3 Spieltagen, PROVOKE wirkt, News entsteht', ()
 import { addTask, openTasks, blockingTasks, resolveTask, expireTasks, autoResolveTasks, ensureTasks, registerTaskHandler } from '../src/engine/tasks.js';
 
 test('Aufgaben: anlegen, blockieren, beantworten', () => {
-  const s = newStartedGame(11);
+  const s = newStartedGame(11); autoResolveTasks(s);
   let gone = false;
   registerTaskHandler('dummy', { resolve: (st, task, key) => (key === 'bad' ? { error: 'x' } : { ok: true }), alive: () => !gone, defaultChoice: 'yes' });
   const a = addTask(s, 'dummy', 'news.welcome', {}, { blocking: true, choices: [{ key: 'yes', label: 'a' }, { key: 'bad', label: 'b' }] });
@@ -885,6 +885,7 @@ test('Aufgaben: autoResolve, Ablauf nach Tag, alter Spielstand', () => {
 
 function gameWithOffer(seed) {
   const s = newStartedGame(seed);
+  autoResolveTasks(s);
   const star = clubPlayers(s, 'user').sort((a, b) => b.ovr - a.ovr)[0];
   listPlayer(s, star.id, 'quick');
   for (let i = 0; i < 12 && !blockingTasks(s).length; i++) { s.pending = null; autoResolveTasks(s); playDay(s); }
@@ -947,4 +948,59 @@ test('Pressekonferenz: Aufgabe vor dem Spiel, Antwort setzt Interview, danach er
   b.s.pending = null; autoResolveTasks(b.s); playDay(b.s);
   assert.equal(b.t.task.status, 'expired');
   assert.ok(!b.s.user.interview);
+});
+
+import { chooseSeasonGoal, lowerSeasonGoal, canLowerGoal, goalAdvance, closeSeasonLife, GOAL_ORDER } from '../src/engine/clublife.js';
+
+test('Saisonziel: nach dem Starter-Pack liegt eine blockierende Zielaufgabe vor', () => {
+  const s = newStartedGame(31);
+  const t = blockingTasks(s).find(n => n.task.kind === 'goal');
+  assert.ok(t, 'Zielaufgabe');
+  assert.ok(t.task.choices.some(c => c.key === 'standard'));
+  autoResolveTasks(s);
+  assert.equal(s.user.mood.goal.deal, 'standard');
+});
+
+test('Saisonziel: ehrgeizig zahlt Handgeld und hebt das Ziel; vorsichtig halbiert Prämie', () => {
+  const s = newStartedGame(32);
+  const g = s.user.mood.goal;
+  const i = GOAL_ORDER.indexOf(g.key);
+  if (i > 0) {
+    const before = s.clubs.user.coins;
+    assert.ok(chooseSeasonGoal(s, 'ambitious').ok);
+    assert.equal(s.clubs.user.coins - before, goalAdvance(g.tier));
+    assert.equal(g.key, GOAL_ORDER[i - 1]);
+    assert.equal(chooseSeasonGoal(s, 'standard').code, 'gone', 'nur einmal');
+  }
+  const s2 = newStartedGame(33);
+  const g2 = s2.user.mood.goal;
+  if (GOAL_ORDER.indexOf(g2.key) < 3) {
+    const b0 = s2.user.mood.board;
+    assert.ok(chooseSeasonGoal(s2, 'cautious').ok);
+    assert.equal(s2.user.mood.board, b0 - 3);
+    const c0 = s2.clubs.user.coins;
+    const full = closeSeasonLife(structuredClone(s2), g2.tier, 1);
+    s2.clubs.user.coins = c0;
+    assert.ok(full.bonus > 0);
+  }
+});
+
+test('Saisonziel: Senken setzt lowered, keine Prämie; nach Spieltag 9 abgelehnt', () => {
+  const s = newStartedGame(34);
+  autoResolveTasks(s);
+  s.user.mood.goal.key = 'top3'; s.user.mood.goal.maxPos = 3;
+  assert.ok(canLowerGoal(s));
+  const b0 = s.user.mood.board;
+  assert.ok(lowerSeasonGoal(s).ok);
+  assert.equal(s.user.mood.goal.key, 'ff');
+  assert.equal(s.user.mood.goal.lowered, true);
+  assert.equal(s.user.mood.board, b0 - 5);
+  assert.equal(lowerSeasonGoal(s).ok, false, 'nur einmal');
+  const r = closeSeasonLife(s, s.clubs.user.tier, 1);
+  assert.equal(r.bonus, 0);
+  const s2 = newStartedGame(35);
+  autoResolveTasks(s2);
+  s2.user.mood.goal.key = 'top3'; s2.user.mood.goal.maxPos = 3;
+  for (let i = 0; i < 40 && s2.calendar.slice(0, s2.dayIndex).filter(d => d.type === 'league').length < 9; i++) { s2.pending = null; autoResolveTasks(s2); playDay(s2); }
+  assert.equal(lowerSeasonGoal(s2).code, 'late');
 });

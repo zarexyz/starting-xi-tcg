@@ -11,6 +11,8 @@ import { seasonPrize, wageCap, weeklyWages, TIER_INCOME } from './economy.js';
 import { createPlayer, salaryFor, displayName, shortName } from './player.js';
 import { TIERS, MAX_SQUAD, POSITION_GROUP } from './constants.js';
 import { addNews, ledger } from './game.js';
+import { addTask } from './tasks.js';
+import { leagueDaysPlayed } from './market.js';
 import { createRng } from './rng.js';
 
 const clamp = (x, a = 0, b = 100) => Math.max(a, Math.min(b, x));
@@ -42,6 +44,12 @@ export function ensureClubLife(state) {
 // -----------------------------------------------------------------------------
 
 export const GOALS = { top3: 3, ff: 4, mid: 6, stay: 8 };
+/** Von ehrgeizig nach vorsichtig */
+export const GOAL_ORDER = ['top3', 'ff', 'mid', 'stay'];
+export const GOAL_LATEST_MD = 9;   // „Ziel senken“ nur vor Ende von Spieltag 9
+
+/** Handgeld für ein ehrgeizigeres Ziel (Liga 6: 150, Liga 1: 1050) */
+export const goalAdvance = tier => Math.round(TIER_INCOME[tier] * 0.35 / 10) * 10;
 
 export function setSeasonGoal(state, silent = false) {
   const u = state.user;
@@ -50,8 +58,72 @@ export function setSeasonGoal(state, silent = false) {
   const sorted = [...ids].sort((a, b) => clubStrength(state, b) - clubStrength(state, a));
   const rank = Math.max(1, sorted.indexOf('user') + 1);
   const key = rank <= 2 ? 'top3' : rank <= 4 ? 'ff' : rank <= 7 ? 'mid' : 'stay';
-  u.mood.goal = { season: state.season, key, maxPos: GOALS[key], tier, rank };
-  if (!silent) addNews(state, 'board', 'news.goalSet', { goalK: `goal.${key}`, season: state.season });
+  u.mood.goal = { season: state.season, key, maxPos: GOALS[key], tier, rank, deal: null, lowered: false };
+  if (!silent) ensureGoalTask(state);
+}
+
+/** Vorstand legt drei Möglichkeiten vor (blockierend). Einmal je Saison. */
+export function ensureGoalTask(state) {
+  const g = state.user.mood?.goal;
+  if (!g || g.deal || g.season !== state.season) return null;
+  if ((state.inbox || []).some(n => n.task?.kind === 'goal' && n.task.ref === String(state.season))) return null;
+  const i = GOAL_ORDER.indexOf(g.key);
+  const amb = i > 0 ? GOAL_ORDER[i - 1] : null;
+  const cau = i < GOAL_ORDER.length - 1 ? GOAL_ORDER[i + 1] : null;
+  const advance = goalAdvance(g.tier);
+  const choices = [
+    ...(amb ? [{ key: 'ambitious', label: 'task.goal.ambitious', hint: 'task.goal.ambitious.d', tone: 'secondary' }] : []),
+    { key: 'standard', label: 'task.goal.standard', hint: 'task.goal.standard.d', tone: 'primary' },
+    ...(cau ? [{ key: 'cautious', label: 'task.goal.cautious', hint: 'task.goal.cautious.d', tone: 'secondary' }] : [])
+  ];
+  return addTask(state, 'goal', amb && cau ? 'news.goalTask' : amb ? 'news.goalTaskUp' : 'news.goalTaskDown', {
+    season: state.season, goalK: `goal.${g.key}`, ambK: `goal.${amb || g.key}`, cauK: `goal.${cau || g.key}`, amountC: advance
+  }, { blocking: true, ref: String(state.season), choices }, { newsType: 'board' });
+}
+
+/** Antwort auf den Vorschlag des Vorstands. Gibt { ok } oder { ok: false, code } zurück. */
+export function chooseSeasonGoal(state, deal) {
+  const g = state.user.mood?.goal;
+  if (!g || g.deal || g.season !== state.season) return { ok: false, code: 'gone' };
+  const i = GOAL_ORDER.indexOf(g.key);
+  let key = g.key;
+  let advance = 0;
+  if (deal === 'ambitious') {
+    if (i <= 0) return { ok: false, code: 'bad' };
+    key = GOAL_ORDER[i - 1];
+    advance = goalAdvance(g.tier);
+    ledger(state, 'ledger.boardAdvance', advance, { season: state.season });
+  } else if (deal === 'cautious') {
+    if (i >= GOAL_ORDER.length - 1) return { ok: false, code: 'bad' };
+    key = GOAL_ORDER[i + 1];
+    state.user.mood.board = r1(clamp(state.user.mood.board - 3));
+  } else if (deal !== 'standard') return { ok: false, code: 'bad' };
+  g.baseKey = g.key;
+  g.key = key;
+  g.maxPos = GOALS[key];
+  g.deal = deal;
+  addNews(state, 'board', `news.goalDeal.${deal}`, { goalK: `goal.${key}`, amountC: advance, season: state.season });
+  return { ok: true };
+}
+
+/** Ziel nachträglich senken (bis Spieltag 9): Prämie entfällt, Vorstand verärgert */
+export function canLowerGoal(state) {
+  const g = state.user.mood?.goal;
+  if (!g || g.lowered || g.season !== state.season) return false;
+  if (GOAL_ORDER.indexOf(g.key) >= GOAL_ORDER.length - 1) return false;
+  return leagueDaysPlayed(state) < GOAL_LATEST_MD;
+}
+
+export function lowerSeasonGoal(state) {
+  const g = state.user.mood?.goal;
+  if (!g || g.lowered || GOAL_ORDER.indexOf(g.key) >= GOAL_ORDER.length - 1) return { ok: false, code: 'bad' };
+  if (!canLowerGoal(state)) return { ok: false, code: 'late' };
+  g.key = GOAL_ORDER[GOAL_ORDER.indexOf(g.key) + 1];
+  g.maxPos = GOALS[g.key];
+  g.lowered = true;
+  state.user.mood.board = r1(clamp(state.user.mood.board - 5));
+  addNews(state, 'board', 'news.goalDeal.lowered', { goalK: `goal.${g.key}`, season: state.season });
+  return { ok: true };
 }
 
 /** Aktueller Tabellenplatz in der eigenen Liga */
@@ -201,9 +273,9 @@ export function closeSeasonLife(state, tier, pos) {
   m.fans = r1(clamp(m.fans + (met ? 3 : -2)));
   let bonus = 0;
   if (met) {
-    bonus = Math.round(seasonPrize(tier, pos) * 0.35);
-    ledger(state, 'ledger.boardBonus', bonus, { season: state.season });
-    addNews(state, 'board', 'news.goalMet', { goalK: `goal.${goal.key}`, amountC: bonus, pos });
+    bonus = goal.lowered ? 0 : Math.round(seasonPrize(tier, pos) * 0.35 * (goal.deal === 'cautious' ? 0.5 : 1));
+    if (bonus) ledger(state, 'ledger.boardBonus', bonus, { season: state.season });
+    addNews(state, 'board', bonus ? 'news.goalMet' : 'news.goalMetNoBonus', { goalK: `goal.${goal.key}`, amountC: bonus, pos });
   } else {
     addNews(state, 'board', 'news.goalMissed', { goalK: `goal.${goal.key}`, pos });
   }

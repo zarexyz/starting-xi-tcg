@@ -247,7 +247,7 @@ export function seasonFlow(game, ui = {}) {
       <ul class="list panel panel--flush">
         <li class="row"><span class="alert-dot">${icon('star')}</span><div class="row__main"><div class="row__title">Final Four</div><div class="row__sub">${esc(ffStageText(u.ffStage))}</div></div></li>
         <li class="row"><span class="alert-dot">${icon('trophy')}</span><div class="row__main"><div class="row__title">${t('w.cup')}</div><div class="row__sub">${esc(cupText(u.cup))}</div></div></li>
-        ${u.goal ? `<li class="row"><span class="alert-dot ${u.goal.met ? '' : 'alert-dot--loss'}">${icon(u.goal.met ? 'check' : 'close')}</span><div class="row__main"><div class="row__title">${t('goal.title')}</div><div class="row__sub">${esc(t(`goal.${u.goal.key}`))}. ${u.goal.met ? t('se.goalMet', { amountC: u.goal.bonus }) : t('se.goalMissed')}</div></div></li>` : ''}
+        ${u.goal ? `<li class="row"><span class="alert-dot ${u.goal.met ? '' : 'alert-dot--loss'}">${icon(u.goal.met ? 'check' : 'close')}</span><div class="row__main"><div class="row__title">${t('goal.title')}</div><div class="row__sub">${esc(t(`goal.${u.goal.key}`))}. ${u.goal.met ? (u.goal.bonus ? t('se.goalMet', { amountC: u.goal.bonus }) : t('se.goalMetNoBonus')) : t('se.goalMissed')}</div></div></li>` : ''}
       </ul>
       <button class="btn btn--secondary btn--block se-share" data-action="share-season">${icon('share')}${t('share.season')}</button>`;
   } else if (page === 1) {

@@ -5,6 +5,7 @@
 // autoResolveTasks.
 // =============================================================================
 import { addNews, nextUserMatch } from './game.js';
+import { chooseSeasonGoal } from './clublife.js';
 import { INTERVIEW_KEYS, interviewAvailable, setInterview } from './extras.js';
 import { acceptOffer, declineOffer, unlistPlayer } from './market.js';
 
@@ -94,12 +95,14 @@ export function expireTasks(state) {
 }
 
 /** Nur für Simulationen und Tests: alle offenen blockierenden Aufgaben mit der Standardwahl beantworten */
-export function autoResolveTasks(state) {
+export function autoResolveTasks(state, opts = {}) {
   expireTasks(state);
   for (const n of blockingTasks(state)) {
     const h = HANDLERS[n.task.kind];
     let key = h?.defaultChoice;
     if (typeof key === 'function') key = key(state, n.task);
+    const forced = opts.choices?.[n.task.kind];
+    if (forced && n.task.choices?.some(c => c.key === forced)) key = forced;
     if (!key) key = n.task.choices?.[0]?.key || 'ok';
     resolveTask(state, n.id, key);
     // Hat der Handler abgelehnt, nicht hängen bleiben
@@ -159,3 +162,12 @@ export function ensureInterviewTask(state) {
     choices: INTERVIEW_KEYS.map(k => ({ key: k, label: `iv.${k}`, hint: `iv.${k}.d`, tone: 'secondary' }))
   }, { newsType: 'press', clubId: opp.id });
 }
+
+// ---------------------------------------------------------------------------
+// Handler: Saisonziel mit dem Vorstand (11.5)
+// ---------------------------------------------------------------------------
+registerTaskHandler('goal', {
+  alive: (state, task) => String(state.season) === task.ref && !state.user.mood?.goal?.deal,
+  defaultChoice: 'standard',
+  resolve: (state, task, choice) => chooseSeasonGoal(state, choice)
+});

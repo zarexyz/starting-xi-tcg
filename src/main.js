@@ -35,7 +35,7 @@ import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
 import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
 import { setSetPiece, applyCoachSuggestion } from './engine/extras.js';
-import { ensureClubLife, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
+import { ensureClubLife, lowerSeasonGoal, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
 
 const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); ensureTasks(state); };
 import { prepFlow } from './ui/flows/prep.js';
@@ -398,11 +398,12 @@ const handlers = {
   'open-inbox': () => setUi({ sheet: { type: 'inbox' } }),
   'open-tasks': () => setUi({ sheet: { type: 'tasks' } }),
   'task-choice': d => {
+    const wasBlocking = !!findTask(store.game, d.id)?.task?.blocking;
     const res = act(resolveTask, d.id, d.choice);
     if (res?.error || res?.ok === false) return;
     if (res?.message) toast(res.message);
-    // Nach der Entscheidung zurück zur Sperre bzw. ins Postfach
-    setUi({ sheet: { type: blockingTasks(store.game).length ? 'tasks' : 'inbox' } });
+    // Blockierende Entscheidung: weiter mit der nächsten, sonst zurück ins Spiel. Sonst im Postfach bleiben.
+    setUi({ sheet: blockingTasks(store.game).length ? { type: 'tasks' } : wasBlocking ? null : { type: 'inbox' } });
   },
   'task-go': d => {
     const n = findTask(store.game, d.id);
@@ -484,6 +485,10 @@ const handlers = {
   },
   'set-piece': d => { act(setSetPiece, d.role, d.value || null); },
   'coach-apply': () => { const res = act(applyCoachSuggestion); if (res?.ok) toast(t('coach.applied')); },
+  'lower-goal': () => askConfirm(t('goal.lowerConfirm'), t('goal.lowerConfirmX'), t('goal.lowerBtn'), () => {
+    const res = act(lowerSeasonGoal);
+    if (res?.code === 'late') toast(t('goal.lateToast'));
+  }),
   'upgrade-academy': () => {
     const res = act(upgradeAcademy);
     if (res?.ok) toast(t('acad.upDone', { n: res.level }));

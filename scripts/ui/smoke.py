@@ -40,12 +40,14 @@ async def main():
         await shot('01_home')
 
         live_done = False
+        task_shot = False
         season_end = False
         for i in range(220):
             if await pg.locator('.season-end').count():
                 season_end = True; await shot('09_season_end'); break
             # Offene Postfach-Aufgaben beantworten (erste Wahl)
             if await pg.locator('[data-action=task-choice]').count():
+                if not task_shot: await shot('01b_task'); task_shot = True
                 await click_js('[data-action=task-choice]'); await pg.wait_for_timeout(150); continue
             if await pg.locator('[data-action=open-tasks]').count():
                 await click_js('[data-action=open-tasks]'); await pg.wait_for_timeout(150)
