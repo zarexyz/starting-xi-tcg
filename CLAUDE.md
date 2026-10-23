@@ -3,7 +3,7 @@
 Mobiler Fußballmanager mit Sammelkarten (Vanilla JS, ES-Module, Vite, später Android über Capacitor).
 Leitprinzip des Spiels: **Alles ist eine Karte.** Sprache im Code, in Kommentaren und mit dem Nutzer: **Deutsch**.
 
-Planung liegt im claude.ai-Projekt (nicht im Repo): „Backlog v1.1+“, „Stand v1.0“, „Umsetzung v1.10–v1.13“ (Tickets mit Abnahmekriterien). Vor jeder Aufgabe das passende Ticket lesen.
+Planung liegt im claude.ai-Projekt (nicht im Repo): „Backlog v1.1+“, „Stand v1.0“, „Umsetzung v1.11–v1.15“ (Tickets mit Abnahmekriterien, nummeriert 11.1, 11.2 …). Vor jeder Aufgabe das passende Ticket lesen.
 
 ## Ablauf je Aufgabe (Definition of Done)
 
