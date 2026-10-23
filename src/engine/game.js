@@ -5,14 +5,14 @@
 // Diese Datei ist die „Naht“ für einen späteren Mehrspieler-Server.
 // =============================================================================
 
-import { expireTasks } from './tasks.js';
+import { expireTasks, addTask } from './tasks.js';
 import { createRng, withRng } from './rng.js';
 import { FORMATIONS, MATCHDAYS, MAX_SQUAD, AI_SQUAD_SIZE, STYLE_KEYS, POSITION_GROUP, TIERS } from './constants.js';
 import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength, rivalry } from './world.js';
 import { roundRobin, buildCalendar, createCup, drawCupRound, computeTable, createFinalFour, matchWinner, matchLoser, CUP_ROUND_NAMES } from './schedule.js';
 import { buildTeam, simulateMatch, analyzeMatch } from './match.js';
 import { aiSetup, bestLineup, repairLineup } from './ai.js';
-import { developPlayer, shortName, displayName, salaryFor, createPlayer, trainAttribute, avgRating } from './player.js';
+import { developPlayer, shortName, displayName, salaryFor, createPlayer, trainAttribute, avgRating, marketValue } from './player.js';
 import { generateStarterSquad, generateStarDraft, generateDraft, generateItems, PACKS, CONSUMABLES } from './packs.js';
 import { matchIncome, seasonPrize, CUP_PRIZES, FINAL_FOUR_PRIZES, weeklyWages, wageCap } from './economy.js';
 import { ATTR_NAMES, STYLES, POS_LABEL } from './constants.js';
@@ -844,9 +844,16 @@ export function playDay(state) {
     contractMood(state);
     for (const o of processTransferDay(rng, state)) {
       const p = state.players[o.playerId];
-      addNews(state, 'transfer', o.unsolicited ? 'news.bidIn' : 'news.offerIn',
-        { short: shortName(p), name: displayName(p), club: state.clubs[o.clubId].name, amountC: o.amount }, { playerId: p.id, clubId: o.clubId });
+      const choices = [
+        { key: 'accept', label: 'task.offer.accept', tone: 'primary' },
+        { key: 'decline', label: 'task.offer.decline', tone: 'secondary' },
+        ...(!o.unsolicited && state.user.listings?.[p.id] ? [{ key: 'declineUnlist', label: 'task.offer.declineUnlist', tone: 'ghost' }] : [])
+      ];
+      addTask(state, 'offer', o.unsolicited ? 'news.bidTask' : 'news.offerTask',
+        { short: shortName(p), name: displayName(p), club: state.clubs[o.clubId].name, amountC: o.amount, valueC: marketValue(p) },
+        { blocking: true, ref: o.id, choices }, { playerId: p.id, clubId: o.clubId, newsType: 'transfer' });
     }
+    expireTasks(state);
     // Belohnung: nach Siegen öfter eine Verbrauchskarte
     if (userResult) {
       const chance = userResult.outcome === 'W' ? 0.55 : userResult.outcome === 'D' ? 0.2 : 0.05;

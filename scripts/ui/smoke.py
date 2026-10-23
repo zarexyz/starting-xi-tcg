@@ -44,6 +44,12 @@ async def main():
         for i in range(220):
             if await pg.locator('.season-end').count():
                 season_end = True; await shot('09_season_end'); break
+            # Offene Postfach-Aufgaben beantworten (erste Wahl)
+            if await pg.locator('[data-action=task-choice]').count():
+                await click_js('[data-action=task-choice]'); await pg.wait_for_timeout(150); continue
+            if await pg.locator('[data-action=open-tasks]').count():
+                await click_js('[data-action=open-tasks]'); await pg.wait_for_timeout(150)
+                await click_js('.task-list [data-action=open-news]'); await pg.wait_for_timeout(150); continue
             adv = await pg.evaluate("""() => { for (const a of ['season-continue','dev-continue','result-continue','match-report','close-flow']) { if (document.querySelector('[data-action="'+a+'"]')) return a; } return null; }""")
             if adv:
                 await click_js(f'[data-action={adv}]'); await pg.wait_for_timeout(150); continue

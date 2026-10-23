@@ -400,6 +400,7 @@ const handlers = {
   'task-choice': d => {
     const res = act(resolveTask, d.id, d.choice);
     if (res?.error || res?.ok === false) return;
+    if (res?.message) toast(res.message);
     // Nach der Entscheidung zurück zur Sperre bzw. ins Postfach
     setUi({ sheet: { type: blockingTasks(store.game).length ? 'tasks' : 'inbox' } });
   },

@@ -1279,4 +1279,13 @@ export const de = {
   'task.view': 'Ansehen',
   'task.allDone': 'Alles entschieden. Es kann weitergehen.',
   'task.mustDecide': 'Du musst dich entscheiden, bevor es weitergeht.',
+  'news.offerTask.t': "Angebot für {short}",
+  'news.offerTask.x': "{club} bietet {amount} Münzen für {name}. Marktwert: {value}. Entscheide jetzt, danach geht es weiter.",
+  'news.bidTask.t': "{club} will {short}!",
+  'news.bidTask.x': "{club} bietet unaufgefordert {amount} Münzen für {name}. Marktwert: {value}. Lehnst du ab, ist er womöglich enttäuscht.",
+  'task.offer.accept': "Verkaufen für {amount}",
+  'task.offer.decline': "Ablehnen",
+  'task.offer.declineUnlist': "Ablehnen und von der Liste nehmen",
+  'task.offer.bid': "Angebot",
+  'task.offer.value': "Marktwert",
 };

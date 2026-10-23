@@ -5,6 +5,7 @@
 // autoResolveTasks.
 // =============================================================================
 import { addNews } from './game.js';
+import { acceptOffer, declineOffer, unlistPlayer } from './market.js';
 
 /**
  * Handler je Art. Form:
@@ -20,7 +21,8 @@ export function registerTaskHandler(kind, handler) {
 }
 
 export function addTask(state, kind, newsKey, params, task, extra = {}) {
-  addNews(state, 'board', newsKey, params, { ...extra, task: { kind, status: 'open', blocking: false, ...task } });
+  const { newsType = 'board', ...rest } = extra;
+  addNews(state, newsType, newsKey, params, { ...rest, task: { kind, status: 'open', blocking: false, ...task } });
   return state.inbox[0];
 }
 
@@ -108,3 +110,25 @@ export function ensureTasks(state) {
   if (!Array.isArray(state.inbox)) state.inbox = [];
   expireTasks(state);
 }
+
+// ---------------------------------------------------------------------------
+// Handler: Angebote für eigene Spieler (11.3)
+// ---------------------------------------------------------------------------
+const offerOf = (state, task) => (state.user.offers || []).find(o => o.id === task.ref);
+
+registerTaskHandler('offer', {
+  alive: (state, task) => {
+    const o = offerOf(state, task);
+    return !!o && state.players[o.playerId]?.clubId === 'user';
+  },
+  defaultChoice: 'decline',
+  resolve: (state, task, choice) => {
+    const o = offerOf(state, task);
+    if (!o) return { ok: false, code: 'gone' };
+    if (choice === 'accept') return acceptOffer(state, task.ref);
+    const pid = o.playerId;
+    const res = declineOffer(state, task.ref);
+    if (choice === 'declineUnlist' && res.ok) unlistPlayer(state, pid);
+    return res;
+  }
+});

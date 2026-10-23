@@ -1,4 +1,5 @@
 import { t, fmtNum } from '../i18n/index.js';
+import { completeTasksByRef } from './tasks.js';
 // =============================================================================
 // Transfermarkt: Spieler anderer Vereine kaufen, eigene Spieler verkaufen,
 // KI-Vereine handeln am Saisonende untereinander. Jeder Spieler bleibt einmalig.
@@ -288,6 +289,7 @@ export function acceptOffer(state, offerId) {
   if (state.user.listings) delete state.user.listings[p.id];
   state.user.offers = state.user.offers.filter(o => o.playerId !== p.id);
   if (state.user.setup) state.user.setup = repairLineup(state, 'user', state.user.setup);
+  completeTasksByRef(state, 'offer', offerId, 'accept');
   return { ok: true, message: t('market.sold', { name: displayName(p), price: fmtNum(offer.amount), club: buyer.name }) };
 }
 
@@ -297,6 +299,7 @@ export function declineOffer(state, offerId) {
   if (!offer) return { error: t('err.offerGone') };
   const p = state.players[offer.playerId];
   state.user.offers = state.user.offers.filter(o => o.id !== offerId);
+  completeTasksByRef(state, 'offer', offerId, 'decline');
   const buyer = state.clubs[offer.clubId];
   if (p && buyer && buyer.tier < state.clubs.user.tier && offer.amount >= marketValue(p) * 1.1) {
     p.morale = Math.max(30, p.morale - 10);

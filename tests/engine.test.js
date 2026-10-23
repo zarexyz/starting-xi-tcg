@@ -274,7 +274,7 @@ test('Match: Verletzte tauchen nach ihrer Auswechslung nicht mehr auf', () => {
   assert.ok(checked > 10, `genug Verletzungen geprüft (${checked})`);
 });
 
-import { searchMarket, buyPlayer, listPlayer, processTransferDay, offersFor, acceptOffer, willingness, askingPrice, transferWindow, bidLow } from '../src/engine/market.js';
+import { searchMarket, buyPlayer, listPlayer, processTransferDay, offersFor, acceptOffer, declineOffer, willingness, askingPrice, transferWindow, bidLow } from '../src/engine/market.js';
 import { wageOf, extendContract, yearsLeft } from '../src/engine/contracts.js';
 
 test('Transfermarkt: kaufen, verkaufen, Einmaligkeit bleibt erhalten', () => {
@@ -881,4 +881,40 @@ test('Aufgaben: autoResolve, Ablauf nach Tag, alter Spielstand', () => {
   assert.equal(openTasks(s).length, 0);
   s.pending = null; autoResolveTasks(s);
   assert.ok(playDay(s));
+});
+
+function gameWithOffer(seed) {
+  const s = newStartedGame(seed);
+  const star = clubPlayers(s, 'user').sort((a, b) => b.ovr - a.ovr)[0];
+  listPlayer(s, star.id, 'quick');
+  for (let i = 0; i < 12 && !blockingTasks(s).length; i++) { s.pending = null; autoResolveTasks(s); playDay(s); }
+  return { s, star };
+}
+
+test('Angebote: neues Angebot erzeugt blockierende Aufgabe; Verkaufen erledigt sie', () => {
+  let found = null;
+  for (let seed = 1; seed < 15 && !found; seed++) { const g = gameWithOffer(seed); if (blockingTasks(g.s).length) found = g; }
+  assert.ok(found, 'irgendwann kommt ein Angebot');
+  const { s } = found;
+  const task = blockingTasks(s)[0];
+  assert.equal(task.task.kind, 'offer');
+  const pid = task.playerId;
+  assert.ok(resolveTask(s, task.id, 'accept').ok);
+  assert.notEqual(s.players[pid].clubId, 'user');
+  assert.equal(task.task.status, 'done');
+});
+
+test('Angebote: Ablehnen über den Transferweg erledigt die Aufgabe, Standardwahl lehnt ab', () => {
+  let found = null;
+  for (let seed = 1; seed < 15 && !found; seed++) { const g = gameWithOffer(seed); if (blockingTasks(g.s).length) found = g; }
+  const { s } = found;
+  const task = blockingTasks(s)[0];
+  declineOffer(s, task.task.ref);
+  assert.equal(task.task.status, 'done');
+  assert.equal(blockingTasks(s).length, 0);
+  const f2 = (() => { for (let seed = 1; seed < 15; seed++) { const g = gameWithOffer(seed); if (blockingTasks(g.s).length) return g; } })();
+  const t2 = blockingTasks(f2.s)[0];
+  autoResolveTasks(f2.s);
+  assert.equal(f2.s.players[t2.playerId].clubId, 'user');
+  assert.equal(t2.task.answer, 'decline');
 });

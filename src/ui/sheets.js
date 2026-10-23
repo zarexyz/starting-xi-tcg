@@ -18,6 +18,8 @@ import { LEAGUE_INFO } from '../engine/world.js';
 import { POS_LABEL } from '../engine/constants.js';
 import { inboxItems, newsChannel } from '../engine/news.js';
 import { openTasks, blockingTasks } from '../engine/tasks.js';
+import { cardHtml } from './components/card.js';
+import { marketValue } from '../engine/player.js';
 
 export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
@@ -56,6 +58,23 @@ export function tasksSheet(game) {
   return sheet(t('task.blockedTitle'), `
     <p class="small muted">${t('task.blockedText', { n: list.length })}</p>
     <ul class="list panel panel--flush task-list">${list.map(inboxRow).join('')}</ul>`);
+}
+
+/** Angebot: Spielerkarte klein mit Angebot und Marktwert zum Vergleich */
+function offerCard(game, n) {
+  if (n.task?.kind !== 'offer') return '';
+  const p = game.players[n.playerId];
+  if (!p) return '';
+  const club = game.clubs[p.clubId];
+  const o = (game.user.offers || []).find(x => x.id === n.task.ref);
+  const amount = o?.amount ?? n.p?.amountC;
+  return `<div class="task-offer">
+    <div class="task-offer__card">${cardHtml(p, { size: 'sm', colors: club?.colors })}</div>
+    <dl class="task-offer__facts">
+      <dt>${t('task.offer.bid')}</dt><dd class="num">${fmtNum(amount)}</dd>
+      <dt>${t('task.offer.value')}</dt><dd class="num">${fmtNum(marketValue(p))}</dd>
+    </dl>
+  </div>`;
 }
 
 function taskActions(n) {
@@ -104,6 +123,7 @@ export function newsSheet(game, id) {
   if (!n) return '';
   return sheet(newsTitle(n), `
     <p class="news-text">${esc(newsText(n))}</p>
+    ${offerCard(game, n)}
     ${taskActions(n)}
     ${newsLinks(game, n)}
     ${newsChannel(n) === 'feed'

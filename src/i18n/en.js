@@ -1272,4 +1272,13 @@ export const en = {
   'task.view': 'View',
   'task.allDone': 'All decided. You can continue.',
   'task.mustDecide': 'You have to decide before you can continue.',
+  'news.offerTask.t': "Offer for {short}",
+  'news.offerTask.x': "{club} offer {amount} coins for {name}. Market value: {value}. Decide now, then you can continue.",
+  'news.bidTask.t': "{club} want {short}!",
+  'news.bidTask.x': "{club} make an unsolicited bid of {amount} coins for {name}. Market value: {value}. If you decline, he may be disappointed.",
+  'task.offer.accept': "Sell for {amount}",
+  'task.offer.decline': "Decline",
+  'task.offer.declineUnlist': "Decline and remove from list",
+  'task.offer.bid': "Offer",
+  'task.offer.value': "Market value",
 };
