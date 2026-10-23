@@ -1323,4 +1323,6 @@ export const en = {
   'news.planOff.t': "Recovery switched off",
   'news.planOff.x': "You are {cost} coins short for recovery. The training plan is back to Normal.",
   'coach.spOnly': "The best takers from your starting XI for corners, free kicks and penalties.",
+  'prep.cardsTitle': "Cards for this match ({n})",
+  'prep.cardsHint': "Use match cards",
 };

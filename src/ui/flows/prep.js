@@ -25,23 +25,18 @@ import { weatherFor, SP_ROLES, spCandidates, coachSuggestion } from '../../engin
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
 
-/** Verbrauchskarten vor dem Anpfiff: aktive Effekte und einsetzbare Karten */
-function consumablesSection(game) {
-  const inv = game.user.inventory;
+/** Matchkarten für dieses Spiel: einklappbar am Ende von „Taktik“. Andere Karten bleiben im Spind. */
+function cardsFold(game, ui, oppId) {
+  const inv = game.user.inventory.filter(i => CONSUMABLES[i.type]?.target === 'match');
+  if (!inv.length && !game.user.matchBoost) return '';
   const groups = {};
   inv.forEach(i => { (groups[i.type + (i.attr ? ':' + i.attr : '')] ||= []).push(i); });
   const active = [];
   if (game.user.matchBoost) active.push(`<li>${icon('clipboard')}${t('prep.tacticOn')}</li>`);
-  for (const p of clubPlayers(game, 'user').filter(x => x.tempBoost)) {
-    active.push(`<li>${icon('up')}${t('prep.boostOn', { name: esc(p.last), attr: ATTR_NAMES[p.tempBoost.attr], n: p.tempBoost.amount })}</li>`);
-  }
-  return `<section class="section">
-    <div class="section__head"><h2 class="section__title">${t('prep.items')}</h2><span class="small muted">${t('prep.itemsCount', { n: inv.length })}</span></div>
-    ${active.length ? `<ul class="active-effects">${active.join('')}</ul>` : ''}
+  const body = `${active.length ? `<ul class="active-effects">${active.join('')}</ul>` : ''}
     ${inv.length ? `<div class="items-grid items-grid--prep">${Object.values(groups).map(list => itemCard(list[0], 0, { action: 'use-item', id: list[0].id, count: list.length })).join('')}</div>
-      <p class="xsmall muted">${t('prep.itemsHint')}</p>`
-      : `<p class="small muted">${t('prep.noItemsNew')}</p>`}
-  </section>`;
+      <p class="xsmall muted">${t('prep.itemsHint')}</p>` : ''}`;
+  return fold(ui, 'cards', t('prep.cardsTitle', { n: inv.length }), game.user.matchBoost ? t('prep.tacticOn') : t('prep.cardsHint'), body);
 }
 
 /** Zeile im Reiter Gegner: Stand der Pressekonferenz (die Entscheidung selbst liegt im Postfach) */
@@ -120,23 +115,21 @@ export function prepFlow(game, ui) {
   const oppLines = buildTeam(game, oppId, expectedOpponentSetup(game, oppId)).lines;
   const wx = weatherFor(game.seed, game.dayIndex);
   const weakest = ['def', 'mid', 'att'].sort((a, b) => oppLines[a] - oppLines[b])[0];
-  const tab = ['opp', 'tactics', 'week'].includes(ui.prepTab) ? ui.prepTab : 'tactics';
+  const tab = ['opp', 'tactics'].includes(ui.prepTab) ? ui.prepTab : 'tactics';
 
   // Hinweis-Punkte an den Reitern
   const dotTactics = warn.some(w => w.tone === 'warn');
   const unusedItem = game.user.inventory.some(i => CONSUMABLES[i.type]?.target === 'match' &&
     !(i.type === 'TACTIC' && game.user.matchBoost) && !(i.type === 'SCOUT' && game.user.scout?.oppId === oppId));
-  const dotWeek = unusedItem;
+  const dotOpp = !game.user.interview && openTasks(game).some(n => n.task.kind === 'interview');
   const tabBtn = (key, dot) => `<button data-action="prep-tab" data-value="${key}" aria-pressed="${tab === key}">${t('prep.tab.' + key)}${dot ? '<i class="tabdot" aria-hidden="true"></i>' : ''}</button>`;
 
-  const styleTiles = STYLE_KEYS.map(key => {
-    const st = STYLES[key];
-    const on = setup.style === key;
-    return `<button class="style-tile style-tile--compact ${on ? 'is-active' : ''}" data-action="set-style" data-value="${key}" aria-pressed="${on}" title="${esc(st.desc)}">
-      <b>${st.name}</b>
-      ${on ? `<span class="small">${esc(st.desc)}</span>` : ''}
-    </button>`;
-  }).join('');
+  // Spielstil als Auswahlliste (keine Angabe, welcher Stil wen schlägt – das gibt es nur über Scouting)
+  const styleSelect = `<label class="select-field">
+      <select data-change="set-style" aria-label="${t('prep.style')}">${STYLE_KEYS.map(key => `<option value="${key}" ${setup.style === key ? 'selected' : ''}>${esc(STYLES[key].name)}</option>`).join('')}</select>
+      ${icon('chevronDown')}
+    </label>
+    <p class="small muted">${esc(STYLES[setup.style].desc)}</p>`;
 
   const spName = role => { const id = setup.setPieces?.[role]; const p = id && game.players[id]; return p ? esc(p.last) : t('sp.auto'); };
   const spSummary = t('prep.sum.sp', { c: spName('corner'), p: spName('pen'), f: spName('fk') });
@@ -155,33 +148,31 @@ export function prepFlow(game, ui) {
   const sug = coachSuggestion(game);
   const sugSame = SP_ROLES.every(r => (setup.setPieces?.[r] || null) === sug.setPieces[r]);
   const coachRow = `<div class="coach-tip">
-      <div class="coach-tip__text"><b>${t('coach.title')}</b><span class="xsmall muted">${t('coach.spOnly')}</span></div>
+      <div class="coach-tip__text"><b>${t('coach.title')}</b></div>
       <button class="btn btn--sm btn--secondary" data-action="coach-apply" ${sugSame ? 'disabled' : ''}>${t('coach.apply')}</button>
     </div>`;
 
   const tacticsTab = `
     ${coachRow}
     <section class="section">
-      <div class="section__head"><h2 class="section__title">${t('prep.style')}</h2></div>
-      <div class="style-grid">${styleTiles}</div>
+      <div class="field-label">${t('prep.style')}</div>
+      ${styleSelect}
     </section>
 
     <section class="section">
-      <div class="section__head"><h2 class="section__title">${t('w.formation')}</h2></div>
+      <div class="field-label">${t('w.formation')}</div>
       <div class="segmented">${FORMATION_KEYS.map(k => `<button data-action="set-formation" data-value="${k}" aria-pressed="${setup.formation === k}">${k}</button>`).join('')}</div>
       ${autoToggle(game)}
       <div class="prep__lineup-actions">
         <button class="btn btn--sm btn--secondary" data-action="auto-lineup">${icon('auto')}${t('prep.auto')}</button>
+        <span class="xsmall muted">${t('prep.swapHint')}</span>
       </div>
-      <p class="hint small">${t('prep.swapHint')}</p>
       ${lineupEditor(game, setup, ui.selected, { compact: true })}
       ${warn.length ? `<ul class="warn-list">${warn.slice(0, 5).map(w => `<li class="warn-${w.tone}">${icon(w.icon)}${esc(w.text)}</li>`).join('')}</ul>` : ''}
     </section>
 
-    ${fold(ui, 'sp', t('sp.title'), spSummary, setPieceBody(game, setup))}`;
-
-  const weekTab = `
-    ${consumablesSection(game)}`;
+    ${fold(ui, 'sp', t('sp.title'), spSummary, setPieceBody(game, setup))}
+    ${cardsFold(game, ui, oppId)}`;
 
   return `<div class="fullscreen"><main class="screen prep">
     <div class="prep__top">
@@ -204,10 +195,10 @@ export function prepFlow(game, ui) {
         <span class="prob__d" style="flex:${pred.draw || 1}"><b>${pred.draw} %</b></span>
         <span class="prob__l" style="flex:${pred.loss || 1}"><b>${pred.loss} %</b></span>
       </div>
-      <div class="segmented prep__tabs">${tabBtn('opp', false)}${tabBtn('tactics', dotTactics)}${tabBtn('week', dotWeek)}</div>
+      <div class="segmented prep__tabs">${tabBtn('opp', dotOpp)}${tabBtn('tactics', dotTactics)}</div>
     </div>
 
-    ${tab === 'opp' ? oppTab : tab === 'tactics' ? tacticsTab : weekTab}
+    ${tab === 'opp' ? oppTab : tacticsTab}
 
     <div class="prep__cta">
       ${ui.selected ? selectionBar(game, ui.selected) : blockingTasks(game).length

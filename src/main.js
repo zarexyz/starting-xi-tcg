@@ -681,6 +681,9 @@ document.addEventListener('input', ev => {
 
 document.addEventListener('change', ev => {
   const el = ev.target;
+  // Auswahllisten mit data-change="name" rufen den gleichnamigen Handler auf (Wert in d.value)
+  const named = el.dataset?.change;
+  if (named && handlers[named]) { handlers[named]({ ...el.dataset, value: el.value }, el, ev); return; }
   if (el.dataset?.input === 'found-country') { store.ui.found.country = el.value; notify(); return; }
   if (el.dataset?.input === 'formation') act(setUserSetup, { formation: el.value });
   if (el.dataset?.input === 'mkt-sort') setUi({ market: { ...(store.ui.market || {}), sort: el.value, page: 0 } });

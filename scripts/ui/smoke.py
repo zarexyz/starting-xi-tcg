@@ -65,7 +65,7 @@ async def main():
                 await pg.locator('[data-action=open-prep]').click(); await pg.wait_for_timeout(250)
                 if not live_done:
                     # Reiter der Spielvorbereitung: Gegner, Taktik, Woche (je ein Screenshot in voller Länge)
-                    for tabkey, name in [('opp', '02a_opp'), ('tactics', '02b_tactics'), ('week', '02c_week')]:
+                    for tabkey, name in [('opp', '02a_opp'), ('tactics', '02b_tactics')]:
                         await click_js(f'[data-action=prep-tab][data-value={tabkey}]'); await pg.wait_for_timeout(250)
                         h = await pg.evaluate("document.querySelector('.fullscreen > .screen').scrollHeight")
                         # Vollbild-Ablauf scrollt in sich: Viewport auf Inhaltshöhe ziehen, dann fotografieren
@@ -74,7 +74,7 @@ async def main():
                         print('prep tab', tabkey, 'Höhe', h)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
-                    await click_js('[data-action=prep-tab][data-value=week]'); await pg.wait_for_timeout(150)
+                    await pg.select_option('[data-change=set-style]', 'KONTER'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=coach-apply]'); await pg.wait_for_timeout(300)  # Co-Trainer-Vorschlag
                     await pg.locator('[data-action=kickoff]').click()

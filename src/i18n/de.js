@@ -1330,4 +1330,6 @@ export const de = {
   'news.planOff.t': "Regeneration abgeschaltet",
   'news.planOff.x': "Für die Regeneration fehlen {cost} Münzen. Der Trainingsplan steht wieder auf Normal.",
   'coach.spOnly': "Die besten Schützen aus deiner Startelf für Ecken, Freistöße und Elfmeter.",
+  'prep.cardsTitle': "Karten für dieses Spiel ({n})",
+  'prep.cardsHint': "Matchkarten einsetzen",
 };

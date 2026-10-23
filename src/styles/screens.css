@@ -1223,3 +1223,7 @@ tr[data-action] { cursor: pointer; }
 .task-offer__facts dd { margin: 0; font-weight: 700; }
 .task-choice { display: grid; gap: 2px; }
 .task-choice > span { padding: 0 var(--s-2); }
+.select-field { position: relative; display: flex; align-items: center; margin: var(--s-2) 0; }
+.select-field select { appearance: none; width: 100%; min-height: 44px; padding: 0 40px 0 var(--s-3); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; font-weight: 700; }
+.select-field svg { position: absolute; right: var(--s-3); width: 18px; height: 18px; pointer-events: none; }
+.field-label { font-size: var(--t-sm); font-weight: 700; color: var(--ink-2); margin: var(--s-2) 0 var(--s-1); }
