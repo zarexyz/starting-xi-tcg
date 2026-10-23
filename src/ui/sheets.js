@@ -23,7 +23,7 @@ import { marketValue } from '../engine/player.js';
 
 export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
-  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', board: 'trophy', press: 'megaphone', mood: 'alert', derby: 'flame', coach: 'user',
+  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', board: 'trophy', press: 'megaphone', staff: 'user', mood: 'alert', derby: 'flame', coach: 'user',
   streak: 'up', upset: 'sparkles', comeback: 'heart', result: 'ball', player: 'star', youth: 'sparkles',
   table: 'list', award: 'trophy', rumor: 'megaphone', world: 'swap', contract: 'clipboard'
 };

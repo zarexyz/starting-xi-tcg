@@ -11,7 +11,7 @@ import { seasonPrize, wageCap, weeklyWages, TIER_INCOME } from './economy.js';
 import { createPlayer, salaryFor, displayName, shortName } from './player.js';
 import { TIERS, MAX_SQUAD, POSITION_GROUP } from './constants.js';
 import { addNews, ledger } from './game.js';
-import { addTask } from './tasks.js';
+import { addTask, completeTasksByRef } from './tasks.js';
 import { leagueDaysPlayed } from './market.js';
 import { createRng } from './rng.js';
 
@@ -299,6 +299,8 @@ export function setPlan(state, key) {
   if (!PLAN_KEYS.includes(key)) return { ok: false, code: 'x' };
   const k = key === 'normal' ? null : key;
   state.user.plan = k;
+  state.user.planTouched = true;
+  completeTasksByRef(state, 'onboard', 'training', 'set');
   return { ok: true };
 }
 

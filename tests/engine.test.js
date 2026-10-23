@@ -855,9 +855,10 @@ test('Aufgaben: anlegen, blockieren, beantworten', () => {
   registerTaskHandler('dummy', { resolve: (st, task, key) => (key === 'bad' ? { error: 'x' } : { ok: true }), alive: () => !gone, defaultChoice: 'yes' });
   const a = addTask(s, 'dummy', 'news.welcome', {}, { blocking: true, choices: [{ key: 'yes', label: 'a' }, { key: 'bad', label: 'b' }] });
   const b = addTask(s, 'dummy', 'news.welcome', {}, { blocking: false });
-  assert.equal(openTasks(s).length, 2);
+  const dummy = () => openTasks(s).filter(n => n.task.kind === 'dummy');
+  assert.equal(dummy().length, 2);
   assert.equal(blockingTasks(s).length, 1);
-  assert.equal(openTasks(s)[0].id, a.id, 'blockierende zuerst');
+  assert.equal(dummy()[0].id, a.id, 'blockierende zuerst');
   assert.ok(resolveTask(s, a.id, 'bad').error);
   assert.equal(a.task.status, 'open', 'Fehler lässt Aufgabe offen');
   assert.ok(resolveTask(s, a.id, 'yes').ok);
@@ -880,7 +881,7 @@ test('Aufgaben: autoResolve, Ablauf nach Tag, alter Spielstand', () => {
   assert.equal(c.task.status, 'expired');
   delete s.inbox[0].task;
   ensureTasks(s);
-  assert.equal(openTasks(s).length, 0);
+  assert.equal(openTasks(s).filter(n => n.task.kind === 'dummy2').length, 0);
   s.pending = null; autoResolveTasks(s);
   assert.ok(playDay(s));
 });
@@ -1064,4 +1065,23 @@ test('Vertrags-Hinweis: Aufgabe mit Sprungknopf, erledigt nach Verlängerung, so
   assert.ok(t2);
   s.season += 1; expireTasks(s);
   assert.equal(t2.task.status, 'expired');
+});
+
+test('Einstieg: neues Spiel bekommt Aufgaben, Training erledigt sich durch Planwahl, alter Spielstand nicht', () => {
+  const s = newStartedGame(71);
+  const kinds = () => openTasks(s).filter(n => n.task.kind === 'onboard').map(n => n.task.ref).sort();
+  assert.deepEqual(kinds(), ['identity', 'lineup', 'training']);
+  assert.equal(blockingTasks(s).length, 1, 'nur das Saisonziel blockiert');
+  assert.equal(blockingTasks(s)[0].task.kind, 'goal');
+  setPlan(s, 'normal');
+  assert.deepEqual(kinds(), ['identity', 'lineup']);
+  autoResolveTasks(s); s.pending = null; ensureSetupOf(s);
+  playDay(s);
+  assert.ok(kinds().includes('report'), 'nach dem ersten Spiel: Warum?-Aufgabe');
+  const old = newStartedGame(72);
+  delete old.user.onboarding;
+  old.inbox = [];
+  ensureTasks(old);
+  assert.equal(old.user.onboarding.done, true);
+  assert.equal(openTasks(old).filter(n => n.task.kind === 'onboard').length, 0);
 });

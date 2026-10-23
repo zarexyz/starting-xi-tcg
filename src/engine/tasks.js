@@ -5,6 +5,7 @@
 // autoResolveTasks.
 // =============================================================================
 import { addNews, nextUserMatch } from './game.js';
+import { transferWindow, leagueDaysPlayed } from './market.js';
 import { chooseSeasonGoal } from './clublife.js';
 import { INTERVIEW_KEYS, interviewAvailable, setInterview } from './extras.js';
 import { acceptOffer, declineOffer, unlistPlayer } from './market.js';
@@ -114,6 +115,7 @@ export function autoResolveTasks(state, opts = {}) {
 
 export function ensureTasks(state) {
   if (!Array.isArray(state.inbox)) state.inbox = [];
+  if (state.user && !state.user.onboarding) state.user.onboarding = { done: true };   // alte Spielstände: keine Einstiegsaufgaben
   expireTasks(state);
   ensureInterviewTask(state);
 }
@@ -188,3 +190,43 @@ registerTaskHandler('contracts', {
 });
 registerTaskHandler('academy', { alive: (state, task) => task.ref === String(state.season) });
 registerTaskHandler('injury', { alive: (state, task) => !!state.players[task.ref]?.injury && state.players[task.ref].clubId === 'user' });
+
+// ---------------------------------------------------------------------------
+// Einstieg über das Postfach (11.10): nur neue Spiele. Nur das Saisonziel blockiert.
+// ---------------------------------------------------------------------------
+registerTaskHandler('onboard', {
+  alive: (state, task) => {
+    if (task.ref === 'training') return !state.user.planTouched;
+    if (task.ref === 'market') return transferWindow(state).open;
+    return true;
+  },
+  resolve: () => ({ ok: true })
+});
+
+const onb = (state, ref, key, task, extra = {}) => addTask(state, 'onboard', key, {}, { blocking: false, ref, ...task }, { newsType: 'staff', ...extra });
+
+/** Nach dem Starter-Pack: Aufgaben 2 bis 4 (Aufgabe 1, das Saisonziel, legt ensureGoalTask an) */
+export function startOnboarding(state) {
+  const o = state.user.onboarding;
+  if (!o || o.done || o.started) return;
+  o.started = true;
+  // Es wird oben eingeordnet, also rückwärts anlegen: Kader, Kapitän, Training
+  onb(state, 'training', 'news.onb.training', { cta: { label: 'task.cta.training', go: 'squad-training' } });
+  onb(state, 'identity', 'news.onb.identity', { cta: { label: 'task.cta.identity', go: 'identity', doneOnVisit: true } });
+  onb(state, 'lineup', 'news.onb.lineup', { cta: { label: 'task.cta.squad', go: 'squad', doneOnVisit: true } });
+}
+
+/** Nach jedem Spieltag: Aufgaben 5 (Warum?) und 6 (Transfermarkt) */
+export function onboardingProgress(state) {
+  const o = state.user.onboarding;
+  if (!o || o.done || !o.started) return;
+  if (!o.report && (state.matchLog || []).length >= 1) {
+    o.report = true;
+    onb(state, 'report', 'news.onb.report', { choices: [{ key: 'ok', label: 'task.ok', tone: 'primary' }] });
+  }
+  if (!o.market && leagueDaysPlayed(state) >= 1) {
+    o.market = true;
+    if (transferWindow(state).open) onb(state, 'market', 'news.onb.market', { cta: { label: 'task.cta.market', go: 'transfers', doneOnVisit: true } }, { newsType: 'transfer' });
+  }
+  if (o.report && o.market) o.done = true;
+}

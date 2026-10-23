@@ -3,7 +3,7 @@
 // Zeitung (Geschichten, Liga, Welt). Gilt auch für ältere Spielstände.
 // =============================================================================
 
-const INBOX_TYPES = new Set(['welcome', 'injury', 'suspension', 'finance', 'contract', 'transfer', 'squad', 'development', 'cup', 'ff', 'trophy', 'season', 'board', 'mood', 'press']);
+const INBOX_TYPES = new Set(['welcome', 'injury', 'suspension', 'finance', 'contract', 'transfer', 'squad', 'development', 'cup', 'ff', 'trophy', 'season', 'board', 'mood', 'press', 'staff']);
 const MINE_TYPES = new Set(['streak', 'upset', 'comeback', 'result', 'player', 'youth', 'derby', 'rumor']);
 const MINE_KEYS = new Set(['news.userTop', 'news.userLostTop', 'news.potmMine', 'news.scorerMine', 'news.potsMine', 'news.xiMine']);
 

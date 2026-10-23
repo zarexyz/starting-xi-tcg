@@ -5,7 +5,7 @@
 // Diese Datei ist die „Naht“ für einen späteren Mehrspieler-Server.
 // =============================================================================
 
-import { expireTasks, addTask, ensureInterviewTask } from './tasks.js';
+import { expireTasks, addTask, ensureInterviewTask, startOnboarding, onboardingProgress } from './tasks.js';
 import { createRng, withRng } from './rng.js';
 import { FORMATIONS, MATCHDAYS, MAX_SQUAD, AI_SQUAD_SIZE, STYLE_KEYS, POSITION_GROUP, TIERS } from './constants.js';
 import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength, rivalry } from './world.js';
@@ -56,6 +56,7 @@ export function createGame({ seed, clubName, primary, secondary, crest, pattern,
       unpaidDays: 0,
       autoLineup: true,
       listings: {},
+      onboarding: { step: 0 },
       offers: [],
       counters: {}
     },
@@ -256,6 +257,7 @@ export function pickDraft(state, index) {
     state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
   }
   ensureGoalTask(state);
+  startOnboarding(state);
   ensureInterviewTask(state);
   return p.id;
 }
@@ -887,6 +889,7 @@ export function playDay(state) {
     if (state.matchLog.length > 60) state.matchLog.length = 60;
   }
   expireTasks(state);
+  onboardingProgress(state);
   ensureInterviewTask(state);
   return userResult;
 }
