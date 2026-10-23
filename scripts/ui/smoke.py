@@ -39,6 +39,12 @@ async def main():
         await pg.click('[data-action=pack-confirm]'); await pg.wait_for_timeout(600)
         await shot('01_home')
 
+        # Training als Dauerplan im Kader
+        await click_js('[data-action=tab][data-tab=squad]'); await pg.wait_for_timeout(250)
+        await click_js('[data-action=train-fold]'); await pg.wait_for_timeout(200)
+        await click_js('[data-action=set-plan][data-value=tactics]'); await pg.wait_for_timeout(200)
+        await shot('01c_squad_training')
+        await click_js('[data-action=tab][data-tab=home]'); await pg.wait_for_timeout(200)
         live_done = False
         task_shot = False
         season_end = False
@@ -67,7 +73,6 @@ async def main():
                         await pg.set_viewport_size({'width': 390, 'height': 844})
                         print('prep tab', tabkey, 'Höhe', h)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
-                    await click_js('[data-action=prep-tab][data-value=week]'); await click_js('[data-action=prep-fold][data-value=plan]'); await pg.wait_for_timeout(150); await click_js('[data-action=set-plan][data-value=setpieces]'); await pg.wait_for_timeout(200); await shot('02d_plan_setpieces')  # plan-setpieces
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=week]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(150)

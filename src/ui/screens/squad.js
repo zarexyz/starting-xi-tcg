@@ -21,6 +21,7 @@ import { NATIONS } from '../../engine/names.js';
 import { historyChart } from '../flows/develop.js';
 import { t, tmap } from '../../i18n/index.js';
 import { nf1, injuryLabel, banReason } from '../text.js';
+import { trainingSection } from '../components/training.js';
 import { armbandBadge, numberTag, captainPanel } from './identity.js';
 
 const GROUP_ORDER = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
@@ -206,6 +207,7 @@ export function squadScreen(game, ui) {
   }
   return `<main class="screen">
     ${topbar(game)}
+    ${trainingSection(game, ui)}
     ${segmented([['lineup', t('sq.lineup')], ['list', t('sq.list')]], view, 'squad-view')}
     <div class="squad-body">${view === 'lineup' ? lineupView(game, ui) : listView(game)}</div>
   </main>`;

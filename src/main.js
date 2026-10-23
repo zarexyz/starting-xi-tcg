@@ -34,7 +34,7 @@ import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
 import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
-import { setSetPiece, applyCoachSuggestion } from './engine/extras.js';
+import { setSetPiece, applyCoachSuggestion, coachSuggestion } from './engine/extras.js';
 import { ensureClubLife, lowerSeasonGoal, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
 
 const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); ensureTasks(state); };
@@ -409,7 +409,9 @@ const handlers = {
     const n = findTask(store.game, d.id);
     const cta = n?.task?.cta;
     if (!cta) return;
+    const go0 = cta.go || '';
     if (cta.filter) store.ui.squadFilter = cta.filter;
+    if (go0 === 'squad-training') store.ui.trainOpen = true;
     if (cta.doneOnVisit) act(completeTask, d.id);
     const go = cta.go || '';
     if (go.startsWith('player:')) { openDetail('player', go.slice(7)); return; }
@@ -568,6 +570,8 @@ const handlers = {
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'prep-tab': d => { updateSettings({ prepTab: d.value }); },
+  'train-fold': () => setUi({ trainOpen: !store.ui.trainOpen }),
+  'coach-plan': () => { act(setPlan, coachSuggestion(store.game).plan); },
   'prep-fold': d => setUi({ prepOpen: { ...(store.ui.prepOpen || {}), [d.value]: !store.ui.prepOpen?.[d.value] } }),
   'toggle-auto-scenes': () => updateSettings({ autoScenes: !store.settings.autoScenes }),
   'toggle-halftime': () => updateSettings({ halftime: store.settings.halftime === false }),

@@ -308,17 +308,24 @@ export function applyPlanStart(state) {
   const plan = u.plan;
   if (!plan) return;
   const squad = clubPlayers(state, 'user');
-  if (plan === 'fitness') squad.forEach(p => { p.condition = Math.min(100, p.condition + 8); });
-  if (plan === 'tactics') squad.forEach(p => { p.condition = Math.max(30, p.condition - 4); });
-  if (plan === 'youth' || plan === 'setpieces') squad.forEach(p => { p.condition = Math.max(30, p.condition - 3); });
+  // Dauerplan: Werte so gewählt, dass kein Plan dauerhaft klar besser oder schlechter ist als „Normal“ (check.mjs)
+  if (plan === 'fitness') squad.forEach(p => { p.condition = Math.min(100, p.condition + 3); });
+  if (plan === 'tactics') squad.forEach(p => { p.condition = Math.max(30, p.condition - 2); });
+  if (plan === 'youth' || plan === 'setpieces') squad.forEach(p => { p.condition = Math.max(30, p.condition - 1); });
   if (plan === 'recovery') {
     const cost = planCost(state, 'recovery');
+    // Dauerplan: reicht das Geld nicht, schaltet er sich ab
+    if (state.clubs.user.coins < cost) {
+      u.plan = null;
+      addNews(state, 'finance', 'news.planOff', { costC: cost });
+      return;
+    }
     ledger(state, 'ledger.planRecovery', -cost, {});
   }
   u.planWeeks[plan] = (u.planWeeks[plan] || 0) + 1;
 }
 
-/** Nach dem Spieltag: Regeneration wirkt, der Plan ist verbraucht */
+/** Nach dem Spieltag: Regeneration wirkt. Der Plan bleibt (Dauerplan), bis er geändert wird. */
 export function applyPlanEnd(state) {
   const u = state.user;
   if (u.plan === 'recovery') {
@@ -330,7 +337,6 @@ export function applyPlanEnd(state) {
       if (p.condition < 70) p.condition = Math.min(100, p.condition + 4);
     }
   }
-  u.plan = null;
 }
 
 /** Entwicklungsanpassung durch den Wochenplan (additiv auf die Stärkeänderung der Halbserie) */

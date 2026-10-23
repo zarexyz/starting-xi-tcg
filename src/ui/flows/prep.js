@@ -21,25 +21,9 @@ import { POS_LABEL } from '../../engine/constants.js';
 import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
-import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
 import { weatherFor, SP_ROLES, spCandidates, coachSuggestion } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
-
-/** Training der Woche: ein Schwerpunkt mit Vor- und Nachteil */
-function planBody(game) {
-  const cur = game.user.plan || 'normal';
-  const tiles = PLAN_KEYS.map(key => {
-    const cost = planCost(game, key);
-    const poor = cost > game.clubs.user.coins;
-    return `<button class="style-tile plan-tile ${cur === key ? 'is-active' : ''}" data-action="set-plan" data-value="${key}" aria-pressed="${cur === key}" ${poor ? 'aria-disabled="true"' : ''}>
-      <b>${t(`plan.${key}`)}</b>
-      <span class="small">${t(`plan.${key}.d`, { n: fmt(cost) })}</span>
-    </button>`;
-  }).join('');
-  return `<div class="style-grid plan-grid">${tiles}</div>
-    <p class="xsmall muted">${t('plan.hint')}</p>`;
-}
 
 /** Verbrauchskarten vor dem Anpfiff: aktive Effekte und einsetzbare Karten */
 function consumablesSection(game) {
@@ -156,7 +140,6 @@ export function prepFlow(game, ui) {
 
   const spName = role => { const id = setup.setPieces?.[role]; const p = id && game.players[id]; return p ? esc(p.last) : t('sp.auto'); };
   const spSummary = t('prep.sum.sp', { c: spName('corner'), p: spName('pen'), f: spName('fk') });
-  const planSummary = t('prep.sum.plan', { plan: t('plan.' + (game.user.plan || 'normal')) });
 
   const oppTab = `
     <div class="scout__report">
@@ -170,9 +153,9 @@ export function prepFlow(game, ui) {
     <p class="xsmall muted">${t('prep.forecastHint')}</p>`;
 
   const sug = coachSuggestion(game);
-  const sugSame = SP_ROLES.every(r => (setup.setPieces?.[r] || null) === sug.setPieces[r]) && (game.user.plan || 'normal') === sug.plan;
+  const sugSame = SP_ROLES.every(r => (setup.setPieces?.[r] || null) === sug.setPieces[r]);
   const coachRow = `<div class="coach-tip">
-      <div class="coach-tip__text"><b>${t('coach.title')}</b><span class="xsmall muted">${t(sug.reasons[0], { plan: t('plan.' + sug.plan) })}</span></div>
+      <div class="coach-tip__text"><b>${t('coach.title')}</b><span class="xsmall muted">${t('coach.spOnly')}</span></div>
       <button class="btn btn--sm btn--secondary" data-action="coach-apply" ${sugSame ? 'disabled' : ''}>${t('coach.apply')}</button>
     </div>`;
 
@@ -198,7 +181,6 @@ export function prepFlow(game, ui) {
     ${fold(ui, 'sp', t('sp.title'), spSummary, setPieceBody(game, setup))}`;
 
   const weekTab = `
-    ${fold(ui, 'plan', t('plan.title'), planSummary, planBody(game))}
     ${consumablesSection(game)}`;
 
   return `<div class="fullscreen"><main class="screen prep">

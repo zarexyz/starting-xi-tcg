@@ -7,13 +7,13 @@
 // =============================================================================
 
 import { autoResolveTasks } from '../../src/engine/tasks.js';
-import { createGame, openStarterPack, pickDraft, playDay } from '../../src/engine/game.js';
+import { createGame, openStarterPack, pickDraft, playDay, autoLineup, userMatch } from '../../src/engine/game.js';
 import { buildTeam, simulateMatch } from '../../src/engine/match.js';
 import { bestLineup, aiSetup } from '../../src/engine/ai.js';
 import { createRng } from '../../src/engine/rng.js';
 import { STYLE_KEYS, styleMatchup } from '../../src/engine/constants.js';
 import { clubStrength } from '../../src/engine/world.js';
-import { academyCap, prospects } from '../../src/engine/clublife.js';
+import { academyCap, prospects, setPlan, PLAN_KEYS } from '../../src/engine/clublife.js';
 
 const fast = process.argv[2] === 'schnell';
 const N = fast ? 0.3 : 1;
@@ -169,6 +169,37 @@ if (!fast) {
   const base = endCoins({});
   const amb = endCoins({ goal: 'ambitious' });
   check('Karriere: Münzen ehrgeizig / Vorschlag (5 Saisons)', amb / Math.max(1, base), 0.85, 1.25);
+}
+
+// 5c) Dauerplan Training: kein Plan darf dauerhaft klar besser oder schlechter sein als „Normal“ ------------
+if (!fast) {
+  const planSeason = (seed, plan) => {
+    const s = createGame({ seed, clubName: 'Sim FC', primary: '#000', secondary: '#fff' });
+    openStarterPack(s); pickDraft(s, 0);
+    setPlan(s, plan);
+    let cond = 0, n = 0, guard = 0;
+    while (s.season === 1 && guard++ < 200) {
+      s.pending = null; s.seasonSummary = null; autoResolveTasks(s);
+      s.clubs.user.coins = Math.max(s.clubs.user.coins, 5000);   // Regeneration soll nicht am Geld scheitern
+      if (userMatch(s)) {
+        autoLineup(s);   // aktiver Manager rotiert müde Spieler
+        const ids = Object.values(s.user.setup.lineup);
+        cond += ids.reduce((a, id) => a + s.players[id].condition, 0) / ids.length; n++;
+      }
+      playDay(s);
+    }
+    return { pts: s.history[0]?.pts ?? 0, cond: cond / Math.max(1, n) };
+  };
+  const seeds = Array.from({ length: 24 }, (_, i) => 5 + i * 12);
+  const res = {};
+  for (const plan of PLAN_KEYS) {
+    const r = seeds.map(sd => planSeason(sd, plan));
+    res[plan] = { pts: r.reduce((a, x) => a + x.pts, 0) / r.length, cond: r.reduce((a, x) => a + x.cond, 0) / r.length };
+  }
+  for (const plan of PLAN_KEYS.filter(k => k !== 'normal')) {
+    check(`Plan ${plan}: Punkte / Normal`, res[plan].pts / res.normal.pts, 0.9, 1.12);
+    check(`Plan ${plan}: Kondition der Startelf`, res[plan].cond, 68, 100, 1);
+  }
 }
 
 console.log(rows.join('\n'));

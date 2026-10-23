@@ -672,15 +672,17 @@ test('v1.9: Saisonende prüft das Ziel und zahlt nur bei Erfolg eine Prämie', (
   assert.equal(s.user.mood.goal.season, 2);
 });
 
-test('v1.9: Wochenplan wirkt einmalig und wird verbraucht', () => {
-  const s = newStartedGame(23);
+test('v1.9/v1.11: Wochenplan bleibt als Dauerplan, bis er geändert wird', () => {
+  const s = newStartedGame(23); autoResolveTasks(s);
   ensureClubLife(s);
   assert.equal(setPlan(s, 'tactics').ok, true);
   assert.ok(userBoosts(s).mid >= 2);
   let res = null;
   let guard = 0;
   while (!res && guard++ < 6) { s.pending = null; res = playDay(s); }
-  assert.equal(s.user.plan, null);
+  assert.equal(s.user.plan, 'tactics');
+  assert.ok(userBoosts(s).mid >= 2);
+  setPlan(s, 'normal');
   assert.ok(userBoosts(s).mid < 2);
   assert.equal(setPlan(s, 'quatsch').ok, false);
 });
@@ -780,7 +782,7 @@ test('Halbzeit: „alles nach vorn“ bringt im Schnitt mehr Tore als „Ergebni
 });
 
 import { coachSuggestion, applyCoachSuggestion, spScore } from '../src/engine/extras.js';
-test('Co-Trainer: müde Elf -> Fitness, Stil bleibt, zweites Übernehmen ändert nichts', () => {
+test('Co-Trainer: müde Elf -> Fitness empfohlen, Übernehmen setzt nur Standards, Stil bleibt', () => {
   const s = newStartedGame(11); s.pending = null; ensureSetupOf(s);
   const setup = s.user.setup;
   for (const id of Object.values(setup.lineup)) s.players[id].condition = 60;
@@ -791,7 +793,7 @@ test('Co-Trainer: müde Elf -> Fitness, Stil bleibt, zweites Übernehmen ändert
   assert.equal(coachSuggestion(s).setPieces.pen, best.id);
   assert.equal(applyCoachSuggestion(s).ok, true);
   assert.equal(setup.style, style); assert.equal(setup.formation, formation);
-  assert.equal(s.user.plan, 'fitness'); assert.equal(setup.setPieces.pen, best.id);
+  assert.ok(!s.user.plan, 'Plan bleibt unberührt'); assert.equal(setup.setPieces.pen, best.id);
   const snap = JSON.stringify([setup.setPieces, s.user.plan]);
   applyCoachSuggestion(s);
   assert.equal(JSON.stringify([setup.setPieces, s.user.plan]), snap);
@@ -1003,4 +1005,19 @@ test('Saisonziel: Senken setzt lowered, keine Prämie; nach Spieltag 9 abgelehnt
   s2.user.mood.goal.key = 'top3'; s2.user.mood.goal.maxPos = 3;
   for (let i = 0; i < 40 && s2.calendar.slice(0, s2.dayIndex).filter(d => d.type === 'league').length < 9; i++) { s2.pending = null; autoResolveTasks(s2); playDay(s2); }
   assert.equal(lowerSeasonGoal(s2).code, 'late');
+});
+
+test('Dauerplan: bleibt nach dem Spieltag gesetzt; Regeneration ohne Geld schaltet ab', () => {
+  const s = newStartedGame(41); autoResolveTasks(s); s.pending = null; ensureSetupOf(s);
+  setPlan(s, 'tactics');
+  playDay(s); s.pending = null; autoResolveTasks(s);
+  assert.equal(s.user.plan, 'tactics', 'Plan bleibt');
+  playDay(s); s.pending = null;
+  assert.equal(s.user.plan, 'tactics');
+  setPlan(s, 'recovery');
+  s.clubs.user.coins = 0;
+  // bis zum nächsten eigenen Spiel
+  for (let i = 0; i < 6 && s.user.plan === 'recovery'; i++) { s.pending = null; autoResolveTasks(s); playDay(s); }
+  assert.ok(!s.user.plan, 'ohne Geld abgeschaltet');
+  assert.ok(s.inbox.some(n => n.k === 'news.planOff'));
 });

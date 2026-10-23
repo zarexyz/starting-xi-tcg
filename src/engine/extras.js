@@ -4,7 +4,7 @@
 
 import { createRng } from './rng.js';
 import { clubPlayers, clubStrength, rivalry } from './world.js';
-import { setPlan, planCost } from './clublife.js';
+import { planCost } from './clublife.js';
 import { addNews } from './game.js';
 
 export const WEATHERS = ['CLEAR', 'RAIN', 'WIND', 'HOT'];
@@ -129,6 +129,5 @@ export function applyCoachSuggestion(state) {
   if (!setup) return { ok: false, code: 'nosetup' };
   const sug = coachSuggestion(state);
   setup.setPieces = { ...(setup.setPieces || {}), ...sug.setPieces };
-  setPlan(state, sug.plan);
   return { ok: true };
 }
