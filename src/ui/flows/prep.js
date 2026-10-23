@@ -21,7 +21,7 @@ import { POS_LABEL } from '../../engine/constants.js';
 import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
-import { weatherFor, SP_ROLES, spCandidates, coachSuggestion } from '../../engine/extras.js';
+import { weatherFor, SP_ROLES, spScore, setPieceTaker, coachSuggestion } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
 
@@ -49,12 +49,22 @@ function interviewLine(game) {
 }
 
 function setPieceBody(game, setup) {
+  const opt = (role, p, cur) => `<option value="${p.id}" ${cur === p.id ? 'selected' : ''}>${esc(p.last)} · ${POS_LABEL[p.position]} · ${Math.round(spScore(role, p))}</option>`;
   const rows = SP_ROLES.map(role => {
     const cur = setup.setPieces?.[role] || null;
-    const chips = [`<button class="chip chip--btn ${cur ? '' : 'is-active'}" data-action="set-piece" data-role="${role}" data-value="" aria-pressed="${!cur}">${t('sp.auto')}</button>`]
-      .concat(spCandidates(game, setup, role).slice(0, 4).map(p =>
-        `<button class="chip chip--btn ${cur === p.id ? 'is-active' : ''}" data-action="set-piece" data-role="${role}" data-value="${p.id}" aria-pressed="${cur === p.id}">${esc(p.last)}</button>`));
-    return `<div class="sp-row"><div class="small"><b>${t('sp.' + role)}</b></div><div class="chips">${chips.join('')}</div></div>`;
+    const field = ids => ids.map(id => game.players[id]).filter(p => p && p.position !== 'TW')
+      .sort((a, b) => spScore(role, b) - spScore(role, a));
+    const start = field(Object.values(setup.lineup || {}));
+    const bench = field(setup.bench || []);
+    const tk = setPieceTaker(game, setup, role);
+    const warn = tk.replaced
+      ? `<p class="small warn-warn sp-warn">${icon('alert')}${t('sp.sub', { name: esc(tk.chosen.last), taker: esc(tk.actual?.last || '–') })}</p>` : '';
+    return `<div class="sp-row"><div class="small"><b>${t('sp.' + role)}</b></div>
+      <label class="select-field"><select data-change="set-piece" data-role="${role}" aria-label="${t('sp.' + role)}">
+        <option value="" ${cur ? '' : 'selected'}>${t('sp.autoOpt')}</option>
+        <optgroup label="${t('sp.grpStart')}">${start.map(p => opt(role, p, cur)).join('')}</optgroup>
+        <optgroup label="${t('sp.grpBench')}">${bench.map(p => opt(role, p, cur)).join('')}</optgroup>
+      </select>${icon('chevronDown')}</label>${warn}</div>`;
   }).join('');
   return `${rows}
     <p class="xsmall muted">${t('sp.hint')}</p>`;
@@ -131,7 +141,11 @@ export function prepFlow(game, ui) {
     </label>
     <p class="small muted">${esc(STYLES[setup.style].desc)}</p>`;
 
-  const spName = role => { const id = setup.setPieces?.[role]; const p = id && game.players[id]; return p ? esc(p.last) : t('sp.auto'); };
+  const spName = role => {
+    const tk = setPieceTaker(game, setup, role);
+    if (!tk.chosen) return t('sp.auto');
+    return tk.replaced ? `${esc(tk.chosen.last)} → ${esc(tk.actual?.last || '–')}` : esc(tk.chosen.last);
+  };
   const spSummary = t('prep.sum.sp', { c: spName('corner'), p: spName('pen'), f: spName('fk') });
 
   const oppTab = `

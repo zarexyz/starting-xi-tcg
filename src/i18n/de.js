@@ -1332,4 +1332,8 @@ export const de = {
   'coach.spOnly': "Die besten Schützen aus deiner Startelf für Ecken, Freistöße und Elfmeter.",
   'prep.cardsTitle': "Karten für dieses Spiel ({n})",
   'prep.cardsHint': "Matchkarten einsetzen",
+  'sp.autoOpt': "Automatisch (bester auf dem Platz)",
+  'sp.grpStart': "Startelf",
+  'sp.grpBench': "Bank",
+  'sp.sub': "{name} spielt nicht von Beginn an. Es schießt {taker}. Wird er eingewechselt, übernimmt er.",
 };

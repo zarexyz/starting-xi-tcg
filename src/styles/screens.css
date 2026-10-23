@@ -1227,3 +1227,5 @@ tr[data-action] { cursor: pointer; }
 .select-field select { appearance: none; width: 100%; min-height: 44px; padding: 0 40px 0 var(--s-3); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; font-weight: 700; }
 .select-field svg { position: absolute; right: var(--s-3); width: 18px; height: 18px; pointer-events: none; }
 .field-label { font-size: var(--t-sm); font-weight: 700; color: var(--ink-2); margin: var(--s-2) 0 var(--s-1); }
+.sp-warn { display: flex; align-items: flex-start; gap: var(--s-2); margin: var(--s-1) 0 var(--s-2); }
+.sp-warn svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }

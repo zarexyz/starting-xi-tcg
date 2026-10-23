@@ -75,6 +75,11 @@ async def main():
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await pg.select_option('[data-change=set-style]', 'KONTER'); await pg.wait_for_timeout(200)
+                    await click_js('[data-action=prep-fold][data-value=sp]'); await pg.wait_for_timeout(150)
+                    benchopt = await pg.evaluate("(()=>{const o=document.querySelectorAll('[data-change=set-piece][data-role=pen] optgroup:last-child option');return o.length?o[0].value:null})()")
+                    if benchopt: await pg.select_option('[data-change=set-piece][data-role=pen]', benchopt); await pg.wait_for_timeout(200)
+                    h = await pg.evaluate("document.querySelector('.fullscreen > .screen').scrollHeight")
+                    await pg.set_viewport_size({'width': 390, 'height': max(844, h)}); await shot('02e_setpieces'); await pg.set_viewport_size({'width': 390, 'height': 844})
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=coach-apply]'); await pg.wait_for_timeout(300)  # Co-Trainer-Vorschlag
                     await pg.locator('[data-action=kickoff]').click()

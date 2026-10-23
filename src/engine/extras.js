@@ -89,6 +89,19 @@ export function spCandidates(state, setup, role) {
     .sort((a, b) => spScore(role, b) - spScore(role, a)).slice(0, 6);
 }
 
+/**
+ * Wer schießt wirklich? chosen = gewählter Schütze (oder null bei „Automatisch“),
+ * actual = tatsächlicher Schütze zu Spielbeginn (gleiche Regel wie takerOf in match.js:
+ * gewählter Spieler, wenn er in der Startelf steht, sonst bester Feldspieler der Startelf).
+ */
+export function setPieceTaker(state, setup, role) {
+  const chosen = state.players[setup.setPieces?.[role]] || null;
+  const starters = Object.values(setup.lineup || {}).map(id => state.players[id]).filter(p => p && p.position !== 'TW' && !p.injury && !p.suspension);
+  const best = starters.slice().sort((a, b) => spScore(role, b) - spScore(role, a))[0] || null;
+  const actual = chosen && starters.some(p => p.id === chosen.id) ? chosen : best;
+  return { chosen, actual, replaced: !!chosen && actual?.id !== chosen.id };
+}
+
 export function setSetPiece(state, role, playerId) {
   if (!SP_ROLES.includes(role)) return { ok: false, code: 'bad' };
   const setup = state.user.setup;

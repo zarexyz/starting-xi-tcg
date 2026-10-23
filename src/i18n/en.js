@@ -1325,4 +1325,8 @@ export const en = {
   'coach.spOnly': "The best takers from your starting XI for corners, free kicks and penalties.",
   'prep.cardsTitle': "Cards for this match ({n})",
   'prep.cardsHint': "Use match cards",
+  'sp.autoOpt': "Automatic (best on the pitch)",
+  'sp.grpStart': "Starting XI",
+  'sp.grpBench': "Bench",
+  'sp.sub': "{name} is not starting. {taker} will take it. If he comes on, he takes over.",
 };

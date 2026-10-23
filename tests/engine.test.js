@@ -1021,3 +1021,23 @@ test('Dauerplan: bleibt nach dem Spieltag gesetzt; Regeneration ohne Geld schalt
   assert.ok(!s.user.plan, 'ohne Geld abgeschaltet');
   assert.ok(s.inbox.some(n => n.k === 'news.planOff'));
 });
+
+import { setPieceTaker } from '../src/engine/extras.js';
+test('Standardschütze: Bank-Spieler gewählt -> es schießt der beste der Startelf', () => {
+  const s = newStartedGame(51); autoResolveTasks(s); s.pending = null; ensureSetupOf(s);
+  const setup = s.user.setup;
+  const benchField = setup.bench.map(id => s.players[id]).find(p => p.position !== 'TW');
+  assert.ok(benchField);
+  setup.setPieces = { ...(setup.setPieces || {}), pen: benchField.id };
+  const tk = setPieceTaker(s, setup, 'pen');
+  assert.equal(tk.chosen.id, benchField.id);
+  assert.equal(tk.replaced, true);
+  const best = Object.values(setup.lineup).map(id => s.players[id]).filter(p => p.position !== 'TW')
+    .sort((a, b) => spScore('pen', b) - spScore('pen', a))[0];
+  assert.equal(tk.actual.id, best.id);
+  const starter = Object.values(setup.lineup).map(id => s.players[id]).find(p => p.position !== 'TW');
+  setup.setPieces.pen = starter.id;
+  assert.equal(setPieceTaker(s, setup, 'pen').actual.id, starter.id);
+  setup.setPieces.pen = null;
+  assert.equal(setPieceTaker(s, setup, 'pen').chosen, null);
+});
