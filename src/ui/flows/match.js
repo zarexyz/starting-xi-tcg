@@ -371,6 +371,15 @@ export function startMatch(game, flow, settings, hooks = {}) {
     clearTimeout(state.penTimer);
     clearInterval(state.timer);
     while (state.tickIdx < ticker.length) addTick(ticker[state.tickIdx++]);
+    // Absicherung: Torzahl im Ticker muss zum Endstand passen, sonst Ticker komplett neu aufbauen
+    const list = $('mf-ticker');
+    if (list && list.querySelectorAll('.tick--goal').length !== r.hg + r.ag) {
+      console.warn('[match] Torzahl im Ticker weicht ab', list.querySelectorAll('.tick--goal').length, r.hg + r.ag);
+      list.innerHTML = '';
+      const keep = state.score;
+      ticker.forEach(tk => addTick(tk));
+      state.score = keep;
+    }
     const sc = $('sb-score');
     if (sc) sc.innerHTML = `${r.hg}:${r.ag}${r.pens ? `<small class="scoreboard__pens">${r.pens.h}:${r.pens.a} ${t('w.pens')}</small>` : ''}`;
     const mn = $('sb-min');

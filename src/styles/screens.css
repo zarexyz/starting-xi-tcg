@@ -675,7 +675,7 @@ button.item-card { cursor: pointer; }
    ---------------------------------------------------------------------------- */
 
 .report__label { text-align: center; margin: var(--s-4) 0 0; }
-.report__title { text-align: center; margin: var(--s-2) 0 var(--s-4); font-size: min(var(--t-4xl), 13.5vw); overflow-wrap: anywhere; }
+.report__title { text-align: center; margin: var(--s-2) 0 var(--s-4); font-size: clamp(1.6rem, 9.5vw, var(--t-4xl)); overflow-wrap: normal; hyphens: manual; white-space: nowrap; }
 .report__title--W { color: var(--pitch); }
 .report__title--L { color: var(--loss); }
 .report__center { text-align: center; }
