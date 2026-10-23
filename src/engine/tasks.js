@@ -86,7 +86,9 @@ export function expireTasks(state) {
     const h = HANDLERS[n.task.kind];
     const late = n.task.expiresDay != null && n.task.expiresDay < state.dayIndex;
     const gone = h?.alive && !h.alive(state, n.task, n);
-    if (late || gone) {
+    if (!late && gone && h.done?.(state, n.task, n)) {
+      n.task.status = 'done'; n.task.answer = null; n.read = true;
+    } else if (late || gone) {
       // Blockierende Aufgaben mit Standardwahl schließen, wenn der Bezug weg ist, sonst nur ablaufen
       n.task.status = 'expired';
       n.read = true;
@@ -171,3 +173,18 @@ registerTaskHandler('goal', {
   defaultChoice: 'standard',
   resolve: (state, task, choice) => chooseSeasonGoal(state, choice)
 });
+
+// ---------------------------------------------------------------------------
+// Handler: Hinweise mit Sprungknopf (11.9) – nicht blockierend
+// ---------------------------------------------------------------------------
+const stillExpiring = (state, task) => (task.ids || []).some(id => {
+  const p = state.players[id];
+  return p && p.clubId === 'user' && (p.contract?.until ?? 99) <= state.season;
+});
+registerTaskHandler('contracts', {
+  // Läuft nur in der Saison der Nachricht; sind alle verlängert oder abgegeben, gilt sie als erledigt
+  alive: (state, task) => task.season === state.season && stillExpiring(state, task),
+  done: (state, task) => task.season === state.season && !stillExpiring(state, task)
+});
+registerTaskHandler('academy', { alive: (state, task) => task.ref === String(state.season) });
+registerTaskHandler('injury', { alive: (state, task) => !!state.players[task.ref]?.injury && state.players[task.ref].clubId === 'user' });

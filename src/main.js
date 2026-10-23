@@ -410,7 +410,7 @@ const handlers = {
     const cta = n?.task?.cta;
     if (!cta) return;
     const go0 = cta.go || '';
-    if (cta.filter) store.ui.squadFilter = cta.filter;
+    if (cta.filter) { store.ui.squadFilter = cta.filter; store.ui.view = { ...(store.ui.view || {}), squad: 'list' }; }
     if (go0 === 'squad-training') store.ui.trainOpen = true;
     if (cta.doneOnVisit) act(completeTask, d.id);
     const go = cta.go || '';
@@ -570,6 +570,7 @@ const handlers = {
   // Verein
   'toggle-sound': () => updateSettings({ sound: !store.settings.sound }),
   'prep-tab': d => { updateSettings({ prepTab: d.value }); },
+  'squad-filter': d => setUi({ squadFilter: d.value }),
   'train-fold': () => setUi({ trainOpen: !store.ui.trainOpen }),
   'coach-plan': () => { act(setPlan, coachSuggestion(store.game).plan); },
   'prep-fold': d => setUi({ prepOpen: { ...(store.ui.prepOpen || {}), [d.value]: !store.ui.prepOpen?.[d.value] } }),

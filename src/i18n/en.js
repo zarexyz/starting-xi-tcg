@@ -1329,4 +1329,13 @@ export const en = {
   'sp.grpStart': "Starting XI",
   'sp.grpBench': "Bench",
   'sp.sub': "{name} is not starting. {taker} will take it. If he comes on, he takes over.",
+  'task.cta.squad': "To the squad",
+  'task.cta.academy': "To the academy",
+  'task.cta.player': "View player",
+  'sq.filter': "Filter squad",
+  'sq.f.all': "All",
+  'sq.f.contract': "Contract ends",
+  'sq.f.injured': "Injured",
+  'sq.f.raise': "Wants a raise",
+  'sq.f.none': "Nobody matches this filter.",
 };

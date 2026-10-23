@@ -1041,3 +1041,27 @@ test('Standardschütze: Bank-Spieler gewählt -> es schießt der beste der Start
   setup.setPieces.pen = null;
   assert.equal(setPieceTaker(s, setup, 'pen').chosen, null);
 });
+
+import { expiryWarning } from '../src/engine/contracts.js';
+test('Vertrags-Hinweis: Aufgabe mit Sprungknopf, erledigt nach Verlängerung, sonst abgelaufen', () => {
+  const s = newStartedGame(61); autoResolveTasks(s);
+  const squad = clubPlayers(s, 'user');
+  const [a, b] = squad;
+  a.contract.until = s.season; b.contract.until = s.season;
+  expiryWarning(s);
+  const t1 = openTasks(s).find(n => n.task.kind === 'contracts');
+  assert.ok(t1);
+  assert.equal(t1.task.cta.go, 'squad'); assert.equal(t1.task.cta.filter, 'contract');
+  assert.equal(t1.task.blocking, false);
+  s.clubs.user.coins = 1e6;
+  a.contract.until = s.season + 2; b.contract.until = s.season + 2;
+  expireTasks(s);
+  assert.equal(t1.task.status, 'done');
+  // zweiter Fall: Saison wechselt, einer noch offen
+  a.contract.until = s.season;
+  expiryWarning(s);
+  const t2 = openTasks(s).find(n => n.task.kind === 'contracts');
+  assert.ok(t2);
+  s.season += 1; expireTasks(s);
+  assert.equal(t2.task.status, 'expired');
+});

@@ -658,7 +658,11 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     const code = rng.int(0, 6);
     p.injury = { days, code };
     if (clubId === 'user') {
-      addNews(state, 'injury', 'news.injury', { short: shortName(p), name: displayName(p), injK: `injury.${code}`, n: days }, { playerId: p.id });
+      const inj1 = { short: shortName(p), name: displayName(p), injK: `injury.${code}`, n: days };
+      const starter = Object.values(state.user.setup?.lineup || {}).includes(p.id);
+      if (days >= 4 && starter) {
+        addTask(state, 'injury', 'news.injury', inj1, { blocking: false, ref: p.id, cta: { label: 'task.cta.player', go: `player:${p.id}`, doneOnVisit: true } }, { newsType: 'injury', playerId: p.id });
+      } else addNews(state, 'injury', 'news.injury', inj1, { playerId: p.id });
     }
   }
   return outcome;
@@ -926,7 +930,7 @@ function afterDay(rng, state, day) {
     checkRaiseWishes(state);
     worldTransferNews(state, aiTransferWindow(rng, state, 0.15));
   }
-  if (day.type === 'league' && day.md === 12) expiryWarning(state);
+  if (day.type === 'league' && (day.md === 10 || day.md === MATCHDAYS - 1)) expiryWarning(state);
   if (day.type === 'cup') {
     const round = state.cup.rounds[day.round];
     const winners = round.map(matchWinner);
@@ -1132,7 +1136,6 @@ function endSeason(rng, state) {
   const grads = academyGraduates(state);
   const filled = academyFillSquad(state, 16);
   const intake = academyIntake(rng, state);
-  state.user.plan = null;
 
   // Notfall: Kader nie unter 16, notfalls direkt aus der Jugend
   const youth = [];
@@ -1165,7 +1168,9 @@ function endSeason(rng, state) {
   }
   summary.academy = { intake: intake.map(p => p.id), released: grads.released, level: state.user.academy.level };
   if (intake.length) {
-    addNews(state, 'squad', 'news.academyIntake', { list: intake.map(p => displayName(p)).join(', '), n: intake.length }, { playerId: intake[0].id, playerIds: intake.map(p => p.id) });
+    addTask(state, 'academy', 'news.academyIntake', { list: intake.map(p => displayName(p)).join(', '), n: intake.length },
+      { blocking: false, ref: String(state.season), cta: { label: 'task.cta.academy', go: 'academy', doneOnVisit: true } },
+      { newsType: 'squad', playerId: intake[0].id, playerIds: intake.map(p => p.id) });
   }
   for (const name of grads.released) addNews(state, 'squad', 'news.academyReleased', { name });
 

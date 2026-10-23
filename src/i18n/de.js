@@ -1336,4 +1336,13 @@ export const de = {
   'sp.grpStart': "Startelf",
   'sp.grpBench': "Bank",
   'sp.sub': "{name} spielt nicht von Beginn an. Es schießt {taker}. Wird er eingewechselt, übernimmt er.",
+  'task.cta.squad': "Zum Kader",
+  'task.cta.academy': "Zur Akademie",
+  'task.cta.player': "Spieler ansehen",
+  'sq.filter': "Kader filtern",
+  'sq.f.all': "Alle",
+  'sq.f.contract': "Vertrag endet",
+  'sq.f.injured': "Verletzt",
+  'sq.f.raise': "Will mehr Gehalt",
+  'sq.f.none': "Niemand passt zu diesem Filter.",
 };

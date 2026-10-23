@@ -4,6 +4,7 @@
 // melden sich mit Vorwarnung, auslaufende Verträge enden zum Saisonende.
 // =============================================================================
 
+import { addTask } from './tasks.js';
 import { salaryFor, displayName, shortName } from './player.js';
 import { clubPlayers, LEAGUE_INFO } from './world.js';
 import { POSITION_GROUP, MIN_SQUAD, AI_SQUAD_SIZE, MATCHDAYS } from './constants.js';
@@ -129,8 +130,10 @@ export function contractMood(state) {
 export function expiryWarning(state) {
   const list = clubPlayers(state, 'user').filter(p => ensureContract(state, p).until <= state.season);
   if (!list.length) return;
-  addNews(state, 'contract', 'news.expiring', { list: list.map(p => shortName(p)).join(', '), n: list.length },
-    { playerId: list[0].id, playerIds: list.map(p => p.id) });
+  const md = (state.calendar.slice(0, state.dayIndex).filter(d => d.type === 'league').length);
+  addTask(state, 'contracts', 'news.expiring', { list: list.map(p => shortName(p)).join(', '), n: list.length },
+    { blocking: false, ref: `${state.season}:${md}`, season: state.season, ids: list.map(p => p.id), cta: { label: 'task.cta.squad', go: 'squad', filter: 'contract' } },
+    { newsType: 'contract', playerId: list[0].id, playerIds: list.map(p => p.id) });
 }
 
 /**

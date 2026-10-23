@@ -185,13 +185,31 @@ export function playerRow(game, p, opts = {}) {
   </button></li>`;
 }
 
-function listView(game) {
+const SQUAD_FILTERS = {
+  all: () => true,
+  contract: (g, p) => p.contract && p.contract.until <= g.season,
+  injured: (g, p) => !!p.injury,
+  raise: (g, p) => !!p.wantsRaise
+};
+
+function filterChips(game, active) {
   const squad = clubPlayers(game, 'user');
+  return `<div class="chips squad-filter" role="group" aria-label="${t('sq.filter')}">${Object.keys(SQUAD_FILTERS).map(k => {
+    const n = k === 'all' ? squad.length : squad.filter(p => SQUAD_FILTERS[k](game, p)).length;
+    return `<button class="chip chip--btn ${active === k ? 'is-active' : ''}" data-action="squad-filter" data-value="${k}" aria-pressed="${active === k}">${t('sq.f.' + k)}${k === 'all' ? '' : ` ${n}`}</button>`;
+  }).join('')}</div>`;
+}
+
+function listView(game, ui) {
+  const filter = SQUAD_FILTERS[ui?.squadFilter] ? ui.squadFilter : 'all';
+  const squad = clubPlayers(game, 'user').filter(p => SQUAD_FILTERS[filter](game, p));
   const groups = {};
   squad.forEach(p => { (groups[POSITION_GROUP[p.position]] ||= []).push(p); });
   return `
-    <p class="small muted">${t('sq.slots', { n: squad.length, max: MAX_SQUAD })}</p>
-    ${captainPanel(game)}
+    <p class="small muted">${t('sq.slots', { n: clubPlayers(game, 'user').length, max: MAX_SQUAD })}</p>
+    ${filterChips(game, filter)}
+    ${filter === 'all' ? captainPanel(game) : ''}
+    ${filter !== 'all' && !squad.length ? `<p class="small muted">${t('sq.f.none')}</p>` : ''}
     ${GROUP_KEYS.map(g => groups[g]?.length ? `
       <section class="section section--tight">
         <div class="section__head"><h2 class="section__title">${GROUP_NAMES[g]}</h2><span class="small muted">${groups[g].length}</span></div>
@@ -209,7 +227,7 @@ export function squadScreen(game, ui) {
     ${topbar(game)}
     ${trainingSection(game, ui)}
     ${segmented([['lineup', t('sq.lineup')], ['list', t('sq.list')]], view, 'squad-view')}
-    <div class="squad-body">${view === 'lineup' ? lineupView(game, ui) : listView(game)}</div>
+    <div class="squad-body">${view === 'lineup' ? lineupView(game, ui) : listView(game, ui)}</div>
   </main>`;
 }
 
