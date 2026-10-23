@@ -2,6 +2,7 @@
 // Spielvorbereitung: Gegner lesen, Plan wählen, Prognose sehen, anpfeifen
 // =============================================================================
 
+import { blockingTasks } from '../../engine/tasks.js';
 import { crestSvg } from '../components/crest.js';
 import { cardHtml } from '../components/card.js';
 import { icon } from '../icons.js';
@@ -230,7 +231,9 @@ export function prepFlow(game, ui) {
     ${tab === 'opp' ? oppTab : tab === 'tactics' ? tacticsTab : weekTab}
 
     <div class="prep__cta">
-      ${ui.selected ? selectionBar(game, ui.selected) : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}${t('prep.kickoff')}</button>
+      ${ui.selected ? selectionBar(game, ui.selected) : blockingTasks(game).length
+        ? `<p class="small task-hint">${t('task.openCount', { n: blockingTasks(game).length })}</p><button class="btn btn--primary btn--block" data-action="open-tasks">${t('task.view')}</button>`
+        : `<button class="btn btn--primary btn--block" data-action="kickoff">${icon('whistle')}${t('prep.kickoff')}</button>
       <button class="btn btn--ghost btn--block" data-action="kickoff-instant">${t('prep.instant')}</button>`}
     </div>
   </main></div>`;

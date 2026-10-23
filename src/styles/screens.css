@@ -1201,3 +1201,18 @@ tr[data-action] { cursor: pointer; }
 .coach-tip__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .coach-tip .btn:disabled { opacity: 0.5; }
 .plan-grid .plan-tile:last-child:nth-child(even) { grid-column: 1 / -1; }
+
+/* Postfach-Aufgaben (v1.11) */
+.task-head { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-3) 0 var(--s-2); }
+.task-list { margin-bottom: var(--s-4); }
+.task-tag { margin-bottom: 2px; }
+.task-actions { display: grid; gap: var(--s-2); margin: var(--s-4) 0; }
+.task-hint { color: var(--ink-soft, var(--ink)); margin: 0; }
+.task-state { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-4) 0; font-weight: 600; }
+.task-state--done { color: var(--pitch-dark); }
+.task-state--expired { color: var(--ink-soft, var(--ink)); opacity: 0.8; }
+.task-band { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--floodlight-soft); color: var(--ink); }
+.task-band__text { flex: 1; display: grid; gap: 2px; font-size: var(--t-sm); }
+.task-band .btn { min-height: 40px; }
+.task-band > svg { width: 28px; height: 28px; flex: none; }
+.task-band .btn { flex: none; white-space: nowrap; }

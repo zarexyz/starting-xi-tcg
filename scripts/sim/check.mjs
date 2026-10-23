@@ -6,6 +6,7 @@
 // Akademie oder Wirtschaft laufen lassen und Abweichungen begründen oder beheben.
 // =============================================================================
 
+import { autoResolveTasks } from '../../src/engine/tasks.js';
 import { createGame, openStarterPack, pickDraft, playDay } from '../../src/engine/game.js';
 import { buildTeam, simulateMatch } from '../../src/engine/match.js';
 import { bestLineup, aiSetup } from '../../src/engine/ai.js';
@@ -131,6 +132,7 @@ const team = (style, extra = {}) => buildTeam(g, clubId, { formation: f, style, 
       s.pending = null;
       s.seasonSummary = null;
       const before = s.season;
+      autoResolveTasks(s);
       playDay(s);
       out.days++;
       const m = s.user.mood;

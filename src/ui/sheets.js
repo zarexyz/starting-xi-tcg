@@ -17,6 +17,7 @@ import { crestSvg } from './components/crest.js';
 import { LEAGUE_INFO } from '../engine/world.js';
 import { POS_LABEL } from '../engine/constants.js';
 import { inboxItems, newsChannel } from '../engine/news.js';
+import { openTasks, blockingTasks } from '../engine/tasks.js';
 
 export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
@@ -25,19 +26,50 @@ export const NEWS_ICON = {
   table: 'list', award: 'trophy', rumor: 'megaphone', world: 'swap', contract: 'clipboard'
 };
 
+function inboxRow(n) {
+  const open = n.task?.status === 'open';
+  const dot = n.task?.blocking && open ? 'alert-dot--loss' : n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' || n.type === 'award' ? 'alert-dot--reward' : '';
+  return `<li class="row row--button" data-action="open-news" data-id="${n.id}">
+    <span class="alert-dot ${dot}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
+    <div class="row__main">${open && n.task.blocking ? `<span class="chip chip--warn task-tag">${t('task.decision')}</span>` : ''}<div class="row__title ${n.read && !open ? '' : 'is-unread'}">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
+    ${open ? `<span class="news-links__chev">${icon('chevronRight')}</span>` : n.read ? `<span class="xsmall muted">S${n.season}</span>` : `<button class="icon-btn news-read" data-action="news-read" data-id="${n.id}" aria-label="${t('inbox.markRead')}" title="${t('inbox.markRead')}">${icon('check')}</button>`}
+  </li>`;
+}
+
 export function inboxSheet(game) {
-  const items = inboxItems(game);
-  if (!items.length) return sheet(t('top.inbox'), `<div class="empty"><div class="h3">${t('inbox.empty')}</div><p>${t('inbox.emptyFeed')}</p></div>`);
+  const todo = openTasks(game);
+  const todoIds = new Set(todo.map(n => n.id));
+  const items = inboxItems(game).filter(n => !todoIds.has(n.id));
+  if (!items.length && !todo.length) return sheet(t('top.inbox'), `<div class="empty"><div class="h3">${t('inbox.empty')}</div><p>${t('inbox.emptyFeed')}</p></div>`);
   const body = `
-    <div class="sheet-actions"><button class="link" data-action="read-all">${t('inbox.readAll')}</button></div>
-    <ul class="list panel panel--flush">
-      ${items.map(n => `<li class="row row--button" data-action="open-news" data-id="${n.id}">
-        <span class="alert-dot ${n.type === 'injury' || n.type === 'finance' ? 'alert-dot--loss' : n.type === 'trophy' || n.type === 'award' ? 'alert-dot--reward' : ''}">${icon(NEWS_ICON[n.type] || 'mail')}</span>
-        <div class="row__main"><div class="row__title ${n.read ? '' : 'is-unread'}">${esc(newsTitle(n))}</div><div class="row__sub news-sub">${esc(newsText(n))}</div></div>
-        ${n.read ? `<span class="xsmall muted">S${n.season}</span>` : `<button class="icon-btn news-read" data-action="news-read" data-id="${n.id}" aria-label="${t('inbox.markRead')}" title="${t('inbox.markRead')}">${icon('check')}</button>`}
-      </li>`).join('')}
-    </ul>`;
+    ${todo.length ? `<h3 class="h3 task-head">${t('task.todo')} <span class="chip">${todo.length}</span></h3>
+      <ul class="list panel panel--flush task-list">${todo.map(inboxRow).join('')}</ul>` : ''}
+    ${items.length ? `<div class="sheet-actions"><button class="link" data-action="read-all">${t('inbox.readAll')}</button></div>
+    <ul class="list panel panel--flush">${items.map(inboxRow).join('')}</ul>` : ''}`;
   return sheet(t('top.inbox'), body);
+}
+
+/** Sperre: blockierende Aufgaben, die vor dem Weiterspielen entschieden werden müssen */
+export function tasksSheet(game) {
+  const list = blockingTasks(game);
+  if (!list.length) return sheet(t('task.blockedTitle'), `<div class="empty"><p>${t('task.allDone')}</p></div>`);
+  return sheet(t('task.blockedTitle'), `
+    <p class="small muted">${t('task.blockedText', { n: list.length })}</p>
+    <ul class="list panel panel--flush task-list">${list.map(inboxRow).join('')}</ul>`);
+}
+
+function taskActions(n) {
+  const tk = n.task;
+  if (!tk) return '';
+  const label = (key, p) => esc(t(key, { ...(n.p || {}), ...(p || {}) }));
+  if (tk.status === 'done') {
+    const c = (tk.choices || []).find(x => x.key === tk.answer);
+    return `<p class="task-state task-state--done">${icon('check')}${tk.answer && c ? t('task.done', { answer: label(c.label) }) : t('task.doneShort')}</p>`;
+  }
+  if (tk.status === 'expired') return `<p class="task-state task-state--expired">${t('task.expired')}</p>`;
+  const choices = (tk.choices || []).map(c => `<button class="btn btn--${c.tone || 'secondary'} btn--block" data-action="task-choice" data-id="${n.id}" data-choice="${c.key}">${label(c.label)}</button>`).join('');
+  const cta = tk.cta ? `<button class="btn btn--${choices ? 'ghost' : 'primary'} btn--block" data-action="task-go" data-id="${n.id}">${label(tk.cta.label)}${icon('chevronRight')}</button>` : '';
+  return `<div class="task-actions">${tk.blocking ? `<p class="small task-hint">${t('task.mustDecide')}</p>` : ''}${choices}${cta}</div>`;
 }
 
 /** Alle in einer Nachricht genannten Spieler und Vereine, jeweils antippbar */
@@ -72,6 +104,7 @@ export function newsSheet(game, id) {
   if (!n) return '';
   return sheet(newsTitle(n), `
     <p class="news-text">${esc(newsText(n))}</p>
+    ${taskActions(n)}
     ${newsLinks(game, n)}
     ${newsChannel(n) === 'feed'
       ? `<button class="btn btn--ghost btn--block" data-action="open-feed">${icon('chevronLeft')}${t('news.toFeed')}</button>`

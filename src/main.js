@@ -26,9 +26,10 @@ import { clubSheet } from './ui/screens/clubpage.js';
 import { leagueScreen } from './ui/screens/league.js';
 import { marketScreen } from './ui/screens/market.js';
 import { clubScreen, settingsBody } from './ui/screens/club.js';
-import { inboxSheet, newsSheet, itemsSheet } from './ui/sheets.js';
+import { inboxSheet, newsSheet, itemsSheet, tasksSheet } from './ui/sheets.js';
 import { severance } from './engine/contracts.js';
 import { feedItems } from './engine/news.js';
+import { blockingTasks, resolveTask, completeTask, findTask, ensureTasks } from './engine/tasks.js';
 import { feedSheet } from './ui/screens/feed.js';
 import { squadPeekBody, packFlow } from './ui/flows/pack.js';
 import { captainSheetBody, numberSheetBody } from './ui/screens/identity.js';
@@ -36,7 +37,7 @@ import { ensureIdentity, setArmband, setNumber } from './engine/identity.js';
 import { setInterview, setSetPiece, applyCoachSuggestion } from './engine/extras.js';
 import { ensureClubLife, setPlan, planCost, upgradeAcademy, promoteProspect, releaseProspect } from './engine/clublife.js';
 
-const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); };
+const ensureLife = state => { ensureIdentity(state); ensureClubLife(state); ensureTasks(state); };
 import { prepFlow } from './ui/flows/prep.js';
 import { matchFlow, startMatch, stopMatch, matchControl } from './ui/flows/match.js';
 import { buildMatchday, matchdayFlow } from './ui/flows/matchday.js';
@@ -109,6 +110,7 @@ function sheetHtml(game, ui) {
   if (s.type === 'player') return playerSheet(game, s.id, { back: !!s.prev });
   if (s.type === 'club') return clubSheet(game, s.id, { back: !!s.prev });
   if (s.type === 'inbox') return inboxSheet(game);
+  if (s.type === 'tasks') return tasksSheet(game);
   if (s.type === 'news') return newsSheet(game, s.id);
   if (s.type === 'items') return itemsSheet(game, ui);
   if (s.type === 'feed') return feedSheet(game, ui);
@@ -229,7 +231,15 @@ function snapshotPlayers(game, clubIds) {
   return snap;
 }
 
+/** Offene Entscheidungen im Postfach sperren das Weiterspielen (nur Oberfläche, nie die Engine) */
+function blocked() {
+  if (!store.game || !blockingTasks(store.game).length) return false;
+  setUi({ sheet: { type: 'tasks' } });
+  return true;
+}
+
 function kickoff(instant) {
+  if (blocked()) return;
   const pre = store.game;
   const entry = userMatch(pre);
   if (!entry) return;
@@ -274,6 +284,7 @@ function kickoff(instant) {
 }
 
 function simDay() {
+  if (blocked()) return;
   const res = act(playDay);
   if (res && !res.error) {
     bump('matches');
@@ -385,6 +396,25 @@ const handlers = {
   },
   'confirm-yes': () => { const fn = confirmFn; confirmFn = null; setUi({ sheet: null }); fn?.(); },
   'open-inbox': () => setUi({ sheet: { type: 'inbox' } }),
+  'open-tasks': () => setUi({ sheet: { type: 'tasks' } }),
+  'task-choice': d => {
+    const res = act(resolveTask, d.id, d.choice);
+    if (res?.error || res?.ok === false) return;
+    // Nach der Entscheidung zurück zur Sperre bzw. ins Postfach
+    setUi({ sheet: { type: blockingTasks(store.game).length ? 'tasks' : 'inbox' } });
+  },
+  'task-go': d => {
+    const n = findTask(store.game, d.id);
+    const cta = n?.task?.cta;
+    if (!cta) return;
+    if (cta.filter) store.ui.squadFilter = cta.filter;
+    if (cta.doneOnVisit) act(completeTask, d.id);
+    const go = cta.go || '';
+    if (go.startsWith('player:')) { openDetail('player', go.slice(7)); return; }
+    if (go === 'identity') { setUi({ sheet: { type: 'captain' } }); return; }
+    const tab = go.startsWith('squad') ? 'squad' : go === 'transfers' ? 'market' : (go === 'academy' || go === 'club') ? 'club' : null;
+    if (tab) { setUi({ tab, sheet: null, selected: null }); window.scrollTo(0, 0); }
+  },
   'open-news': d => { act(markRead, d.id); setUi({ sheet: { type: 'news', id: d.id } }); },
   'read-all': () => act(markAllRead),
   'news-read': d => act(markRead, d.id),
@@ -545,7 +575,7 @@ const handlers = {
   'set-lang': d => { setLang(d.value); updateSettings({ lang: d.value }); },
 
   // Spieltag
-  'open-prep': () => { if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' }, selected: null }); },
+  'open-prep': () => { if (blocked()) return; if (store.game.user.autoLineup) act(autoLineup); setUi({ flow: { type: 'prep' }, selected: null }); },
   'close-flow': () => {
     stopMatch();
     setUi({ flow: null, selected: null });
@@ -571,7 +601,7 @@ const handlers = {
   },
   'dismiss-tips': () => act(dismissTips),
   'dev-continue': () => { act(acknowledgeDevReport); window.scrollTo(0, 0); },
-  'season-continue': () => { bump('seasons'); store.ui.sePage = 0; act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
+  'season-continue': () => { if (blocked()) return; bump('seasons'); store.ui.sePage = 0; act(acknowledgeSeasonSummary); window.scrollTo(0, 0); },
   'season-page': d => { setUi({ sePage: Number(d.value) }); document.querySelector('.fullscreen > .screen')?.scrollTo(0, 0); },
 
   ...transferHandlers({ act, setUi, toast, askConfirm, store })

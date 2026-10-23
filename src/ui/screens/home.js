@@ -14,6 +14,7 @@ import { packArt } from '../flows/pack.js';
 import { t } from '../../i18n/index.js';
 import { newsTitle, newsText, pendingTitle } from '../text.js';
 import { feedItems } from '../../engine/news.js';
+import { blockingTasks } from '../../engine/tasks.js';
 import { feedCard } from './feed.js';
 
 function tableRowsAround(game) {
@@ -31,6 +32,11 @@ function compLabel(game, entry) {
   return entry.stage === 'final' ? t('day.ffFinal') : t('day.ffSemi');
 }
 
+function blockedBand(game) {
+  const n = blockingTasks(game).length;
+  return `<div class="task-band">${icon('mail')}<div class="task-band__text"><b>${t('task.blockedTitle')}</b><span>${t('task.openCount', { n })}</span></div><button class="btn btn--primary" data-action="open-tasks">${t('task.view')}</button></div>`;
+}
+
 function matchTicket(game) {
   const day = currentDay(game);
   const today = userMatch(game, day);
@@ -39,7 +45,7 @@ function matchTicket(game) {
     return `<section class="ticket ticket--idle">
       <div class="ticket__head"><span class="chip">${icon('calendar')}${esc(dayLabel(game, day))}</span></div>
       <p class="ticket__idle">${t('home.noMatch')} ${next ? t('home.next', { day: esc(dayLabel(game, next.day)) }) : t('home.seasonDone')}</p>
-      <button class="btn btn--secondary btn--block" data-action="sim-day">${icon('forward')}${t('home.simDay')}</button>
+      ${blockingTasks(game).length ? blockedBand(game) : `<button class="btn btn--secondary btn--block" data-action="sim-day">${icon('forward')}${t('home.simDay')}</button>`}
     </section>`;
   }
   const { m } = today;
@@ -73,7 +79,7 @@ function matchTicket(game) {
       </div>
     </div>
     <div class="ticket__scout">${icon('strategy')}<span>${t('home.scout', { club: esc(opp.name), style: `<b>${oppStyle.name}</b>`, formation: opp.preferredFormation })}</span></div>
-    <button class="btn btn--primary btn--block" data-action="open-prep">${icon('whistle')}${t('home.prep')}</button>
+    ${blockingTasks(game).length ? blockedBand(game) : `<button class="btn btn--primary btn--block" data-action="open-prep">${icon('whistle')}${t('home.prep')}</button>`}
   </section>`;
 }
 

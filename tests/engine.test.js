@@ -841,3 +841,44 @@ test('Pressekonferenz: Pause von 3 Spieltagen, PROVOKE wirkt, News entsteht', ()
   s.dayIndex += 2; assert.equal(interviewAvailable(s, entry), false);
   s.dayIndex += 1; assert.equal(interviewAvailable(s, entry), true);
 });
+
+// ---------------------------------------------------------------------------
+// v1.11: Postfach-Aufgaben
+// ---------------------------------------------------------------------------
+import { addTask, openTasks, blockingTasks, resolveTask, expireTasks, autoResolveTasks, ensureTasks, registerTaskHandler } from '../src/engine/tasks.js';
+
+test('Aufgaben: anlegen, blockieren, beantworten', () => {
+  const s = newStartedGame(11);
+  let gone = false;
+  registerTaskHandler('dummy', { resolve: (st, task, key) => (key === 'bad' ? { error: 'x' } : { ok: true }), alive: () => !gone, defaultChoice: 'yes' });
+  const a = addTask(s, 'dummy', 'news.welcome', {}, { blocking: true, choices: [{ key: 'yes', label: 'a' }, { key: 'bad', label: 'b' }] });
+  const b = addTask(s, 'dummy', 'news.welcome', {}, { blocking: false });
+  assert.equal(openTasks(s).length, 2);
+  assert.equal(blockingTasks(s).length, 1);
+  assert.equal(openTasks(s)[0].id, a.id, 'blockierende zuerst');
+  assert.ok(resolveTask(s, a.id, 'bad').error);
+  assert.equal(a.task.status, 'open', 'Fehler lässt Aufgabe offen');
+  assert.ok(resolveTask(s, a.id, 'yes').ok);
+  assert.equal(a.task.status, 'done');
+  assert.equal(a.task.answer, 'yes');
+  assert.equal(blockingTasks(s).length, 0);
+  gone = true; expireTasks(s);
+  assert.equal(b.task.status, 'expired');
+});
+
+test('Aufgaben: autoResolve, Ablauf nach Tag, alter Spielstand', () => {
+  const s = newStartedGame(12);
+  registerTaskHandler('dummy2', { resolve: () => ({ ok: true }), defaultChoice: 'yes' });
+  addTask(s, 'dummy2', 'news.welcome', {}, { blocking: true });
+  addTask(s, 'dummy2', 'news.welcome', {}, { blocking: true });
+  autoResolveTasks(s);
+  assert.equal(blockingTasks(s).length, 0);
+  const c = addTask(s, 'dummy2', 'news.welcome', {}, { blocking: false, expiresDay: s.dayIndex });
+  s.dayIndex += 1; expireTasks(s);
+  assert.equal(c.task.status, 'expired');
+  delete s.inbox[0].task;
+  ensureTasks(s);
+  assert.equal(openTasks(s).length, 0);
+  s.pending = null; autoResolveTasks(s);
+  assert.ok(playDay(s));
+});

@@ -1,3 +1,4 @@
+import { autoResolveTasks } from '../src/engine/tasks.js';
 import { createGame, openStarterPack, pickDraft, playDay, autoLineup } from '../src/engine/game.js';
 import { clubStrength } from '../src/engine/world.js';
 import { computeTable } from '../src/engine/schedule.js';
@@ -18,7 +19,7 @@ const s = createGame({ seed, clubName: 'Sim FC', primary: '#000', secondary: '#f
 openStarterPack(s); pickDraft(s, 0);
 for (let season = 1; season <= 10; season++) {
   let coinsStart = s.clubs.user.coins, injuries = 0;
-  while (s.season === season) { s.seasonSummary = null; manage(s); const r = playDay(s); if (r) injuries += r.result.injuries.filter(i=>i.side===r.side).length; }
+  while (s.season === season) { s.seasonSummary = null; manage(s); autoResolveTasks(s); const r = playDay(s); if (r) injuries += r.result.injuries.filter(i=>i.side===r.side).length; }
   const h = s.history[0];
   const tiers = [1,2,3,4,5,6].map(t => Math.round(s.leagues[t].clubIds.filter(i=>i!=='user').reduce((a,i)=>a+clubStrength(s,i),0)/s.leagues[t].clubIds.filter(i=>i!=="user").length));
   const n = Object.keys(s.players).length;

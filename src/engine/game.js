@@ -5,6 +5,7 @@
 // Diese Datei ist die „Naht“ für einen späteren Mehrspieler-Server.
 // =============================================================================
 
+import { expireTasks } from './tasks.js';
 import { createRng, withRng } from './rng.js';
 import { FORMATIONS, MATCHDAYS, MAX_SQUAD, AI_SQUAD_SIZE, STYLE_KEYS, POSITION_GROUP, TIERS } from './constants.js';
 import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength, rivalry } from './world.js';
@@ -698,6 +699,7 @@ export function setHalftime(state, decision) {
 export function playDay(state) {
   const day = currentDay(state);
   if (!day) return null;
+  expireTasks(state);
   if (state.pending) return null;
   let userResult = null;
 
