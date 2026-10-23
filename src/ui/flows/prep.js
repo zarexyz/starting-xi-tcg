@@ -2,7 +2,7 @@
 // Spielvorbereitung: Gegner lesen, Plan wählen, Prognose sehen, anpfeifen
 // =============================================================================
 
-import { blockingTasks } from '../../engine/tasks.js';
+import { blockingTasks, openTasks } from '../../engine/tasks.js';
 import { crestSvg } from '../components/crest.js';
 import { cardHtml } from '../components/card.js';
 import { icon } from '../icons.js';
@@ -22,7 +22,7 @@ import { banReason } from '../text.js';
 import { itemCard } from './pack.js';
 import { ATTR_NAMES } from '../../engine/constants.js';
 import { PLAN_KEYS, planCost } from '../../engine/clublife.js';
-import { weatherFor, INTERVIEW_KEYS, interviewAvailable, SP_ROLES, spCandidates, coachSuggestion } from '../../engine/extras.js';
+import { weatherFor, SP_ROLES, spCandidates, coachSuggestion } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
 
@@ -60,16 +60,13 @@ function consumablesSection(game) {
   </section>`;
 }
 
-function interviewSection(game, entry) {
-  if (!interviewAvailable(game, entry)) return '';
-  const cur = game.user.interview?.key;
-  const tiles = INTERVIEW_KEYS.map(key => `<button class="style-tile plan-tile ${cur === key ? 'is-active' : ''}" data-action="set-interview" data-value="${key}" aria-pressed="${cur === key}" ${cur && cur !== key ? 'aria-disabled="true"' : ''}>
-      <b>${t(`iv.${key}`)}</b><span class="small">${t(`iv.${key}.d`)}</span></button>`).join('');
-  return `<section class="section">
-    <div class="section__head"><h2 class="section__title">${t('iv.title')}</h2></div>
-    <div class="style-grid plan-grid">${tiles}</div>
-    <p class="xsmall muted">${t('iv.hint')}</p>
-  </section>`;
+/** Zeile im Reiter Gegner: Stand der Pressekonferenz (die Entscheidung selbst liegt im Postfach) */
+function interviewLine(game) {
+  const iv = game.user.interview;
+  if (iv) return `<div class="scout__line">${icon('megaphone')}<span>${t('prep.ivDone', { answer: `<b>${esc(t('iv.' + iv.key))}</b>` })}</span></div>`;
+  const task = openTasks(game).find(n => n.task.kind === 'interview');
+  if (!task) return '';
+  return `<div class="scout__line">${icon('megaphone')}<span>${t('prep.ivOpen')}</span><button class="btn btn--sm btn--secondary" data-action="open-news" data-id="${task.id}">${t('prep.ivBtn')}</button></div>`;
 }
 
 function setPieceBody(game, setup) {
@@ -145,7 +142,7 @@ export function prepFlow(game, ui) {
   const dotTactics = warn.some(w => w.tone === 'warn');
   const unusedItem = game.user.inventory.some(i => CONSUMABLES[i.type]?.target === 'match' &&
     !(i.type === 'TACTIC' && game.user.matchBoost) && !(i.type === 'SCOUT' && game.user.scout?.oppId === oppId));
-  const dotWeek = (interviewAvailable(game, entry) && !game.user.interview) || unusedItem;
+  const dotWeek = unusedItem;
   const tabBtn = (key, dot) => `<button data-action="prep-tab" data-value="${key}" aria-pressed="${tab === key}">${t('prep.tab.' + key)}${dot ? '<i class="tabdot" aria-hidden="true"></i>' : ''}</button>`;
 
   const styleTiles = STYLE_KEYS.map(key => {
@@ -166,6 +163,7 @@ export function prepFlow(game, ui) {
       <div class="scout__line">${icon('strategy')}<span>${opp.coach ? t('prep.coach', { coach: `<b>${esc(opp.coach.name)}</b>`, style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` }) : t('prep.noCoach', { style: `<b>${oppStyle.name}</b>`, formation: `<b>${opp.preferredFormation}</b>` })}</span></div>
       <div class="scout__line">${icon('target')}<span>${t('prep.weakest', { line: `<b>${t('prep.line.' + weakest)}</b>` })}</span></div>
       <div class="scout__line">${icon('sun')}<span><b>${t('weather.' + wx)}</b>. ${t('weather.' + wx + '.d')}</span></div>
+      ${interviewLine(game)}
       ${game.user.scout?.oppId === oppId ? `<div class="scout__line">${icon('target')}<span>${t('prep.scouted', { club: `<b>${esc(opp.name)}</b>`, style: `<b>${STYLES[game.user.scout.style].name}</b>` })}</span></div>` : ''}
       ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
@@ -200,7 +198,6 @@ export function prepFlow(game, ui) {
     ${fold(ui, 'sp', t('sp.title'), spSummary, setPieceBody(game, setup))}`;
 
   const weekTab = `
-    ${interviewSection(game, entry)}
     ${fold(ui, 'plan', t('plan.title'), planSummary, planBody(game))}
     ${consumablesSection(game)}`;
 

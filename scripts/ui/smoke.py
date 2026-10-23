@@ -67,7 +67,7 @@ async def main():
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
                     await click_js('[data-action=prep-tab][data-value=week]'); await click_js('[data-action=prep-fold][data-value=plan]'); await pg.wait_for_timeout(150); await click_js('[data-action=set-plan][data-value=setpieces]'); await pg.wait_for_timeout(200); await shot('02d_plan_setpieces')  # plan-setpieces
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(200)
-                    await click_js('[data-action=prep-tab][data-value=week]'); await click_js('[data-action=set-interview][data-value=BOLD]'); await pg.wait_for_timeout(150)  # Pressekonferenz
+                    await click_js('[data-action=prep-tab][data-value=week]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=prep-tab][data-value=tactics]'); await pg.wait_for_timeout(150)
                     await click_js('[data-action=coach-apply]'); await pg.wait_for_timeout(300)  # Co-Trainer-Vorschlag
                     await pg.locator('[data-action=kickoff]').click()

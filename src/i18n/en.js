@@ -1281,4 +1281,9 @@ export const en = {
   'task.offer.declineUnlist': "Decline and remove from list",
   'task.offer.bid': "Offer",
   'task.offer.value': "Market value",
+  'news.ivTask.t': "Press conference before {club}",
+  'news.ivTask.x': "The press wants to talk to you before the match against {club}. What do you say? If you stay silent, nothing happens.",
+  'prep.ivDone': "Press conference: {answer}",
+  'prep.ivOpen': "The press is waiting for you.",
+  'prep.ivBtn': "Answer",
 };

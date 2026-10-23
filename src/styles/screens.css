@@ -1221,3 +1221,5 @@ tr[data-action] { cursor: pointer; }
 .task-offer__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--s-1) var(--s-3); margin: 0; align-items: baseline; }
 .task-offer__facts dt { color: var(--ink-2); font-size: var(--t-sm); }
 .task-offer__facts dd { margin: 0; font-weight: 700; }
+.task-choice { display: grid; gap: 2px; }
+.task-choice > span { padding: 0 var(--s-2); }

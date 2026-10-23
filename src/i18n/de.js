@@ -1288,4 +1288,9 @@ export const de = {
   'task.offer.declineUnlist': "Ablehnen und von der Liste nehmen",
   'task.offer.bid': "Angebot",
   'task.offer.value': "Marktwert",
+  'news.ivTask.t': "Pressekonferenz vor {club}",
+  'news.ivTask.x': "Die Presse möchte dich vor dem Spiel gegen {club} sprechen. Was sagst du? Antwortest du nicht, gibt es keine Wirkung.",
+  'prep.ivDone': "Pressekonferenz: {answer}",
+  'prep.ivOpen': "Die Presse wartet auf dich.",
+  'prep.ivBtn': "Antworten",
 };

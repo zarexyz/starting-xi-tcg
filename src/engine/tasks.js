@@ -4,7 +4,8 @@
 // Die Engine (playDay, Simulationen, Tests) blockiert nie – dafür gibt es
 // autoResolveTasks.
 // =============================================================================
-import { addNews } from './game.js';
+import { addNews, nextUserMatch } from './game.js';
+import { INTERVIEW_KEYS, interviewAvailable, setInterview } from './extras.js';
 import { acceptOffer, declineOffer, unlistPlayer } from './market.js';
 
 /**
@@ -109,6 +110,7 @@ export function autoResolveTasks(state) {
 export function ensureTasks(state) {
   if (!Array.isArray(state.inbox)) state.inbox = [];
   expireTasks(state);
+  ensureInterviewTask(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -132,3 +134,28 @@ registerTaskHandler('offer', {
     return res;
   }
 });
+
+// ---------------------------------------------------------------------------
+// Handler: Pressekonferenz (11.4) – nicht blockierend, verfällt am Spieltag
+// ---------------------------------------------------------------------------
+registerTaskHandler('interview', {
+  alive: (state, task) => state.dayIndex <= Number(task.ref),
+  resolve: (state, task, choice) => {
+    const res = setInterview(state, choice);
+    return res.ok === false ? { ok: false, code: res.code } : res;
+  }
+});
+
+/** Vor dem nächsten eigenen Spiel eine Einladung zur Pressekonferenz ins Postfach legen (einmal je Spiel) */
+export function ensureInterviewTask(state) {
+  if (!state.user || !state.calendar?.length) return null;
+  const next = nextUserMatch(state);
+  if (!next || state.user.interview || !interviewAvailable(state, next)) return null;
+  const ref = String(next.dayIndex);
+  if ((state.inbox || []).some(n => n.task?.kind === 'interview' && n.task.ref === ref && n.season === state.season)) return null;
+  const opp = state.clubs[next.m.home === 'user' ? next.m.away : next.m.home];
+  return addTask(state, 'interview', 'news.ivTask', { club: opp.name }, {
+    blocking: false, ref, expiresDay: next.dayIndex,
+    choices: INTERVIEW_KEYS.map(k => ({ key: k, label: `iv.${k}`, hint: `iv.${k}.d`, tone: 'secondary' }))
+  }, { newsType: 'press', clubId: opp.id });
+}

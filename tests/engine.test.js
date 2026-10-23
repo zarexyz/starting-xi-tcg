@@ -918,3 +918,33 @@ test('Angebote: Ablehnen über den Transferweg erledigt die Aufgabe, Standardwah
   assert.equal(f2.s.players[t2.playerId].clubId, 'user');
   assert.equal(t2.task.answer, 'decline');
 });
+
+function untilInterviewTask(seed) {
+  const s = newStartedGame(seed);
+  for (let i = 0; i < 40; i++) {
+    const t = openTasks(s).find(n => n.task.kind === 'interview');
+    if (t) return { s, t };
+    s.pending = null; autoResolveTasks(s); playDay(s);
+  }
+  return null;
+}
+
+test('Pressekonferenz: Aufgabe vor dem Spiel, Antwort setzt Interview, danach erledigt bzw. abgelaufen', () => {
+  let a = null;
+  for (let seed = 1; seed < 12 && !a; seed++) a = untilInterviewTask(seed);
+  assert.ok(a, 'irgendwann gibt es eine Einladung');
+  const { s, t } = a;
+  assert.equal(t.task.blocking, false);
+  assert.ok(resolveTask(s, t.id, 'BOLD').ok);
+  assert.equal(s.user.interview.key, 'BOLD');
+  assert.equal(resolveTask(s, t.id, 'CALM').code, 'gone');
+  s.pending = null; autoResolveTasks(s); playDay(s);
+  assert.equal(t.task.status, 'done');
+  // unbeantwortet → abgelaufen
+  let b = null;
+  for (let seed = 20; seed < 32 && !b; seed++) b = untilInterviewTask(seed);
+  assert.ok(b);
+  b.s.pending = null; autoResolveTasks(b.s); playDay(b.s);
+  assert.equal(b.t.task.status, 'expired');
+  assert.ok(!b.s.user.interview);
+});

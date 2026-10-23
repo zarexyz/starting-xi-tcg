@@ -5,7 +5,7 @@
 // Diese Datei ist die „Naht“ für einen späteren Mehrspieler-Server.
 // =============================================================================
 
-import { expireTasks, addTask } from './tasks.js';
+import { expireTasks, addTask, ensureInterviewTask } from './tasks.js';
 import { createRng, withRng } from './rng.js';
 import { FORMATIONS, MATCHDAYS, MAX_SQUAD, AI_SQUAD_SIZE, STYLE_KEYS, POSITION_GROUP, TIERS } from './constants.js';
 import { createWorld, clubPlayers, createClubPlayer, LEAGUE_INFO, clubStrength, rivalry } from './world.js';
@@ -255,6 +255,7 @@ export function pickDraft(state, index) {
   } else {
     state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
   }
+  ensureInterviewTask(state);
   return p.id;
 }
 
@@ -880,6 +881,8 @@ export function playDay(state) {
     });
     if (state.matchLog.length > 60) state.matchLog.length = 60;
   }
+  expireTasks(state);
+  ensureInterviewTask(state);
   return userResult;
 }
 

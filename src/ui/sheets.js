@@ -23,7 +23,7 @@ import { marketValue } from '../engine/player.js';
 
 export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
-  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', board: 'trophy', mood: 'alert', derby: 'flame', coach: 'user',
+  season: 'calendar', development: 'up', finance: 'coins', transfer: 'swap', suspension: 'alert', board: 'trophy', press: 'megaphone', mood: 'alert', derby: 'flame', coach: 'user',
   streak: 'up', upset: 'sparkles', comeback: 'heart', result: 'ball', player: 'star', youth: 'sparkles',
   table: 'list', award: 'trophy', rumor: 'megaphone', world: 'swap', contract: 'clipboard'
 };
@@ -86,7 +86,7 @@ function taskActions(n) {
     return `<p class="task-state task-state--done">${icon('check')}${tk.answer && c ? t('task.done', { answer: label(c.label) }) : t('task.doneShort')}</p>`;
   }
   if (tk.status === 'expired') return `<p class="task-state task-state--expired">${t('task.expired')}</p>`;
-  const choices = (tk.choices || []).map(c => `<button class="btn btn--${c.tone || 'secondary'} btn--block" data-action="task-choice" data-id="${n.id}" data-choice="${c.key}">${label(c.label)}</button>`).join('');
+  const choices = (tk.choices || []).map(c => `<div class="task-choice"><button class="btn btn--${c.tone || 'secondary'} btn--block" data-action="task-choice" data-id="${n.id}" data-choice="${c.key}">${label(c.label)}</button>${c.hint ? `<span class="xsmall muted">${label(c.hint)}</span>` : ''}</div>`).join('');
   const cta = tk.cta ? `<button class="btn btn--${choices ? 'ghost' : 'primary'} btn--block" data-action="task-go" data-id="${n.id}">${label(tk.cta.label)}${icon('chevronRight')}</button>` : '';
   return `<div class="task-actions">${tk.blocking ? `<p class="small task-hint">${t('task.mustDecide')}</p>` : ''}${choices}${cta}</div>`;
 }
