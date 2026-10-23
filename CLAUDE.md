@@ -77,6 +77,15 @@ Wichtige Engine-Dateien:
 7. **Effekte moderat halten:** Neue Systeme sollen Entscheidungen färben, nicht dominieren. Richtwert: einzelner Effekt höchstens etwa wie die Form (±2 % Stärke, 1–3 Punkte Mittelfeld). Prüfen mit `npm run check`.
 8. **Kein Pay-to-Win:** Spielrelevantes gibt es nie gegen Echtgeld (Premium und Shop nur Komfort und Optik).
 
+## Postfach-Aufgaben (v1.11)
+
+- Eine Aufgabe ist eine Nachricht in `state.inbox` mit Feld `task` (`kind`, `status` open/done/expired, `blocking`, `choices`, `cta`, `ref`, `expiresDay`, `answer`). Anlegen mit `addTask(state, kind, newsKey, params, task, { newsType })` aus `src/engine/tasks.js`.
+- Je `kind` gibt es einen Handler (`registerTaskHandler`) mit `resolve`, `alive`, optional `done`, `defaultChoice`. Neue Arten dort eintragen. Wer eine Aufgabe außerhalb des Postfachs erledigt, ruft `completeTasksByRef`.
+- **Blockiert wird nur in der Oberfläche** (`blocked()` in `main.js` vor Anpfiff, Spieltag, Vorbereitung, Saisonende), nie in `playDay`. Simulationen, Tests und `check.mjs` rufen vor `playDay` `autoResolveTasks(state)` auf (mit `{ choices: { goal: 'ambitious' } }` lässt sich eine Wahl erzwingen).
+- `newStartedGame` in den Tests hat danach offene Aufgaben (Saisonziel blockierend, Einstiegsaufgaben). Tests, die offene Aufgaben zählen, nach `kind` filtern.
+- Neue Postfach-Typen für Nachrichten stehen in `INBOX_TYPES` (`news.js`) und `NEWS_ICON` (`sheets.js`).
+- Auswahllisten: `<select data-change="name">` ruft `handlers.name({ ...dataset, value })`.
+
 ## Texte (i18n)
 
 - `t(key, params)`; Platzhalter `{name}`. Endungen: `xK` = Wert ist selbst ein Schlüssel (`styleK: 'style.KONTER.name'`), `xC` = Münzbetrag mit Tausendertrennung, `xD` = Dezimalzahl. Mehrzahl über `n` mit `_one`/`_other`.

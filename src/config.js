@@ -2,7 +2,7 @@
 // Feste Einstellungen der App
 // =============================================================================
 
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 
 /**
  * Adresse für Feedback aus der App. Leer lassen, solange keine feste Adresse
