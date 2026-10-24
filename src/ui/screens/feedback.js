@@ -36,7 +36,7 @@ export function feedbackBody(game, ui) {
     </div>
     <div class="row fb-info">
       <div class="row__main"><div class="row__title">${t('fb.withInfo')}</div><div class="row__sub">${t('fb.infoHint')}</div></div>
-      <button class="toggle" role="switch" aria-checked="${!!f.info}" data-action="fb-info"><span></span></button>
+      <button class="toggle" role="switch" aria-checked="${!!f.info}" aria-label="${t('fb.withInfo')}" data-action="fb-info"><span></span></button>
     </div>
     ${f.info ? `<pre class="fb-preview xsmall">${esc(infoText(game))}</pre>` : ''}
     <button class="btn btn--primary btn--block" data-action="fb-send">${icon(FEEDBACK_MAIL ? 'mail' : 'share')}${t('fb.send')}</button>`;
