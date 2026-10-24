@@ -128,12 +128,38 @@ export function simulateMatch(rng, home, away, opts = {}) {
   const modeIn = (key, half) => (half === 2 && ht && ht.side === key ? ht.mode || null : null);
 
   /** Kräfteverhältnis einer Halbzeit */
+  const teamPower = (team, side, half) => {
+    let mc = team.midControl;
+    let ap = team.attackPower;
+    let dp = team.defensePower;
+    if (half === 2 && ht && ht.side === side && ht.subs) {
+      // Apply substitution diffs
+      let midDiff = 0, attDiff = 0, defDiff = 0;
+      for (const s of ht.subs) {
+        const outSlot = team.slots.find(sl => sl.player?.id === s.outId);
+        const inPlayer = team.bench.find(p => p.id === s.inId);
+        if (outSlot && inPlayer) {
+          const oldRat = outSlot.rating;
+          const newRat = effectiveRating(inPlayer, outSlot.pos);
+          const diff = (newRat - oldRat) / Math.max(1, team.slots.filter(x => x.group === outSlot.group).length);
+          if (outSlot.group === 'MID') { midDiff += diff * 0.7; attDiff += diff * 0.35; defDiff += diff * 0.3; }
+          else if (outSlot.group === 'DEF') { defDiff += diff * 0.7; midDiff += diff * 0.12; }
+          else if (outSlot.group === 'ATT') { attDiff += diff * 0.65; midDiff += diff * 0.18; }
+        }
+      }
+      mc += midDiff; ap += attDiff; dp += defDiff;
+    }
+    return { midControl: mc, attackPower: ap, defensePower: dp };
+  };
+
   const halfParams = half => {
+    const hp = teamPower(home, 'home', half);
+    const ap = teamPower(away, 'away', half);
     const hs = styleIn(home, 'home', half);
     const as = styleIn(away, 'away', half);
     const edge = styleMatchup(hs.key, as.key); // +1 Heim kontert, -1 Gast kontert
-    const midH = home.midControl + hs.midBonus + homeAdv + edge * EDGE_MID + bigH + weatherMid(hs.key, opts.weather);
-    const midA = away.midControl + as.midBonus - edge * EDGE_MID + bigA + weatherMid(as.key, opts.weather);
+    const midH = hp.midControl + hs.midBonus + homeAdv + edge * EDGE_MID + bigH + weatherMid(hs.key, opts.weather);
+    const midA = ap.midControl + as.midBonus - edge * EDGE_MID + bigA + weatherMid(as.key, opts.weather);
     const possession = clamp(sigmoid((midH - midA) / 13), 0.3, 0.7);
     const concede = s => (s.key === 'MAUERN' ? 0.85 : s.key === 'PRESSING' ? 1.06 : 1);
     let lamH = BASE_ATTACKS * possession * hs.chanceMult * concede(as);
@@ -176,32 +202,29 @@ export function simulateMatch(rng, home, away, opts = {}) {
   }
   injuriesAll.sort((a, b) => a.minute - b.minute);
 
-  // Wechsel zur Pause (nur gültige: Spieler steht noch auf dem Platz, Ersatz sitzt auf der Bank)
+  const cards = [];
+  const sentOff = (sideKey, id, minute) => cards.some(c => c.side === sideKey && c.playerId === id && c.type !== 'Y' && c.minute < minute);
+
+  // Gelbe und Rote Karten vorab bestimmen
+  const foulRate = st => (st.key === 'PRESSING' ? 1.3 : st.key === 'MAUERN' ? 1.15 : st.key === 'BALLBESITZ' ? 0.85 : 1);
+  const cardEvents = [];
+  for (const side of sides) {
+    const nYellow = rC.poisson(1.7 * foulRate(side.team.style));
+    for (let i = 0; i < nYellow; i++) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(8, 90), kind: 'Y' });
+    if (rC.chance(0.07 * foulRate(side.team.style))) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(10, 88), kind: 'R' });
+  }
+  cardEvents.sort((a, b) => a.minute - b.minute);
+
+  // Verletzungen und Wechsel (inkl. Pause) auflösen
   const MAX_SUBS = 5;
   const subs = [];
   const injuries = [];
   const firstHalfOut = new Set(injuriesAll.filter(x => x.minute < HALF_SUB_MINUTE).map(x => x.side + x.playerId));
-  const htSubs = [];
-  if (ht?.subs?.length) {
-    const team = teamOf(ht.side);
-    const used = new Set();
-    for (const s of ht.subs.slice(0, 3)) {
-      const onPitch = team.slots.some(sl => sl.player?.id === s.outId) && !firstHalfOut.has(ht.side + s.outId);
-      const benchP = team.bench.find(b => b.id === s.inId && !b.injury && !b.suspension);
-      if (!onPitch || !benchP || used.has(s.inId) || used.has(s.outId)) continue;
-      used.add(s.inId); used.add(s.outId);
-      htSubs.push({ side: ht.side, outId: s.outId, inId: s.inId, minute: HALF_SUB_MINUTE, halftime: true });
-    }
-  }
-  // Ereignisse in zeitlicher Reihenfolge: Verletzungswechsel vor der Pause, Pausenwechsel, Verletzungen danach
-  const events = [...injuriesAll.map(x => ({ inj: x, minute: x.minute, order: x.minute < HALF_SUB_MINUTE ? 0 : 2 })),
-    ...htSubs.map(x => ({ sub: x, minute: x.minute, order: 1 }))]
-    .sort((a, b) => a.minute - b.minute || a.order - b.order);
-  for (const ev of events) {
-    if (ev.sub) { subs.push(ev.sub); continue; }
-    const inj = ev.inj;
-    // Wer zur Pause ausgewechselt wurde, verletzt sich danach nicht mehr
-    if (subs.some(x => x.side === inj.side && x.outId === inj.playerId && x.minute <= inj.minute)) continue;
+
+  // Determine cards <= 46 to know who is sent off before htSubs
+  // We temporarily evaluate slots without subs for half 1 since we just need to know who is on the pitch.
+  // Actually, we must evaluate injuries/subs up to 46 first.
+  for (const inj of injuriesAll.filter(x => x.minute < HALF_SUB_MINUTE)) {
     injuries.push(inj);
     const team = teamOf(inj.side);
     const used = new Set(subs.filter(x => x.side === inj.side).flatMap(x => [x.inId, x.outId]));
@@ -212,10 +235,6 @@ export function simulateMatch(rng, home, away, opts = {}) {
     if (cand) subs.push({ side: inj.side, outId: inj.playerId, inId: cand.id, minute: inj.minute });
   }
 
-  const cards = [];
-  const sentOff = (sideKey, id, minute) => cards.some(c => c.side === sideKey && c.playerId === id && c.type !== 'Y' && c.minute < minute);
-
-  /** Aufstellung zu einer bestimmten Minute: Wechsel (auch Ketten), Verletzte ohne Ersatz und Platzverweise fehlen */
   const slotsAt = (team, sideKey, minute) => team.slots.map(sl => {
     if (!sl.player) return sl;
     let p = sl.player;
@@ -232,19 +251,9 @@ export function simulateMatch(rng, home, away, opts = {}) {
     return p === sl.player ? sl : { ...sl, player: p, rating };
   }).filter(sl => sl.player);
 
-  // Gelbe und Rote Karten: Pressing foult mehr, Abwehrspieler eher als Stürmer
-  const foulRate = st => (st.key === 'PRESSING' ? 1.3 : st.key === 'MAUERN' ? 1.15 : st.key === 'BALLBESITZ' ? 0.85 : 1);
-  const cardEvents = [];
-  for (const side of sides) {
-    const nYellow = rC.poisson(1.7 * foulRate(side.team.style));
-    for (let i = 0; i < nYellow; i++) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(8, 90), kind: 'Y' });
-    if (rC.chance(0.07 * foulRate(side.team.style))) cardEvents.push({ side: side.key, team: side.team, minute: rC.int(10, 88), kind: 'R' });
-  }
-  cardEvents.sort((a, b) => a.minute - b.minute);
   const groupWeight = { DEF: 1.6, MID: 1.25, ATT: 0.7, GK: 0.12 };
-  for (const ev of cardEvents) {
+  for (const ev of cardEvents.filter(x => x.minute < HALF_SUB_MINUTE)) {
     const onPitch = slotsAt(ev.team, ev.side, ev.minute);
-    // Zufall immer gleich oft ziehen, damit spätere Karten nicht von Pausenwechseln abhängen
     const roll = rC.float(0, 1);
     const roll2 = rC.float(0, 1);
     if (!onPitch.length) continue;
@@ -256,12 +265,57 @@ export function simulateMatch(rng, home, away, opts = {}) {
     if (ev.kind === 'R') { cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'R' }); continue; }
     const hasYellow = cards.some(c => c.side === ev.side && c.playerId === id && c.type === 'Y');
     if (hasYellow) {
-      // Zweite Gelbe nur selten: Spieler halten sich meist zurück
       if (roll2 < 0.35) cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'YR' });
     } else {
       cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'Y' });
     }
   }
+
+  const htSubs = [];
+  if (ht?.subs?.length) {
+    const team = teamOf(ht.side);
+    const used = new Set(subs.filter(x => x.side === ht.side).flatMap(x => [x.inId, x.outId]));
+    for (const s of ht.subs.slice(0, 3)) {
+      const onPitch = slotsAt(team, ht.side, HALF_SUB_MINUTE).find(sl => sl.player?.id === s.outId);
+      const benchP = team.bench.find(b => b.id === s.inId && !b.injury && !b.suspension);
+      if (!onPitch || !benchP || used.has(s.inId) || used.has(s.outId) || sentOff(ht.side, s.outId, HALF_SUB_MINUTE)) continue;
+      used.add(s.inId); used.add(s.outId);
+      htSubs.push({ side: ht.side, outId: s.outId, inId: s.inId, minute: HALF_SUB_MINUTE, halftime: true });
+      subs.push({ side: ht.side, outId: s.outId, inId: s.inId, minute: HALF_SUB_MINUTE, halftime: true });
+    }
+  }
+
+  for (const inj of injuriesAll.filter(x => x.minute >= HALF_SUB_MINUTE)) {
+    if (subs.some(x => x.side === inj.side && x.outId === inj.playerId && x.minute <= inj.minute)) continue;
+    injuries.push(inj);
+    const team = teamOf(inj.side);
+    const used = new Set(subs.filter(x => x.side === inj.side).flatMap(x => [x.inId, x.outId]));
+    if (subs.filter(x => x.side === inj.side).length >= MAX_SUBS) continue;
+    const cand = team.bench
+      .filter(p => !used.has(p.id) && !p.injury)
+      .sort((a, b) => effectiveRating(b, inj.slotPos) - effectiveRating(a, inj.slotPos))[0];
+    if (cand) subs.push({ side: inj.side, outId: inj.playerId, inId: cand.id, minute: inj.minute });
+  }
+
+  for (const ev of cardEvents.filter(x => x.minute >= HALF_SUB_MINUTE)) {
+    const onPitch = slotsAt(ev.team, ev.side, ev.minute);
+    const roll = rC.float(0, 1);
+    const roll2 = rC.float(0, 1);
+    if (!onPitch.length) continue;
+    const weights = onPitch.map(sl => groupWeight[sl.group] * (1 + Math.max(0, 60 - attrOf(sl.player, 'men')) / 60));
+    let acc = roll * weights.reduce((s, w) => s + w, 0);
+    let pick = onPitch[onPitch.length - 1];
+    for (let i = 0; i < onPitch.length; i++) { acc -= weights[i]; if (acc <= 0) { pick = onPitch[i]; break; } }
+    const id = pick.player.id;
+    if (ev.kind === 'R') { cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'R' }); continue; }
+    const hasYellow = cards.some(c => c.side === ev.side && c.playerId === id && c.type === 'Y');
+    if (hasYellow) {
+      if (roll2 < 0.35) cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'YR' });
+    } else {
+      cards.push({ side: ev.side, playerId: id, minute: ev.minute, type: 'Y' });
+    }
+  }
+
   /** Wie viele Spieler fehlen einer Seite zur Minute durch Platzverweis */
   const redsBefore = (sideKey, minute) => cards.filter(c => c.side === sideKey && c.type !== 'Y' && c.minute < minute).length;
 
@@ -326,8 +380,12 @@ export function simulateMatch(rng, home, away, opts = {}) {
     // Phase 1: Durchbruch – Angriffsreihe gegen Abwehr, Duell Angreifer gegen Verteidiger
     const shooterBreak = ((attrOf(sp, 'tem') + attrOf(sp, 'dri')) / 2) * familiarity(sp, shooter.pos);
     const defenderHold = (attrOf(dp, 'abw') * 0.65 + attrOf(dp, 'phy') * 0.35) * familiarity(dp, defender.pos);
+    
+    // Evaluate half-time adjusted power if available (from halfParams logic)
+    const myPow = teamPower(side.team, side.key, half);
+    const oppPow = teamPower(side.opp, oppKey, half);
     let p1 = clamp(sigmoid(
-      (side.team.attackPower - (side.opp.defensePower + op.def)) / 24 +
+      (myPow.attackPower - (oppPow.defensePower + op.def)) / 24 +
       (shooterBreak - defenderHold) / 60 +
       hp.edge * EDGE_BREAK + side.adv / 12 + side.big / 24 + nerve + manEdge - 0.15
     ), 0.12, 0.85);
