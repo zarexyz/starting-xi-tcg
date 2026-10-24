@@ -82,23 +82,23 @@ export function settingsBody(store) {
       <li class="row">
         <span class="alert-dot">${icon('play')}</span>
         <div class="row__main"><div class="row__title">${t('set.autoScenes')}</div><div class="row__sub">${t('set.autoScenesHint')}</div></div>
-        <button class="toggle" role="switch" aria-checked="${!!s.autoScenes}" data-action="toggle-auto-scenes"><span></span></button>
+        <button class="toggle" role="switch" aria-checked="${!!s.autoScenes}" aria-label="${t('set.autoScenes')}" data-action="toggle-auto-scenes"><span></span></button>
       </li>
       <li class="row">
         <span class="alert-dot">${icon('whistle')}</span>
         <div class="row__main"><div class="row__title">${t('set.halftime')}</div><div class="row__sub">${t('set.halftimeHint')}</div></div>
-        <button class="toggle" role="switch" aria-checked="${s.halftime !== false}" data-action="toggle-halftime"><span></span></button>
+        <button class="toggle" role="switch" aria-checked="${s.halftime !== false}" aria-label="${t('set.halftime')}" data-action="toggle-halftime"><span></span></button>
       </li>
       ${game ? `<li class="row">
         <span class="alert-dot">${icon('auto')}</span>
         <div class="row__main"><div class="row__title">${t('set.coach')}</div><div class="row__sub">${t('set.coachHint')}</div></div>
-        <button class="toggle" role="switch" aria-checked="${!!game.user.autoLineup}" data-action="toggle-auto"><span></span></button>
+        <button class="toggle" role="switch" aria-checked="${!!game.user.autoLineup}" aria-label="${t('set.coach')}" data-action="toggle-auto"><span></span></button>
       </li>` : ''}`)}
     ${group(t('set.g.display'), `
       <li class="row">
         <span class="alert-dot">${icon(s.sound ? 'sound' : 'mute')}</span>
         <div class="row__main"><div class="row__title">${t('set.sound')}</div><div class="row__sub">${t('set.soundHint')}</div></div>
-        <button class="toggle" role="switch" aria-checked="${s.sound}" data-action="toggle-sound"><span></span></button>
+        <button class="toggle" role="switch" aria-checked="${s.sound}" aria-label="${t('set.sound')}" data-action="toggle-sound"><span></span></button>
       </li>
       <li class="row">
         <span class="alert-dot">${icon('globe')}</span>
