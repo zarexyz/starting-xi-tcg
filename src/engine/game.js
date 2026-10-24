@@ -552,9 +552,11 @@ function applyMatchEffects(rng, state, result, side, team, played) {
     if (!p) continue;
     played.add(id);
     const isSub = subsIn.includes(id);
+    const subbedOutEarly = result.subs.some(s => s.side === side && s.outId === id && s.minute <= 46);
     // Physis: robuste Spieler ermüden langsamer (etwa ±2 pro Spiel)
     const phyAdj = Math.round(((p.attrs.phy ?? 55) - 60) / 10);
-    p.condition = Math.max(30, p.condition - (isSub ? 5 : Math.max(5, 10 + fatigue + rng.int(0, 3) + (p.age > 30 ? 2 : 0) - phyAdj)));
+    const baseDrop = Math.max(5, 10 + fatigue + rng.int(0, 3) + (p.age > 30 ? 2 : 0) - phyAdj);
+    p.condition = Math.max(30, p.condition - (isSub ? 5 : (subbedOutEarly ? Math.round(baseDrop / 2) : baseDrop)));
     p.morale = Math.max(20, Math.min(100, p.morale + (outcome === 'W' ? 4 : outcome === 'L' ? -4 : 1)));
     const rating = result.ratings[id];
     if (rating) {
