@@ -343,6 +343,23 @@ export function startMatch(game, flow, settings, hooks = {}) {
       <button class="btn btn--primary btn--block" data-ht-go="1">${icon('play')}${t('ht.go')}</button>
     </div>`;
     const node = el.firstElementChild;
+    
+    // Disable already selected options in sibling selects
+    const updateSelects = () => {
+      for (const type of ['in', 'out']) {
+        const selects = Array.from(node.querySelectorAll(`[data-ht-${type}]`));
+        const selected = selects.map(s => s.value).filter(Boolean);
+        for (const sel of selects) {
+          for (const opt of sel.options) {
+            if (opt.value) opt.disabled = selected.includes(opt.value) && sel.value !== opt.value;
+          }
+        }
+      }
+    };
+    node.addEventListener('change', ev => {
+      if (ev.target.hasAttribute('data-ht-in') || ev.target.hasAttribute('data-ht-out')) updateSelects();
+    });
+
     const press = (sel, attr, val) => node.querySelectorAll(sel).forEach(b => { const on = b.getAttribute(attr) === val; b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on); });
     node.addEventListener('click', ev => {
       const b = ev.target.closest('button');
