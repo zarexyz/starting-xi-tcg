@@ -29,10 +29,17 @@ Zu Saisonbeginn legt der Vorstand dem Spieler **3 zufällige Sponsoren-Karten** 
   - In der Spielvorbereitung (`prep.js`): Dezenter Hinweis auf die aktive Sponsoren-Bedingung für das anstehende Spiel.
 
 ### Abnahmekriterien
-- [ ] Alte Spielstände ohne `state.user.sponsor` erhalten über `ensureClubLife(state)` sofort 3 gültige Angebote.
-- [ ] Jede der 5 Sponsoren-Varianten zahlt im Jahresmittel über eine Durchschnittssaison ähnlich viel aus (±15 %), damit `npm run check` stabil bleibt.
-- [ ] Alle Texte zweisprachig in `src/i18n/de.js` und `src/i18n/en.js` (`sponsor.*`, `ledger.sponsorBonus`).
-- [ ] Unit-Tests in `tests/engine.test.js` für Auswahl, Bedingungsprüfung, Kassenbuch-Buchung und Saisonwechsel.
+- [x] Alte Spielstände ohne `state.user.sponsor` erhalten über `ensureClubLife(state)` sofort 3 gültige Angebote.
+- [x] Jede der 5 Sponsoren-Varianten zahlt im Jahresmittel über eine Durchschnittssaison ähnlich viel aus (±15 %), damit `npm run check` stabil bleibt.
+- [x] Alle Texte zweisprachig in `src/i18n/de.js` und `src/i18n/en.js` (`sponsor.*`, `ledger.sponsorBonus`).
+- [x] Unit-Tests in `tests/engine.test.js` für Auswahl, Bedingungsprüfung, Kassenbuch-Buchung und Saisonwechsel.
+
+### Umsetzung (v1.12.0) – Abweichungen vom Entwurf
+- Logik in eigenem Modul `src/engine/sponsors.js` (angebunden über `ensureClubLife`, `playDay`, Aufgaben-Handler), statt in `clublife.js`/`economy.js`.
+- Schlüssel: `safety`, `spectacle`, `wall`, `academy`, `underdog`; Bedingungen `goals3`, `cleanSheet`, `youth3`, `underdog`. Feld `paid` statt `earned`, zusätzlich `hits` (Anzahl Prämien).
+- Auswahl als **blockierende Postfach-Aufgabe** (wie das Saisonziel, Karten sind die Auswahlknöpfe), nicht im Vereins-Tab. Standardwahl für Sim/Tests: `safety`, sonst die erste Karte. Der Vereins-Tab zeigt Karte und Saisonbilanz.
+- Faktoren (Anteil von `TIER_INCOME`): Fixum 0,15 / 0,05 / 0,05 / 0,04 / 0,05, Prämie – / 0,26 / 0,22 / 0,07 / 0,31. Gemessen je Saison relativ zum Sicherheits-Partner: 1,05 / 0,96 / 0,94 / 0,92 (`check.mjs`, Abschnitt 5d). Sponsoren bringen insgesamt rund 1,5 × Heimeinnahme je Saison zusätzlich.
+- Spieltags-Kasse: Zeile „Zuschauer & Sponsoren“ heißt jetzt „Zuschauer“, Sponsor-Fixum und -Prämie stehen getrennt.
 
 ---
 
