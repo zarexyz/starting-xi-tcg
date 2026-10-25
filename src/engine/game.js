@@ -24,6 +24,7 @@ import { processTransferDay } from './market.js';
 import { newsChannel } from './news.js';
 import { weatherFor, resolveInterview } from './extras.js';
 import { ensureClubLife, ensureGoalTask, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
+import { ensureSponsorTask, settleSponsor, sponsorSummary } from './sponsors.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 3;
@@ -256,6 +257,7 @@ export function pickDraft(state, index) {
   } else {
     state.user.setup = repairLineup(state, 'user', state.user.setup || { formation: '4-3-3', style: 'AUSGEWOGEN', lineup: {}, bench: [] });
   }
+  ensureSponsorTask(state);
   ensureGoalTask(state);
   startOnboarding(state);
   ensureInterviewTask(state);
@@ -785,6 +787,9 @@ export function playDay(state) {
         userInfo = {
           outcome, home: side === 'home', derby: rival === 'derby',
           gf: side === 'home' ? result.hg : result.ag,
+          ga: side === 'home' ? result.ag : result.hg,
+          comp: entry.comp,
+          strengths: { mine: strengths[side], opp: strengths[side === 'home' ? 'away' : 'home'] },
           starters: result.lineups[side].map(l => l.playerId).filter(Boolean), day
         };
       }
@@ -819,11 +824,17 @@ export function playDay(state) {
     // Finanzen des Spielers
     if (userResult) {
       const tier = state.clubs.user.tier;
-      let income = matchIncome(tier, userResult.side === 'home' && !(day.type === 'ff_final'), userResult.outcome);
+      const isHome = userResult.side === 'home' && !(day.type === 'ff_final');
+      let income = matchIncome(tier, isHome, userResult.outcome);
       if (userResult.rivalry === 'derby') income = Math.round(income * 1.25);
       income = Math.round(income * fanIncomeFactor(state));
       ledger(state, 'ledger.income', income, { day: userResult.label });
       userResult.finance.push({ label: 'fin.gate', amount: income });
+      // Sponsoren-Karte (v1.12): Fixum je Heimspiel, Prämie bei erfüllter Bedingung
+      const sp = settleSponsor(state, { ...userInfo, home: isHome, label: userResult.label });
+      if (sp.base) userResult.finance.push({ label: 'fin.sponsor', amount: sp.base });
+      if (sp.bonus) userResult.finance.push({ label: 'fin.sponsorBonus', amount: sp.bonus, nameK: `sponsor.${sp.id}.name` });
+      if (sp.id) userResult.sponsor = { id: sp.id, bonus: sp.bonus };
       if (day.type === 'cup' && userResult.outcome === 'W') {
         const prize = CUP_PRIZES[day.round];
         ledger(state, 'ledger.cupPrize', prize, { roundK: `cup.${day.round}` });
@@ -1063,6 +1074,7 @@ function endSeason(rng, state) {
   ledger(state, 'ledger.seasonPrize', prize, { pos: row.pos });
   userSummary.prize = prize;
   userSummary.goal = closeSeasonLife(state, userTier, row.pos);
+  userSummary.sponsor = sponsorSummary(state);
   summary.awards = seasonAwards(state, userTier);
 
   // Chronik aller Vereine und Karriere-Stationen aller Spieler (vor Auf- und Abstieg)

@@ -1229,3 +1229,43 @@ tr[data-action] { cursor: pointer; }
 .field-label { font-size: var(--t-sm); font-weight: 700; color: var(--ink-2); margin: var(--s-2) 0 var(--s-1); }
 .sp-warn { display: flex; align-items: flex-start; gap: var(--s-2); margin: var(--s-1) 0 var(--s-2); }
 .sp-warn svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+
+/* v1.12 Sponsoren-Karten */
+.sponsor-pick { display: grid; gap: var(--s-3); margin: var(--s-4) 0; }
+.sponsor-card {
+  --sp-accent: var(--pitch);
+  position: relative; display: grid; gap: var(--s-2); width: 100%; text-align: left;
+  padding: var(--s-3) var(--s-3) var(--s-3) calc(var(--s-3) + 6px);
+  background: var(--paper); color: var(--ink); font: inherit;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift); overflow: hidden;
+}
+.sponsor-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--sp-accent); }
+button.sponsor-card { cursor: pointer; min-height: 44px; }
+button.sponsor-card:active { transform: translateY(1px); }
+button.sponsor-card:focus-visible { outline: 3px solid var(--floodlight); outline-offset: 2px; }
+.sponsor-card--safety { --sp-accent: var(--info); }
+.sponsor-card--spectacle { --sp-accent: var(--floodlight); }
+.sponsor-card--wall { --sp-accent: var(--pitch-dark); }
+.sponsor-card--academy { --sp-accent: var(--pitch); }
+.sponsor-card--underdog { --sp-accent: var(--loss); }
+.sponsor-card__head { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-md, 1rem); }
+.sponsor-card__head svg { width: 22px; height: 22px; flex: none; color: var(--sp-accent); }
+.sponsor-card__cond { font-size: var(--t-sm); font-weight: 600; }
+.sponsor-card__terms { display: grid; grid-template-columns: 1fr auto; gap: var(--s-1) var(--s-3); margin: 0; align-items: center; }
+.sponsor-card__terms dt { color: var(--ink-2); font-size: var(--t-sm); }
+.sponsor-card__terms dd { margin: 0; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; justify-self: end; }
+.sponsor-card__terms dd svg { width: 16px; height: 16px; }
+.sponsor-card__cta { justify-self: end; font-size: var(--t-sm); font-weight: 800; color: var(--pitch-dark); }
+.sponsor-plaque { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); }
+.sponsor-plaque > svg { width: 22px; height: 22px; flex: none; color: var(--pitch); }
+.sponsor-plaque__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.sponsor-plaque__text .chip { justify-self: start; margin-top: 2px; }
+.sponsor-plaque .btn { flex: none; }
+.sponsor-plaque--empty { background: var(--floodlight-soft); }
+.sponsor-plaque--empty > span { flex: 1; font-size: var(--t-sm); }
+.sponsor-sec { display: grid; gap: var(--s-3); }
+.sponsor-sec__facts { display: grid; grid-template-columns: 1fr auto; gap: var(--s-1) var(--s-3); margin: 0; padding: 0 var(--s-2); }
+.sponsor-sec__facts dt { color: var(--ink-2); font-size: var(--t-sm); }
+.sponsor-sec__facts dd { margin: 0; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; justify-self: end; }
+.sponsor-sec__facts dd svg { width: 16px; height: 16px; }

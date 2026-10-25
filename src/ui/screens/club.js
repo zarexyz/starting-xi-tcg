@@ -13,6 +13,8 @@ import { ledgerLabel, ffStageText, cupText } from '../text.js';
 import { trophiesView } from './trophies.js';
 import { moodSection, academyView } from './academy.js';
 import { APP_VERSION } from '../../config.js';
+import { sponsorSection } from '../components/sponsor.js';
+import { openTasks } from '../../engine/tasks.js';
 
 function overview(game) {
   const club = game.clubs.user;
@@ -40,6 +42,7 @@ function overview(game) {
         <p class="small ${ratio > 1.15 ? 'neg' : 'muted'}">${ratio > 1.15 ? t('club.overCap') : t('club.capHint')} ${t('club.homeIncome', { n: TIER_INCOME[club.tier] })}</p>
       </div>
     </section>
+    ${sponsorSection(game, openTasks(game).find(n => n.task.kind === 'sponsor'))}
     ${moodSection(game)}
     ${best ? `<section class="section"><div class="section__head"><h2 class="section__title">${t('club.best')}</h2></div>
       <p>${t('club.bestText', { league: LEAGUE_INFO[best.tier].name, pos: best.pos, season: best.season })}${best.champion ? `, ${t('club.champion')}!` : ''}</p></section>` : ''}

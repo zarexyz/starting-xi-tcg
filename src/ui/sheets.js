@@ -20,6 +20,7 @@ import { inboxItems, newsChannel } from '../engine/news.js';
 import { openTasks, blockingTasks } from '../engine/tasks.js';
 import { cardHtml } from './components/card.js';
 import { marketValue } from '../engine/player.js';
+import { sponsorChoice } from './components/sponsor.js';
 
 export const NEWS_ICON = {
   welcome: 'ball', squad: 'squad', injury: 'medical', cup: 'trophy', trophy: 'trophy', ff: 'star',
@@ -86,7 +87,8 @@ function taskActions(n) {
     return `<p class="task-state task-state--done">${icon('check')}${tk.answer && c ? t('task.done', { answer: label(c.label) }) : t('task.doneShort')}</p>`;
   }
   if (tk.status === 'expired') return `<p class="task-state task-state--expired">${t('task.expired')}</p>`;
-  const choices = (tk.choices || []).map(c => `<div class="task-choice"><button class="btn btn--${c.tone || 'secondary'} btn--block" data-action="task-choice" data-id="${n.id}" data-choice="${c.key}">${label(c.label)}</button>${c.hint ? `<span class="xsmall muted">${label(c.hint)}</span>` : ''}</div>`).join('');
+  // Sponsoren: die Karten selbst sind die Auswahlknöpfe (sponsorChoice)
+  const choices = tk.kind === 'sponsor' ? '' : (tk.choices || []).map(c => `<div class="task-choice"><button class="btn btn--${c.tone || 'secondary'} btn--block" data-action="task-choice" data-id="${n.id}" data-choice="${c.key}">${label(c.label)}</button>${c.hint ? `<span class="xsmall muted">${label(c.hint)}</span>` : ''}</div>`).join('');
   const cta = tk.cta ? `<button class="btn btn--${choices ? 'ghost' : 'primary'} btn--block" data-action="task-go" data-id="${n.id}">${label(tk.cta.label)}${icon('chevronRight')}</button>` : '';
   return `<div class="task-actions">${tk.blocking ? `<p class="small task-hint">${t('task.mustDecide')}</p>` : ''}${choices}${cta}</div>`;
 }
@@ -124,6 +126,7 @@ export function newsSheet(game, id) {
   return sheet(newsTitle(n), `
     <p class="news-text">${esc(newsText(n))}</p>
     ${offerCard(game, n)}
+    ${sponsorChoice(game, n)}
     ${taskActions(n)}
     ${newsLinks(game, n)}
     ${newsChannel(n) === 'feed'

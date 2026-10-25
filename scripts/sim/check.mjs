@@ -14,6 +14,8 @@ import { createRng } from '../../src/engine/rng.js';
 import { STYLE_KEYS, styleMatchup } from '../../src/engine/constants.js';
 import { clubStrength } from '../../src/engine/world.js';
 import { academyCap, prospects, setPlan, PLAN_KEYS } from '../../src/engine/clublife.js';
+import { SPONSOR_KEYS } from '../../src/engine/sponsors.js';
+import { TIER_INCOME } from '../../src/engine/economy.js';
 
 const fast = process.argv[2] === 'schnell';
 const N = fast ? 0.3 : 1;
@@ -200,6 +202,32 @@ if (!fast) {
     check(`Plan ${plan}: Punkte / Normal`, res[plan].pts / res.normal.pts, 0.9, 1.12);
     check(`Plan ${plan}: Kondition der Startelf`, res[plan].cond, 68, 100, 1);
   }
+}
+
+// 5d) Sponsoren-Karten (v1.12): jede Karte zahlt über eine Saison ähnlich viel wie der Sicherheits-Partner (±15 %) ----
+if (!fast) {
+  const seeds = Array.from({ length: 24 }, (_, i) => 3 + i * 11);
+  const perSeason = id => {
+    let paid = 0, n = 0;
+    for (const seed of seeds) {
+      const s = createGame({ seed, clubName: 'Sim FC', primary: '#000', secondary: '#fff' });
+      openStarterPack(s); pickDraft(s, 0);
+      let guard = 0;
+      while (s.season <= 2 && guard++ < 200) {
+        s.pending = null; s.seasonSummary = null;
+        // Karte erzwingen (passiver Manager, Startelf wie vorgeschlagen)
+        if (s.user.sponsor && !s.user.sponsor.active) { s.user.sponsor.offers = [id]; s.user.sponsor.active = id; }
+        autoResolveTasks(s);
+        const before = s.season;
+        playDay(s);
+        if (s.season !== before) { const h = s.history[0]; paid += (h.sponsor?.paid || 0) / TIER_INCOME[h.tier]; n++; }
+      }
+    }
+    return paid / Math.max(1, n);
+  };
+  const ref = perSeason('safety');
+  check('Sponsor safety: Auszahlung je Saison (× Ligaeinnahme)', ref, 1.1, 1.8);
+  for (const id of SPONSOR_KEYS.filter(k => k !== 'safety')) check(`Sponsor ${id} / safety (je Saison)`, perSeason(id) / ref, 0.85, 1.15);
 }
 
 console.log(rows.join('\n'));
