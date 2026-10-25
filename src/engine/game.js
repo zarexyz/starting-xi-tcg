@@ -25,6 +25,7 @@ import { newsChannel } from './news.js';
 import { weatherFor, resolveInterview } from './extras.js';
 import { ensureClubLife, ensureGoalTask, userBoosts, applyPlanStart, applyPlanEnd, afterUserMatch, fanIncomeFactor, planDevMod, resetPlanWeeks, closeSeasonLife, academyGraduates, academyFillSquad, academyIntake, academyShare } from './clublife.js';
 import { ensureSponsorTask, settleSponsor, sponsorSummary } from './sponsors.js';
+import { updateBenchStreaks, resetBenchStreaks, BENCH_FIT } from './roles.js';
 import { matchStories, matchdayStories, previewStories, seasonAwards, trackGoalStreak, takeAwardSnapshot } from './stories.js';
 
 export const SAVE_VERSION = 3;
@@ -105,6 +106,7 @@ function startSeason(rng, state, cupByes) {
     p.yellowCount = 0;
   }
   for (const c of Object.values(state.clubs)) { c.halfGames = 0; c.seasonStats = newClubStats(); }
+  resetBenchStreaks(state);
   takeAwardSnapshot(state);
   ensureAllContracts(state);
   ensureClubLife(state);
@@ -721,6 +723,10 @@ export function playDay(state) {
     const participating = new Set();
     const userPlays = matches.some(e => e.m.home === 'user' || e.m.away === 'user');
     let userInfo = null;
+    // Kader-Rollen (v1.13): wer vor dem Anpfiff einsatzfähig war, kann auf der Bank „schmoren“
+    const fitBefore = userPlays
+      ? clubPlayers(state, 'user').filter(p => p.condition >= BENCH_FIT && !p.injury && !p.suspension).map(p => p.id)
+      : [];
     if (userPlays) applyPlanStart(state);
 
     for (const entry of matches) {
@@ -790,7 +796,10 @@ export function playDay(state) {
           ga: side === 'home' ? result.ag : result.hg,
           comp: entry.comp,
           strengths: { mine: strengths[side], opp: strengths[side === 'home' ? 'away' : 'home'] },
-          starters: result.lineups[side].map(l => l.playerId).filter(Boolean), day
+          starters: result.lineups[side].map(l => l.playerId).filter(Boolean), day,
+          // Startelf plus alle Einwechslungen (auch Pausenwechsel, v1.11)
+          appeared: [...result.lineups[side].map(l => l.playerId), ...result.subs.filter(s => s.side === side).map(s => s.inId)].filter(Boolean),
+          fit: fitBefore
         };
       }
     }
@@ -857,6 +866,7 @@ export function playDay(state) {
     }
     if (userInfo) {
       afterUserMatch(state, userInfo);
+      updateBenchStreaks(state, userInfo);
       const ivKey = resolveInterview(state, userInfo.outcome);
       if (userResult && ivKey) userResult.interview = ivKey.replace(/^news\.iv\./, '');  // z. B. „BOLD.W“
     }

@@ -68,10 +68,18 @@ Jeder Spieler im eigenen Kader hat eine **erwartete Kader-Rolle**, die sich aus 
   - Rollen-Abzeichen im Spieler-Detailmodal sowie ein kleines Warn-Badge bei `benchedStreak >= 2`.
 
 ### Abnahmekriterien
-- [ ] Verletzte, gesperrte oder erschöpfte Spieler (`condition < 75`) erhöhen `benchedStreak` **nicht**.
-- [ ] Halbzeit-Einwechslungen (`v1.11`) zählen als Einsatz und setzen `benchedStreak` auf `0` zurück.
-- [ ] `npm run check` läuft grün durch; KI-Vereine sind nicht betroffen.
-- [ ] Unit-Tests in `tests/engine.test.js` für `squadRole`, `benchedStreak` und `contractDemand`.
+- [x] Verletzte, gesperrte oder erschöpfte Spieler (`condition < 75`) erhöhen `benchedStreak` **nicht**.
+- [x] Halbzeit-Einwechslungen (`v1.11`) zählen als Einsatz und setzen `benchedStreak` auf `0` zurück.
+- [x] `npm run check` läuft grün durch; KI-Vereine sind nicht betroffen.
+- [x] Unit-Tests in `tests/engine.test.js` für `squadRole`, `benchedStreak` und `contractDemand`.
+
+### Umsetzung (v1.13.0) – Abweichungen und Präzisierungen
+- Logik in eigenem Modul `src/engine/roles.js` (`squadRoles`, `squadRole`, `updateBenchStreaks`, `roleContractFactor`), aufgerufen aus `playDay` direkt nach `afterUserMatch`.
+- Einsatzfähigkeit wird **vor dem Anpfiff** festgehalten (Kondition ≥ 75, nicht verletzt, nicht gesperrt), weil die Erholung nach dem Spiel die Kondition schon wieder anhebt.
+- `benchedStreak` zählt für alle eigenen Spieler; Folgen nur je Rolle: Schlüsselspieler −5 Moral bei 3, 6, 9 … Spielen (Nachricht nur bei 3), Perspektivspieler +2 Moral je Einsatz. Neue Saison setzt alle Serien auf 0.
+- Vertrag: Rabatt 0,95 bzw. Aufschlag 1,10 gilt für Schlüsselspieler **und** Stammkräfte. „Erfüllt“ = keine laufende Bank-Serie und mindestens 60 % der Saisonspiele (ab 5 Spielen).
+- Warn-Abzeichen „Bank“ in der Kaderliste und Hinweis im Spielerprofil für Schlüssel- und Stammspieler ab 2 Spielen; der Hinweis nennt die Folge je Rolle. Rollen-Abzeichen im Spielerprofil, Rabatt/Aufschlag im Vertragsdialog.
+- Rollen hängen nur am OVR-Rang, nicht an der Position: Ein dritter starker Stürmer in einer Ein-Stürmer-Formation ist Stammkraft und bekommt bei Bankzeit den Aufschlag. Beim Testen beobachtet, bewusst so belassen (Ticket-Vorgabe).
 
 ---
 

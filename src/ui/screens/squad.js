@@ -23,6 +23,7 @@ import { t, tmap } from '../../i18n/index.js';
 import { nf1, injuryLabel, banReason } from '../text.js';
 import { trainingSection } from '../components/training.js';
 import { armbandBadge, numberTag, captainPanel } from './identity.js';
+import { squadRole, benchWarning, BENCH_UNHAPPY } from '../../engine/roles.js';
 
 const GROUP_ORDER = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
 const GROUP_NAMES = tmap('group.');
@@ -164,9 +165,13 @@ function contractMarks(game, p) {
   const marks = [];
   if (p.contract && p.contract.until <= game.season) marks.push(`<span class="pmark pmark--loss" title="${t('ct.expires')}">${t('ct.markEnd')}</span>`);
   if (p.wantsRaise) marks.push(`<span class="pmark pmark--warn" title="${t('ct.markRaiseT')}">${t('ct.markRaise')}</span>`);
+  // Kader-Rolle (v1.13): fitter Stamm- oder Schlüsselspieler sitzt seit 2+ Spielen draußen
+  if (benchWarning(game, p)) marks.push(`<span class="pmark ${(p.benchedStreak || 0) >= BENCH_UNHAPPY ? 'pmark--loss' : 'pmark--warn'}" title="${t('role.markBenchT', { n: p.benchedStreak })}">${t('role.markBench')}</span>`);
   if (game.user.listings?.[p.id]) marks.push(`<span class="pmark" title="${t('ct.markListT')}">${t('ct.markList')}</span>`);
   return marks.length ? ` ${marks.join('')}` : '';
 }
+
+const ROLE_ICON = { star: 'star', regular: 'shield', rotation: 'swap', prospect: 'sparkles' };
 
 export function playerRow(game, p, opts = {}) {
   const colors = game.clubs[p.clubId]?.colors || game.clubs.user.colors;
@@ -252,6 +257,8 @@ export function playerSheet(game, id, opts = {}) {
   const trend = formTrend(p);
   const formLabel = fAvg == null ? t('ps.formNone') : trend === 'up' ? t('ps.formUp') : trend === 'down' ? t('ps.formDown') : t('ps.formNormal');
   const tier = TIERS[p.tier];
+  const role = own && !academy ? squadRole(game, p) : null;
+  const benched = role && benchWarning(game, p, role);
 
   const body = `
     <div class="pdetail">
@@ -264,7 +271,10 @@ export function playerSheet(game, id, opts = {}) {
         <span class="chip">${flagSvg(p.nation, 16)}${esc(NATIONS[p.nation]?.name || p.nation)}</span>
         ${own && p.number ? `<button class="chip chip--link" data-action="open-number" data-id="${p.id}" title="${t('num.change')}">#${p.number}</button>` : ''}
         ${own && armbandBadge(game, p.id) ? `<span class="chip chip--warn">${armbandBadge(game, p.id)}${game.user.captain === p.id ? t('cap.captain') : t('cap.vice')}</span>` : ''}
+        ${role ? `<span class="chip role-chip ${role === 'star' ? 'chip--warn' : role === 'regular' ? 'chip--pitch' : ''}" title="${esc(t(`role.${role}.d`))}">${icon(ROLE_ICON[role])}${t(`role.${role}`)}</span>` : ''}
       </div>
+      ${role ? `<p class="small muted role-line">${t(`role.${role}.d`)}</p>` : ''}
+      ${benched ? `<p class="small ${(p.benchedStreak || 0) >= BENCH_UNHAPPY ? 'neg' : 'warn-text'}">${icon('alert')}${t((p.benchedStreak || 0) >= BENCH_UNHAPPY ? 'role.benchUnhappy' : `role.benchWarn.${role}`, { n: p.benchedStreak })}</p>` : ''}
 
       <dl class="facts facts--4">
         <div><dt>${t('w.fitness')}</dt><dd class="display ${p.condition < 65 ? 'neg' : ''}">${p.condition} %</dd></div>

@@ -10,6 +10,7 @@ import { clubPlayers, LEAGUE_INFO } from './world.js';
 import { POSITION_GROUP, MIN_SQUAD, AI_SQUAD_SIZE, MATCHDAYS } from './constants.js';
 import { addNews } from './game.js';
 import { t } from '../i18n/index.js';
+import { roleContractFactor } from './roles.js';
 
 /** Fester Zufall aus einer Id (für Migration und KI-Verträge) */
 function hash(str) {
@@ -73,6 +74,8 @@ export function contractDemand(state, p) {
   if (p.morale < 40) f *= 1.2; else if (p.morale < 55) f *= 1.08;
   if (p.age <= 23 && p.potential - p.ovr >= 6) f *= 1.06;
   if (p.age >= 32) f *= 0.9;
+  // Kader-Rolle (v1.13): erfüllte Rolle gibt Rabatt, Unmut auf der Bank kostet Aufschlag (nur eigener Verein)
+  f *= roleContractFactor(state, p).f;
   return Math.max(4, Math.round(salaryFor(p.ovr) * f));
 }
 
