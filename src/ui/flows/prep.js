@@ -155,7 +155,7 @@ export function prepFlow(game, ui) {
       <div class="scout__line">${icon('sun')}<span><b>${t('weather.' + wx)}</b>. ${t('weather.' + wx + '.d')}</span></div>
       ${interviewLine(game)}
       ${game.user.scout?.oppId === oppId ? `<div class="scout__line">${icon('target')}<span>${t('prep.scouted', { club: `<b>${esc(opp.name)}</b>`, style: `<b>${STYLES[game.user.scout.style].name}</b>` })}</span></div>` : ''}
-      ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
+      ${star ? `<div class="scout__star" data-action="open-player" data-id="${star.id}" role="button" tabindex="0">${cardHtml(star, { size: 'sm', colors: opp.colors })}<p class="small"><b>${t('prep.star')}:</b> ${esc(star.first)} ${esc(star.last)}, ${POS_LABEL[star.position]}, ${t('w.rating')} ${star.ovr}.</p></div>` : ''}
     </div>
     <p class="xsmall muted">${t('prep.forecastHint')}</p>`;
 
@@ -195,7 +195,7 @@ export function prepFlow(game, ui) {
         <div><div class="h3">${t('prep.title')}</div><div class="small muted">${esc(dayLabel(game, day))}, ${isHome ? t('w.home') : t('w.away')}</div></div>
         ${rivalry(game.clubs.user, opp) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
       </header>
-      <section class="scout scout--mini" data-action="open-club" data-id="${opp.id}" role="button">
+      <section class="scout scout--mini" data-action="open-club" data-id="${opp.id}" role="button" tabindex="0">
         ${crestSvg(opp, 36)}
         <div class="scout__body">
           <div class="scout__name">${esc(opp.name)}</div>

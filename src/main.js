@@ -722,6 +722,13 @@ document.addEventListener('keydown', ev => {
     if (store.ui.sheet) setUi({ sheet: null });
     else if (store.ui.flow?.type === 'prep') setUi({ flow: null });
   }
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    const el = ev.target;
+    if (el.getAttribute('role') === 'button' && el.tagName !== 'BUTTON') {
+      ev.preventDefault();
+      el.click();
+    }
+  }
 });
 
 // -----------------------------------------------------------------------------

@@ -64,14 +64,14 @@ function matchTicket(game) {
       ${rivalry(home, away) === 'derby' ? `<span class="chip chip--derby">${icon('flame')}${t('w.derby')}</span>` : ''}
     </div>
     <div class="ticket__match">
-      <div class="ticket__team" data-action="open-club" data-id="${home.id}" role="button">
+      <div class="ticket__team" data-action="open-club" data-id="${home.id}" role="button" tabindex="0">
         ${crestSvg(home, 64)}
         <b>${esc(home.name)}</b>
         <span class="num">${t('w.rating')} ${clubStrength(game, home.id)}</span>
         ${formHtml(formOf(home.id))}
       </div>
       <div class="ticket__vs display">${isHome ? t('home.home') : t('home.away')}</div>
-      <div class="ticket__team" data-action="open-club" data-id="${away.id}" role="button">
+      <div class="ticket__team" data-action="open-club" data-id="${away.id}" role="button" tabindex="0">
         ${crestSvg(away, 64)}
         <b>${esc(away.name)}</b>
         <span class="num">${t('w.rating')} ${clubStrength(game, away.id)}</span>
@@ -90,10 +90,10 @@ function squadAlerts(game) {
   const banned = squad.filter(p => p.suspension);
   const items = game.user.inventory.length;
   const parts = [];
-  if (injured.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss">${icon('medical')}</span><div class="row__main"><div class="row__title">${t('home.injured', { n: injured.length })}</div><div class="row__sub">${injured.map(p => esc(p.last)).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (banned.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss"><i class="redcard"></i></span><div class="row__main"><div class="row__title">${t('home.banned', { n: banned.length })}</div><div class="row__sub">${banned.map(p => `${esc(p.last)} (${t('w.gamesShort', { n: p.suspension.games })})`).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (tired.length) parts.push(`<li class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--warn">${icon('battery')}</span><div class="row__main"><div class="row__title">${t('home.tired', { n: tired.length })}</div><div class="row__sub">${t('home.tiredHint')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
-  if (items) parts.push(`<li class="row row--button" data-action="open-items"><span class="alert-dot">${icon('clipboard')}</span><div class="row__main"><div class="row__title">${t('home.items', { n: items })}</div><div class="row__sub">${t('home.itemsHint')}</div></div>${icon('chevronRight', 'row__chev')}</li>`);
+  if (injured.length) parts.push(`<li><button class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss">${icon('medical')}</span><div class="row__main"><div class="row__title">${t('home.injured', { n: injured.length })}</div><div class="row__sub">${injured.map(p => esc(p.last)).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</button></li>`);
+  if (banned.length) parts.push(`<li><button class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--loss"><i class="redcard"></i></span><div class="row__main"><div class="row__title">${t('home.banned', { n: banned.length })}</div><div class="row__sub">${banned.map(p => `${esc(p.last)} (${t('w.gamesShort', { n: p.suspension.games })})`).join(', ')}</div></div>${icon('chevronRight', 'row__chev')}</button></li>`);
+  if (tired.length) parts.push(`<li><button class="row row--button" data-action="tab" data-tab="squad"><span class="alert-dot alert-dot--warn">${icon('battery')}</span><div class="row__main"><div class="row__title">${t('home.tired', { n: tired.length })}</div><div class="row__sub">${t('home.tiredHint')}</div></div>${icon('chevronRight', 'row__chev')}</button></li>`);
+  if (items) parts.push(`<li><button class="row row--button" data-action="open-items"><span class="alert-dot">${icon('clipboard')}</span><div class="row__main"><div class="row__title">${t('home.items', { n: items })}</div><div class="row__sub">${t('home.itemsHint')}</div></div>${icon('chevronRight', 'row__chev')}</button></li>`);
   if (!parts.length) return '';
   return `<section class="section"><div class="section__head"><h2 class="section__title">${t('home.squadState')}</h2></div><ul class="list panel panel--flush">${parts.join('')}</ul></section>`;
 }

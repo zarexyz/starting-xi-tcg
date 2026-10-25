@@ -75,9 +75,9 @@ export function resultFlow(game, flow, ui = {}) {
     <p class="report__label small muted">${esc(label)}</p>
     <h1 class="h1 report__title report__title--${outcome}">${title}</h1>
     <section class="final" style="--home:${home.colors.primary};--away:${away.colors.primary}">
-      <div class="final__team" data-action="open-club" data-id="${home.id}" role="button">${crestSvg(home, 56)}<b>${esc(home.name)}</b></div>
+      <div class="final__team" data-action="open-club" data-id="${home.id}" role="button" tabindex="0">${crestSvg(home, 56)}<b>${esc(home.name)}</b></div>
       <div class="final__score display">${r.hg}:${r.ag}${r.pens ? `<small>${r.pens.h}:${r.pens.a} ${t('w.pens')}</small>` : ''}</div>
-      <div class="final__team" data-action="open-club" data-id="${away.id}" role="button">${crestSvg(away, 56)}<b>${esc(away.name)}</b></div>
+      <div class="final__team" data-action="open-club" data-id="${away.id}" role="button" tabindex="0">${crestSvg(away, 56)}<b>${esc(away.name)}</b></div>
     </section>
     ${r.goals.length ? `<ul class="goals">${r.goals.map(g => `<li class="goals__item goals__item--${g.side}" data-action="open-player" data-id="${g.scorerId}">
       <span class="num">${g.minute > 90 ? '90+' : g.minute}'</span>${icon('ball')}<span>${esc(pname(game, snapshot, g.scorerId))}${g.assistId ? ` <small class="muted">(${esc(pname(game, snapshot, g.assistId))})</small>` : ''}</span>
