@@ -7,6 +7,7 @@
 import { addNews, nextUserMatch } from './game.js';
 import { transferWindow, leagueDaysPlayed } from './market.js';
 import { chooseSeasonGoal } from './clublife.js';
+import { pickSponsor } from './sponsors.js';
 import { INTERVIEW_KEYS, interviewAvailable, setInterview } from './extras.js';
 import { acceptOffer, declineOffer, unlistPlayer } from './market.js';
 
@@ -174,6 +175,15 @@ registerTaskHandler('goal', {
   alive: (state, task) => String(state.season) === task.ref && !state.user.mood?.goal?.deal,
   defaultChoice: 'standard',
   resolve: (state, task, choice) => chooseSeasonGoal(state, choice)
+});
+
+// ---------------------------------------------------------------------------
+// Handler: Sponsoren-Karte zur Saison (v1.12) – blockierend
+// ---------------------------------------------------------------------------
+registerTaskHandler('sponsor', {
+  alive: (state, task) => String(state.season) === task.ref && !state.user.sponsor?.active,
+  defaultChoice: (state, task) => (task.choices || []).some(c => c.key === 'safety') ? 'safety' : task.choices?.[0]?.key,
+  resolve: (state, task, choice) => pickSponsor(state, choice)
 });
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import { addNews, ledger } from './game.js';
 import { addTask, completeTasksByRef } from './tasks.js';
 import { leagueDaysPlayed } from './market.js';
 import { createRng } from './rng.js';
+import { ensureSponsor } from './sponsors.js';
 
 const clamp = (x, a = 0, b = 100) => Math.max(a, Math.min(b, x));
 const r1 = x => Math.round(x * 10) / 10;
@@ -37,6 +38,7 @@ export function ensureClubLife(state) {
   if (!u.planWeeks) u.planWeeks = {};
   if (u.plan === undefined) u.plan = null;
   if (!u.mood.goal || u.mood.goal.season !== state.season) setSeasonGoal(state, !u.mood.goal);
+  ensureSponsor(state);
 }
 
 // -----------------------------------------------------------------------------

@@ -1122,8 +1122,8 @@ test('Einstieg: neues Spiel bekommt Aufgaben, Training erledigt sich durch Planw
   const s = newStartedGame(71);
   const kinds = () => openTasks(s).filter(n => n.task.kind === 'onboard').map(n => n.task.ref).sort();
   assert.deepEqual(kinds(), ['identity', 'lineup', 'training']);
-  assert.equal(blockingTasks(s).length, 1, 'nur das Saisonziel blockiert');
-  assert.equal(blockingTasks(s)[0].task.kind, 'goal');
+  // Blockierend sind nur die beiden Saisonentscheidungen: Saisonziel und Sponsor (v1.12)
+  assert.deepEqual(blockingTasks(s).map(n => n.task.kind).sort(), ['goal', 'sponsor']);
   setPlan(s, 'normal');
   assert.deepEqual(kinds(), ['identity', 'lineup']);
   autoResolveTasks(s); s.pending = null; ensureSetupOf(s);
@@ -1135,4 +1135,124 @@ test('Einstieg: neues Spiel bekommt Aufgaben, Training erledigt sich durch Planw
   ensureTasks(old);
   assert.equal(old.user.onboarding.done, true);
   assert.equal(openTasks(old).filter(n => n.task.kind === 'onboard').length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// v1.12 Sponsoren-Karten
+// ---------------------------------------------------------------------------
+import { SPONSOR_KEYS, SPONSOR_OFFERS, pickSponsor, sponsorTerms, sponsorConditionMet, settleSponsor } from '../src/engine/sponsors.js';
+
+const sponsorTask = s => openTasks(s).find(n => n.task.kind === 'sponsor');
+
+test('Sponsor: neues Spiel bekommt drei verschiedene Angebote als blockierende Aufgabe', () => {
+  const s = newStartedGame(81);
+  const sp = s.user.sponsor;
+  assert.equal(sp.offers.length, SPONSOR_OFFERS);
+  assert.equal(new Set(sp.offers).size, SPONSOR_OFFERS, 'keine doppelten Karten');
+  assert.ok(sp.offers.every(id => SPONSOR_KEYS.includes(id)));
+  assert.equal(sp.active, null);
+  const t = sponsorTask(s);
+  assert.ok(t && t.task.blocking, 'blockierende Aufgabe');
+  assert.deepEqual(t.task.choices.map(c => c.key), sp.offers);
+  // Nicht vorgelegte Karte ist ungültig
+  const other = SPONSOR_KEYS.find(id => !sp.offers.includes(id));
+  assert.equal(pickSponsor(s, other).code, 'bad');
+  assert.ok(resolveTask(s, t.id, sp.offers[1]).ok);
+  assert.equal(sp.active, sp.offers[1]);
+  assert.equal(pickSponsor(s, sp.offers[0]).code, 'gone', 'nur einmal je Saison');
+  assert.ok(s.inbox.some(n => n.k === 'news.sponsorSigned'));
+});
+
+test('Sponsor: Standardwahl ist der Sicherheits-Partner, sonst die erste Karte', () => {
+  for (let seed = 82; seed < 92; seed++) {
+    const s = newStartedGame(seed);
+    const offers = [...s.user.sponsor.offers];
+    autoResolveTasks(s);
+    assert.equal(s.user.sponsor.active, offers.includes('safety') ? 'safety' : offers[0]);
+  }
+});
+
+test('Sponsor: alter Spielstand ohne Sponsor bekommt beim Laden sofort gültige Angebote', () => {
+  const s = newStartedGame(92);
+  autoResolveTasks(s);
+  delete s.user.sponsor;
+  s.inbox = s.inbox.filter(n => n.task?.kind !== 'sponsor');
+  ensureClubLife(s);
+  assert.equal(s.user.sponsor.offers.length, SPONSOR_OFFERS);
+  assert.equal(s.user.sponsor.season, s.season);
+  assert.ok(sponsorTask(s), 'Aufgabe liegt im Postfach');
+  ensureClubLife(s);
+  assert.equal(openTasks(s).filter(n => n.task.kind === 'sponsor').length, 1, 'nicht doppelt');
+});
+
+test('Sponsor: Bedingungen', () => {
+  const s = newStartedGame(93);
+  const ids = clubPlayers(s, 'user').map(p => p.id);
+  const youth = ids.filter(id => s.players[id].age <= 21 || s.players[id].fromYouth);
+  const old = ids.filter(id => !youth.includes(id));
+  const base = { gf: 1, ga: 1, outcome: 'D', starters: old.slice(0, 11), comp: 'league', derby: false, strengths: { mine: 60, opp: 60 } };
+  assert.ok(sponsorConditionMet(s, 'goals3', { ...base, gf: 3 }));
+  assert.ok(!sponsorConditionMet(s, 'goals3', { ...base, gf: 2 }));
+  assert.ok(sponsorConditionMet(s, 'cleanSheet', { ...base, ga: 0 }));
+  assert.ok(!sponsorConditionMet(s, 'cleanSheet', base));
+  // Talentschmiede: genau drei Junge in der Startelf reichen
+  for (const p of old.slice(0, 3).map(id => s.players[id])) p.age = 20;
+  assert.ok(sponsorConditionMet(s, 'youth3', base));
+  s.players[old[2]].age = 25;
+  assert.ok(!sponsorConditionMet(s, 'youth3', base));
+  // Favoritenschreck: Punkt gegen +3 Stärkere, Pokal oder Derby – aber nie bei Niederlage
+  assert.ok(sponsorConditionMet(s, 'underdog', { ...base, strengths: { mine: 60, opp: 63 } }));
+  assert.ok(!sponsorConditionMet(s, 'underdog', { ...base, strengths: { mine: 60, opp: 62 } }));
+  assert.ok(sponsorConditionMet(s, 'underdog', { ...base, comp: 'cup', outcome: 'W' }));
+  assert.ok(sponsorConditionMet(s, 'underdog', { ...base, derby: true }));
+  assert.ok(!sponsorConditionMet(s, 'underdog', { ...base, derby: true, outcome: 'L' }));
+});
+
+test('Sponsor: Abrechnung – Fixum nur daheim, Prämie überall, Kassenbuch und Summen', () => {
+  const s = newStartedGame(94);
+  const info = { gf: 3, ga: 0, outcome: 'W', starters: [], comp: 'league', derby: false, strengths: { mine: 60, opp: 60 }, label: 'X' };
+  assert.deepEqual(settleSponsor(s, { ...info, home: true }), { base: 0, bonus: 0, id: null }, 'ohne Vertrag kein Geld');
+  s.user.sponsor.offers = ['spectacle', 'wall', 'safety'];
+  assert.ok(pickSponsor(s, 'spectacle').ok);
+  const terms = sponsorTerms(s, 'spectacle');
+  assert.ok(terms.base > 0 && terms.bonus > terms.base);
+  const c0 = s.clubs.user.coins;
+  const home = settleSponsor(s, { ...info, home: true });
+  assert.deepEqual(home, { base: terms.base, bonus: terms.bonus, id: 'spectacle' });
+  const away = settleSponsor(s, { ...info, home: false, gf: 1 });
+  assert.deepEqual(away, { base: 0, bonus: 0, id: 'spectacle' });
+  assert.equal(s.clubs.user.coins - c0, terms.base + terms.bonus);
+  assert.equal(s.user.sponsor.paid, terms.base + terms.bonus);
+  assert.equal(s.user.sponsor.hits, 1);
+  assert.equal(s.user.ledger[0].label, 'ledger.sponsorBonus');
+  // Sicherheits-Partner: höchstes Fixum, keine Prämie
+  const safe = sponsorTerms(s, 'safety');
+  assert.equal(safe.bonus, 0);
+  assert.ok(SPONSOR_KEYS.every(id => sponsorTerms(s, id).base <= safe.base));
+});
+
+test('Sponsor: Spieltag bucht Fixum, Saisonbilanz und neue Angebote zur nächsten Saison', () => {
+  const s = newStartedGame(95);
+  s.user.sponsor.offers = ['safety', 'wall', 'academy'];
+  autoResolveTasks(s);
+  assert.equal(s.user.sponsor.active, 'safety');
+  let sawFee = false;
+  let guard = 0;
+  while (s.season === 1 && guard++ < 80) {
+    s.pending = null; s.seasonSummary = null; autoResolveTasks(s);
+    const r = playDay(s);
+    if (r?.side === 'home' && r.label && r.finance.some(f => f.label === 'fin.sponsor')) sawFee = true;
+  }
+  assert.ok(sawFee, 'Fixum steht in der Spieltags-Abrechnung');
+  const h = s.history[0];
+  assert.equal(h.sponsor.id, 'safety');
+  assert.ok(h.sponsor.paid > 0);
+  assert.equal(h.sponsor.hits, 0);
+  // Neue Saison: neue Karten, noch nichts unterschrieben, neue Aufgabe
+  assert.equal(s.season, 2);
+  assert.equal(s.user.sponsor.season, 2);
+  assert.equal(s.user.sponsor.active, null);
+  assert.equal(s.user.sponsor.paid, 0);
+  const t = sponsorTask(s);
+  assert.ok(t && t.task.ref === '2');
 });

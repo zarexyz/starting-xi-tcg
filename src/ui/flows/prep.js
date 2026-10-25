@@ -24,6 +24,7 @@ import { ATTR_NAMES } from '../../engine/constants.js';
 import { weatherFor, SP_ROLES, spScore, setPieceTaker, coachSuggestion } from '../../engine/extras.js';
 import { fmt } from '../html.js';
 import { CONSUMABLES } from '../../engine/packs.js';
+import { sponsorPlaque } from '../components/sponsor.js';
 
 /** Matchkarten für dieses Spiel: einklappbar am Ende von „Taktik“. Andere Karten bleiben im Spind. */
 function cardsFold(game, ui, oppId) {
@@ -168,6 +169,7 @@ export function prepFlow(game, ui) {
 
   const tacticsTab = `
     ${coachRow}
+    ${sponsorPlaque(game, { setup, home: isHome && day.type !== 'ff_final' })}
     <section class="section">
       <div class="field-label">${t('prep.style')}</div>
       ${styleSelect}
