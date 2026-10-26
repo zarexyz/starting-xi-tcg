@@ -1256,3 +1256,132 @@ test('Sponsor: Spieltag bucht Fixum, Saisonbilanz und neue Angebote zur nächste
   const t = sponsorTask(s);
   assert.ok(t && t.task.ref === '2');
 });
+
+// ---------------------------------------------------------------------------
+// v1.13 Kader-Rollen & Kabinen-Hierarchie
+// ---------------------------------------------------------------------------
+import { squadRole, squadRoles, updateBenchStreaks, roleContractFactor, BENCH_UNHAPPY, BENCH_MORALE, PROSPECT_MORALE, ROLE_DISCOUNT, ROLE_SURCHARGE } from '../src/engine/roles.js';
+import { contractDemand } from '../src/engine/contracts.js';
+
+const byOvr = s => clubPlayers(s, 'user').slice().sort((a, b) => b.ovr - a.ovr || (a.id < b.id ? -1 : 1));
+
+test('Rollen: Top 3 Schlüsselspieler, bis Platz 11 Stammkraft, danach Rotation oder Perspektive', () => {
+  const s = newStartedGame(101);
+  const list = byOvr(s);
+  assert.ok(list.length >= 15);
+  const roles = squadRoles(s);
+  list.forEach((p, i) => {
+    const r = roles[p.id];
+    if (i < 3) assert.equal(r, 'star');
+    else if (i < 11) assert.equal(r, 'regular');
+    else if (p.age <= 21) assert.equal(r, 'prospect');
+    else if (i < 16) assert.equal(r, 'rotation');
+    else assert.equal(r, 'prospect');
+  });
+  assert.equal(squadRole(s, list[0]), 'star');
+  // Fremde Spieler haben keine Rolle
+  const ai = Object.values(s.players).find(p => p.clubId && p.clubId !== 'user' && s.clubs[p.clubId]);
+  assert.equal(squadRole(s, ai), null);
+  // Kleiner Kader: keine Schlüsselspieler
+  const keep = list.slice(0, 14).map(p => p.id);
+  s.clubs.user.playerIds = s.clubs.user.playerIds.filter(id => keep.includes(id));
+  for (const p of list.slice(14)) p.clubId = 'gone';
+  assert.ok(!Object.values(squadRoles(s)).includes('star'));
+});
+
+test('Rollen: Bank-Serie – nur fitte Spieler schmoren, Einsatz setzt zurück, Schlüsselspieler meldet sich einmal', () => {
+  const s = newStartedGame(102);
+  const list = byOvr(s);
+  const star = list[0], injured = list[1], tired = list[2];
+  const prospect = list.find(p => squadRole(s, p) === 'prospect');
+  const others = list.filter(p => ![star, injured, tired, prospect].includes(p));
+  // fit = alle außer dem Verletzten und dem Erschöpften (so liefert es playDay)
+  const fit = list.filter(p => p !== injured && p !== tired).map(p => p.id);
+  const appeared = others.slice(0, 11).map(p => p.id);
+  star.morale = 80;
+  const m0 = star.morale;
+  for (let i = 1; i <= BENCH_UNHAPPY; i++) updateBenchStreaks(s, { fit, appeared });
+  assert.equal(star.benchedStreak, BENCH_UNHAPPY);
+  assert.equal(star.morale, m0 + BENCH_MORALE, 'Moral sinkt ab 3 Spielen');
+  assert.ok(!injured.benchedStreak, 'Verletzte schmoren nicht');
+  assert.ok(!tired.benchedStreak, 'Erschöpfte schmoren nicht');
+  const notes = () => s.inbox.filter(n => n.k === 'news.benchedStar' && n.playerId === star.id).length;
+  assert.equal(notes(), 1);
+  updateBenchStreaks(s, { fit, appeared });
+  assert.equal(notes(), 1, 'nur einmal je Serie');
+  // Einsatz setzt zurück; Perspektivspieler freut sich
+  if (prospect) {
+    const pm = prospect.morale = 60;
+    updateBenchStreaks(s, { fit, appeared: [...appeared, star.id, prospect.id] });
+    assert.equal(prospect.morale, pm + PROSPECT_MORALE);
+  } else {
+    updateBenchStreaks(s, { fit, appeared: [...appeared, star.id] });
+  }
+  assert.equal(star.benchedStreak, 0);
+  // KI-Spieler bleiben unberührt
+  const ai = Object.values(s.players).find(p => p.clubId && p.clubId !== 'user' && s.clubs[p.clubId]);
+  updateBenchStreaks(s, { fit: [ai.id], appeared: [] });
+  assert.ok(!ai.benchedStreak);
+});
+
+test('Rollen: Pausen-Einwechslung zählt als Einsatz (echter Spieltag)', () => {
+  const s = newStartedGame(103);
+  autoResolveTasks(s); s.pending = null;
+  s.user.autoLineup = false;
+  const setup = ensureSetupOf(s);
+  const star = byOvr(s).find(p => squadRole(s, p) === 'star' && p.position !== 'TW' && Object.values(setup.lineup).includes(p.id));
+  assert.ok(star);
+  const benchId = setup.bench.find(id => id && s.players[id].position !== 'TW');
+  const slot = Object.keys(setup.lineup).find(k => setup.lineup[k] === star.id);
+  setup.lineup[slot] = benchId;
+  setup.bench[setup.bench.indexOf(benchId)] = star.id;
+  const fresh = () => { star.condition = 100; star.injury = null; star.suspension = null; };
+  const nextUserGame = before => {
+    for (let i = 0; i < 12; i++) {
+      s.pending = null; s.seasonSummary = null; autoResolveTasks(s);
+      const mine = !!userMatchOf(s);
+      if (mine) { fresh(); before?.(); }
+      const r = playDay(s);
+      if (mine) return r;
+    }
+    return null;
+  };
+  nextUserGame(); nextUserGame();
+  assert.equal(star.benchedStreak, 2, 'zwei Spiele fit draußen');
+  const r = nextUserGame(() => setHalftime(s, { subs: [{ outId: setup.lineup[slot], inId: star.id }] }));
+  assert.ok(r.result.subs.some(x => x.inId === star.id && x.halftime), 'Pausenwechsel ausgeführt');
+  assert.equal(star.benchedStreak, 0, 'Einwechslung setzt die Serie zurück');
+});
+
+test('Rollen: Vertragsforderung – Rabatt bei erfüllter Rolle, Aufschlag bei Unmut, KI unberührt', () => {
+  const s = newStartedGame(104);
+  const star = byOvr(s)[0];
+  star.benchedStreak = 0;
+  s.clubs.user.seasonStats.games = 0;
+  star.stats.apps = 0;
+  const base = contractDemand(s, star);
+  assert.equal(roleContractFactor(s, star).f, 1, 'zu früh in der Saison: neutral');
+  s.clubs.user.seasonStats.games = 10; star.stats.apps = 9;
+  assert.equal(roleContractFactor(s, star).f, ROLE_DISCOUNT);
+  assert.ok(contractDemand(s, star) < base);
+  star.benchedStreak = BENCH_UNHAPPY;
+  assert.equal(roleContractFactor(s, star).f, ROLE_SURCHARGE);
+  assert.ok(contractDemand(s, star) > base);
+  // Rotationsspieler erwarten keine Einsätze: neutral
+  const rot = byOvr(s).find(p => squadRole(s, p) === 'rotation');
+  if (rot) { rot.benchedStreak = 5; assert.equal(roleContractFactor(s, rot).f, 1); }
+  const ai = Object.values(s.players).find(p => p.clubId && p.clubId !== 'user' && s.clubs[p.clubId]);
+  ai.benchedStreak = 9;
+  assert.equal(roleContractFactor(s, ai).f, 1);
+});
+
+test('Rollen: neue Saison setzt Bank-Serien zurück', () => {
+  const s = newStartedGame(105);
+  autoResolveTasks(s);
+  const star = byOvr(s)[0];
+  star.benchedStreak = 4;
+  let guard = 0;
+  while (s.season === 1 && guard++ < 80) { s.pending = null; s.seasonSummary = null; autoResolveTasks(s); star.benchedStreak = Math.max(star.benchedStreak || 0, 4); playDay(s); }
+  assert.equal(s.season, 2);
+  assert.ok(!star.benchedStreak);
+});

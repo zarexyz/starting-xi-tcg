@@ -1269,3 +1269,8 @@ button.sponsor-card:focus-visible { outline: 3px solid var(--floodlight); outlin
 .sponsor-sec__facts dt { color: var(--ink-2); font-size: var(--t-sm); }
 .sponsor-sec__facts dd { margin: 0; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; justify-self: end; }
 .sponsor-sec__facts dd svg { width: 16px; height: 16px; }
+
+/* v1.13 Kader-Rollen */
+.role-chip svg { width: 14px; height: 14px; }
+.title__version { text-align: center; margin: var(--s-2) 0 0; font-variant-numeric: tabular-nums; }
+.role-line { margin: var(--s-1) 0 0; }

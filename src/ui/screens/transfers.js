@@ -9,6 +9,7 @@ import { icon, coinIcon } from '../icons.js';
 import { esc, fmt } from '../html.js';
 import { searchMarket, askingPrice, willingness, buyPlayer, acceptOffer, declineOffer, bidLow, counterOffer, acceptCounter, listPlayer, unlistPlayer, offersFor, transferWindow, LIST_LEVELS } from '../../engine/market.js';
 import { contractDemand, demandFor, maxYears, extendContract, defaultYears, ensureContract, wageOf } from '../../engine/contracts.js';
+import { roleContractFactor } from '../../engine/roles.js';
 import { marketValue } from '../../engine/player.js';
 import { POSITION_GROUP } from '../../engine/constants.js';
 import { salaryFor } from '../../engine/player.js';
@@ -166,6 +167,14 @@ export function sellSheetBody(game, playerId) {
   `;
 }
 
+/** Kader-Rolle (v1.13): Rabatt oder Aufschlag in der Forderung erklären */
+function roleHint(game, p) {
+  const { why } = roleContractFactor(game, p);
+  if (why === 'fulfilled') return `<p class="small pos">${icon('check')}${t('ct.roleDiscount')}</p>`;
+  if (why === 'benched') return `<p class="small neg">${icon('alert')}${t('ct.roleSurcharge')}</p>`;
+  return '';
+}
+
 /** Vertrag verlängern: Laufzeit wählen, Forderung sehen */
 export function contractSheetBody(game, playerId) {
   const p = game.players[playerId];
@@ -187,6 +196,7 @@ export function contractSheetBody(game, playerId) {
     </dl>
     <p class="small muted">${t('ct.intro', { name: esc(p.last) })}</p>
     ${p.contractDiscount ? `<p class="small pos">${icon('clipboard')}${t('ct.discount')}</p>` : ''}
+    ${roleHint(game, p)}
     <div class="list-levels">${opts}</div>
     ${p.age >= 31 ? `<p class="xsmall muted">${t('ct.ageLimit')}</p>` : ''}
     <button class="btn btn--ghost btn--block" data-action="open-player" data-id="${playerId}">${icon('chevronLeft')}${t('tm.toProfile')}</button>
