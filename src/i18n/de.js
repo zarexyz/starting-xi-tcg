@@ -1393,6 +1393,7 @@ export const de = {
   'ledger.sponsorBonus': "Sponsor-Prämie {day}",
   'fin.sponsor': "Sponsor-Fixum",
   'fin.sponsorBonus': "Sponsor-Prämie",
+  'title.version': "Version {v}",
   // v1.13 Kader-Rollen
   'role.star': "Schlüsselspieler",
   'role.star.d': "Gehört zu den drei Besten. Erwartet, fast immer zu spielen, wenn er fit ist.",

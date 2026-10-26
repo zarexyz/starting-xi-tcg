@@ -1386,6 +1386,7 @@ export const en = {
   'ledger.sponsorBonus': "Sponsor bonus {day}",
   'fin.sponsor': "Sponsor fee",
   'fin.sponsorBonus': "Sponsor bonus",
+  'title.version': "Version {v}",
   // v1.13 squad roles
   'role.star': "Key player",
   'role.star.d': "One of your three best. Expects to play almost every game when fit.",

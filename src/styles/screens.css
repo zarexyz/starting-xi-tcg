@@ -1272,4 +1272,5 @@ button.sponsor-card:focus-visible { outline: 3px solid var(--floodlight); outlin
 
 /* v1.13 Kader-Rollen */
 .role-chip svg { width: 14px; height: 14px; }
+.title__version { text-align: center; margin: var(--s-2) 0 0; font-variant-numeric: tabular-nums; }
 .role-line { margin: var(--s-1) 0 0; }

@@ -14,6 +14,7 @@ import { SLOTS, slotInfo } from '../../state/storage.js';
 import { icon } from '../icons.js';
 import { esc } from '../html.js';
 import { t, getLang } from '../../i18n/index.js';
+import { APP_VERSION } from '../../config.js';
 
 let showcase = null;
 let showcaseLang = null;
@@ -46,6 +47,7 @@ export function titleScreen(store) {
       ${store.ui.slotPicker || !any ? slotPicker(slots) : `
         <button class="btn btn--primary btn--block" data-action="continue">${icon('play')}${t('title.continue')}</button>
         <button class="btn btn--secondary btn--block" data-action="show-slots">${t('title.saves')}</button>`}
+      <p class="xsmall muted title__version">${t('title.version', { v: APP_VERSION })}</p>
     </div>
   </main>`;
 }
